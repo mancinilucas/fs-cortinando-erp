@@ -1,0 +1,278 @@
+# IMPLEMENTATION PLAN — Sistema de Gestão de Orçamentos para Consultoria de Cortinas
+
+**Status:** ativo  
+**Fontes de verdade:** `PROJECT_SPEC.md` (funcional) e `ARCHITECTURE.md` (técnica)  
+**Objetivo:** definir ordem de implementação, dependências, entregáveis e critérios de pronto para desenvolvimento assistido por Codex/agentes.
+
+---
+
+## 1. Regras para execução por agentes
+
+1. `PROJECT_SPEC.md` é a fonte de verdade para comportamento e regras de negócio.
+2. `ARCHITECTURE.md` é a fonte de verdade para decisões técnicas e limites arquiteturais.
+3. Este documento define **ordem e decomposição do trabalho**, não substitui os dois documentos acima.
+4. Cada task deve ser concluída com testes compatíveis com seu risco antes de avançar.
+5. Não alterar requisitos, regras de negócio ou arquitetura silenciosamente.
+6. Quando uma task revelar ambiguidade real, registrar a dúvida e interromper a decisão arquitetural específica em vez de inventar comportamento.
+7. Evitar abstrações não previstas ou não justificadas pelo domínio.
+8. Mudanças relevantes devem atualizar a documentação correspondente no mesmo PR/commit.
+
+---
+
+## 2. Estado atual do projeto
+
+### Já concluído
+
+- [x] Projeto backend NestJS criado.
+- [x] Projeto frontend React + Vite + TypeScript criado.
+- [x] `docker-compose` de desenvolvimento configurado.
+- [x] PostgreSQL de desenvolvimento disponível via Docker.
+- [x] `PROJECT_SPEC.md` consolidado.
+- [x] `ARCHITECTURE.md` consolidado.
+
+### Próxima etapa
+
+- [ ] Definir schema Prisma inicial e estratégia de migrations.
+
+A primeira spec operacional é `docs/development/01-prisma-foundation.md`.
+
+---
+
+## 3. Ordem de implementação
+
+### Fase 1 — Persistência e fundação técnica
+
+**Objetivo:** estabelecer o modelo de persistência coerente com os aggregates e preparar a infraestrutura mínima do backend.
+
+- [ ] Definir schema Prisma inicial.
+- [ ] Modelar `User`, `Cliente`, `Orcamento`, `Cortina`, componentes financeiros, adicionais gerais, histórico e sequência anual.
+- [ ] Definir tipos `Decimal`/inteiros conforme `ARCHITECTURE.md`.
+- [ ] Criar primeira migration coerente com o modelo aprovado.
+- [ ] Configurar/validar `PrismaService`.
+- [ ] Criar seed mínimo para usuário administrativo, se adotado.
+- [ ] Validar conexão e migrations em ambiente limpo.
+
+**Spec:** `docs/development/01-prisma-foundation.md`
+
+---
+
+### Fase 2 — Autenticação e sessão
+
+**Objetivo:** proteger toda a aplicação antes de implementar dados reais do negócio.
+
+- [ ] Modelar usuário administrativo.
+- [ ] Implementar hash seguro de senha.
+- [ ] Implementar login.
+- [ ] Implementar sessão server-side.
+- [ ] Configurar cookie seguro.
+- [ ] Implementar guard das rotas privadas.
+- [ ] Implementar logout/invalidação de sessão.
+- [ ] Implementar `/auth/me`.
+- [ ] Adicionar rate limiting no login.
+- [ ] Adicionar proteção CSRF nas operações mutáveis.
+
+**Spec:** `docs/development/02-auth.md`
+
+---
+
+### Fase 3 — Clientes
+
+**Objetivo:** implementar o aggregate `Cliente` e disponibilizar o primeiro fluxo de negócio completo.
+
+- [ ] Implementar entidade de domínio `Cliente`.
+- [ ] Implementar `ClienteRepository`.
+- [ ] Implementar mapper Domain ↔ Prisma.
+- [ ] Criar cliente.
+- [ ] Buscar cliente por ID.
+- [ ] Listar/buscar clientes por nome.
+- [ ] Atualizar cliente.
+- [ ] Implementar soft delete.
+- [ ] Garantir associação histórica dos orçamentos após soft delete.
+
+**Spec:** `docs/development/03-clientes.md`
+
+---
+
+### Fase 4 — Núcleo de Orçamento
+
+**Objetivo:** implementar o modelo de domínio antes dos fluxos HTTP completos.
+
+- [ ] `Money`.
+- [ ] `NumeroOrcamento`.
+- [ ] `EnderecoInstalacao`.
+- [ ] `Desconto`.
+- [ ] `ItemFinanceiro`.
+- [ ] `Cortina`.
+- [ ] Aggregate Root `Orcamento`.
+- [ ] Regras de cálculo de medidas.
+- [ ] Regras monetárias e `HALF_UP`.
+- [ ] Ajuste comercial global.
+- [ ] Invariantes de edição e estados terminais.
+
+**Spec:** `docs/development/04-orcamento-domain.md`
+
+---
+
+### Fase 5 — Rascunho, numeração e edição
+
+**Objetivo:** permitir a criação real do orçamento e sua edição enquanto permitido.
+
+- [ ] Implementar contador anual transacional.
+- [ ] `POST /clientes/:clienteId/orcamentos`.
+- [ ] Criar orçamento apenas no primeiro `Salvar rascunho`.
+- [ ] Adicionar/editar/remover cortinas.
+- [ ] Adicionar/editar/remover componentes financeiros.
+- [ ] Adicionar/editar/remover adicionais gerais.
+- [ ] Definir desconto.
+- [ ] Definir valor final desejado/ajuste comercial.
+- [ ] Definir endereço de instalação.
+- [ ] Excluir fisicamente apenas rascunhos.
+
+**Spec:** `docs/development/05-orcamento-draft.md`
+
+---
+
+### Fase 6 — Ciclo de vida e histórico
+
+**Objetivo:** implementar as transições de negócio com consistência transacional.
+
+- [ ] Marcar como enviado.
+- [ ] Validar gate completo de envio.
+- [ ] Confirmar.
+- [ ] Renovar.
+- [ ] Reabrir.
+- [ ] Cancelar.
+- [ ] Iniciar produção.
+- [ ] Concluir serviço.
+- [ ] Persistir datas do ciclo.
+- [ ] Derivar `EXPIRADO`.
+- [ ] Registrar histórico na mesma transação das mudanças relevantes.
+- [ ] Agrupar alterações de uma edição em um único registro de histórico.
+
+**Spec:** `docs/development/06-lifecycle-history.md`
+
+---
+
+### Fase 7 — Instalação
+
+**Objetivo:** completar o fluxo operacional após confirmação.
+
+- [ ] Agendar instalação.
+- [ ] Alterar instalação.
+- [ ] Remover instalação.
+- [ ] Bloquear conclusão quando houver instalação futura.
+- [ ] Derivar condição `Instalação atrasada`.
+- [ ] Registrar histórico das mudanças.
+
+**Spec:** `docs/development/07-instalacao.md`
+
+---
+
+### Fase 8 — Documentos
+
+**Objetivo:** gerar documentos sob demanda sem introduzir estado redundante.
+
+- [ ] Criar DTO/projeção do PDF comercial.
+- [ ] Gerar PDF comercial sob demanda.
+- [ ] Criar DTO/projeção da ordem de produção.
+- [ ] Gerar ordem de produção sob demanda.
+- [ ] Garantir ausência de dados proibidos em cada documento.
+- [ ] Registrar geração no histórico.
+- [ ] Não persistir arquivos PDF.
+
+**Spec:** `docs/development/08-documentos.md`
+
+---
+
+### Fase 9 — Consultas e dashboard
+
+**Objetivo:** implementar leitura eficiente sem reconstruir aggregates desnecessariamente.
+
+- [ ] Histórico de orçamentos por cliente.
+- [ ] Busca por número de orçamento.
+- [ ] Busca por nome do cliente.
+- [ ] Filtros de situação.
+- [ ] Dashboard por status.
+- [ ] Separar expirados de enviados válidos.
+- [ ] Próximas instalações.
+- [ ] Instalações da semana.
+- [ ] Instalações atrasadas.
+
+**Spec:** `docs/development/09-queries-dashboard.md`
+
+---
+
+### Fase 10 — Dados do negócio
+
+- [ ] Consultar configuração.
+- [ ] Atualizar dados do negócio.
+- [ ] Integrar dados ao PDF comercial.
+- [ ] Manter logo como asset fixo.
+
+**Spec:** `docs/development/10-dados-negocio.md`
+
+---
+
+### Fase 11 — Frontend
+
+**Objetivo:** implementar os fluxos UI sobre contratos backend já estabilizados.
+
+- [ ] Login e sessão.
+- [ ] Clientes.
+- [ ] Detalhes do cliente e histórico.
+- [ ] Formulário de orçamento mobile-first.
+- [ ] Cortinas e composição financeira.
+- [ ] Ciclo de estados.
+- [ ] Instalação.
+- [ ] Prévia/geração de documentos.
+- [ ] Dashboard.
+- [ ] Dados do negócio.
+- [ ] Tratamento uniforme de loading, sucesso e erro.
+
+**Spec:** `docs/development/11-frontend.md`
+
+---
+
+### Fase 12 — Hardening e entrega
+
+- [ ] E2E dos fluxos críticos.
+- [ ] Revisão de autorização/autenticação.
+- [ ] Revisão CSRF/XSS/logging.
+- [ ] Validar ausência de dados sensíveis na ordem de produção.
+- [ ] Revisar índices e queries relevantes.
+- [ ] Estratégia de backup.
+- [ ] Configuração de produção.
+- [ ] HTTPS.
+- [ ] Deploy.
+- [ ] Smoke tests pós-deploy.
+
+**Spec:** `docs/development/12-hardening-deploy.md`
+
+---
+
+## 4. Definition of Done por task
+
+Uma task só deve ser marcada como concluída quando, quando aplicável:
+
+- implementação respeita `PROJECT_SPEC.md` e `ARCHITECTURE.md`;
+- testes relevantes passam;
+- lint/typecheck passam;
+- migration é reproduzível quando houver alteração de banco;
+- erros esperados possuem tratamento explícito;
+- nenhum dado sensível é logado;
+- documentação é atualizada quando a decisão implementada muda contrato, schema ou comportamento;
+- não existem TODOs críticos escondendo regra incompleta.
+
+---
+
+## 5. Uso recomendado com Codex
+
+Para cada rodada de implementação, fornecer ao agente:
+
+1. a task atual deste plano;
+2. a development spec correspondente;
+3. trechos relevantes do `PROJECT_SPEC.md`;
+4. trechos relevantes do `ARCHITECTURE.md`;
+5. estado atual do código/testes.
+
+Evitar solicitar várias fases em um único prompt. O agente deve implementar uma unidade pequena, executar os testes e apresentar o diff/resultado antes da próxima task.

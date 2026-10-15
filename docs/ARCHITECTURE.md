@@ -1,1786 +1,1062 @@
-# ARCHITECTURE.md - Padrões de Engenharia e Arquitetura
+# ARCHITECTURE.md — Arquitetura do Sistema de Gestão de Orçamentos para Consultoria de Cortinas
 
-**Sistema de Gestão de Orçamentos para Consultoria de Cortinas**
-**Padrão Arquitetural**: Domain-Driven Design (DDD)
-**Rigor de Testes**: Alta (>80% coverage)
-**Compliance**: LGPD + Segurança como prioridade no MVP
-**Data**: 18/01/2025
-
----
-
-## ÍNDICE
-1. [Visão Geral Arquitetural](#1-visão-geral-arquitetural)
-2. [Domain-Driven Design](#2-domain-driven-design)
-3. [Padrões de Implementação](#3-padrões-de-implementação)
-4. [Estratégia de Testes](#4-estratégia-de-testes)
-5. [LGPD e Segurança](#5-lgpd-e-segurança)
-6. [Convenções de Código](#6-convenções-de-código)
-7. [Diagramas](#7-diagramas)
-8. [Code Review Checklist](#8-code-review-checklist)
+**Status:** consolidado após revisão arquitetural  
+**Fonte de verdade funcional:** `PROJECT_SPEC.md`  
+**Backend:** Node.js + TypeScript + NestJS + Prisma + PostgreSQL  
+**Frontend:** React + Vite + TypeScript
 
 ---
 
-## 1. VISÃO GERAL ARQUITETURAL
+## 1. Visão arquitetural
 
-### 1.1 Princípios Guia
+### 1.1 Estilo arquitetural
 
-A arquitetura segue **Domain-Driven Design** com foco em:
+O sistema será implementado como um **monólito modular**, com organização por módulos de negócio e arquitetura em camadas aplicada de forma pragmática.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                   BOUNDED CONTEXTS                      │
-│  (Domínios independentes com responsabilidades claras)  │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐  │
-│  │  CONTEXT: Cliente Management                    │  │
-│  │  - Aggregates: Cliente, Contato                 │  │
-│  │  - Use Cases: Cadastrar, Inativar, Buscar       │  │
-│  └─────────────────────────────────────────────────┘  │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐  │
-│  │  CONTEXT: Orçamento Management                  │  │
-│  │  - Aggregates: Orçamento, ItemOrcamento         │  │
-│  │  - Use Cases: Criar, Confirmar, Cancelar        │  │
-│  └─────────────────────────────────────────────────┘  │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐  │
-│  │  CONTEXT: Produção Management                   │  │
-│  │  - Aggregates: OrdemProducao                    │  │
-│  │  - Use Cases: Exportar, Acompanhar              │  │
-│  └─────────────────────────────────────────────────┘  │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+A modelagem utilizará **DDD tático seletivo** somente onde houver comportamento, invariantes ou complexidade de domínio suficientes para justificar suas abstrações.
+
+A arquitetura não exige que todos os módulos possuam as mesmas camadas ou os mesmos padrões táticos.
+
+```text
+Modular Monolith
++
+Layered Architecture
++
+Pragmatic DDD
 ```
 
-### 1.2 Pilares Arquiteturais
+### 1.2 Princípios
 
-| Pilar | Descrição | Implementação |
-|-------|-----------|----------------|
-| **Domain Layer** | Lógica de negócio pura (sem frameworks) | Entities, Value Objects, Domain Services |
-| **Application Layer** | Orquestração de casos de uso | Use Cases, Application Services, DTOs |
-| **Infrastructure Layer** | Detalhes técnicos (BD, APIs, etc) | Repositories, Prisma, Email Service |
-| **Presentation Layer** | Exposição via HTTP | Controllers, Error Handlers, Filters |
-| **Shared Kernel** | Código reutilizável | Exceptions, Value Objects comuns, Guards |
+- O `PROJECT_SPEC.md` prevalece sobre este documento em caso de conflito funcional.
+- Regras de negócio devem ser protegidas no backend.
+- Controllers permanecem finos.
+- O domínio não depende de NestJS, Prisma, HTTP ou bibliotecas de PDF.
+- Prisma é detalhe de infraestrutura e não define o modelo de domínio.
+- Interfaces e abstrações só são introduzidas quando representam uma fronteira real.
+- Não serão criadas camadas, repositories, Domain Services ou Domain Events apenas por simetria arquitetural.
+- A solução deve continuar compreensível e operável por um desenvolvedor solo.
+
+### 1.3 Fora da arquitetura inicial
+
+Não serão adotados no MVP sem necessidade concreta:
+
+- microservices;
+- CQRS formal;
+- event sourcing;
+- message broker;
+- Kubernetes;
+- generic repositories;
+- event bus obrigatório;
+- Unit of Work genérico;
+- cache distribuído;
+- orquestração multiagente dentro do produto.
 
 ---
 
-## 2. DOMAIN-DRIVEN DESIGN
+## 2. Módulos e fronteiras
 
-### 2.1 Bounded Contexts Identificados
+### 2.1 Módulos principais
 
-#### **Context 1: Clientes (Cliente Management)**
-
-**Responsabilidades**:
-- Gerenciar dados de clientes
-- Manter histórico de contatos
-- Soft delete e inativação
-
-**Agregado Principal: Cliente**
-```
-Cliente (Aggregate Root)
-├── ClienteId (Value Object)
-├── Nome (Value Object)
-├── Email (Value Object - único)
-├── Telefone (Value Object)
-├── Endereço (Value Object)
-├── Status (Value Object - enum)
-├── Auditoria (Value Object)
-└── Contatos[] (Entity dentro do agregado)
+```text
+src/modules/
+├── orcamentos/
+├── clientes/
+├── auth/
+└── dados-do-negocio/
 ```
 
-**Use Cases**:
-- `CreateClienteUseCase`: Criar novo cliente
-- `UpdateClienteUseCase`: Atualizar dados
-- `FindClienteUseCase`: Buscar por ID
-- `ListClientesUseCase`: Listar com filtros
-- `DeactivateClienteUseCase`: Inativar cliente (soft delete)
-- `ExportClienteDataUseCase`: Exportar dados (LGPD)
+`Orçamentos` concentra o domínio de maior complexidade e receberá a modelagem DDD mais rica.
+
+`Clientes` possui entidade de domínio própria, mas regras significativamente mais simples.
+
+`Auth` e `DadosDoNegocio` são módulos de suporte e não receberão uma camada `domain/` artificial caso não exista comportamento de domínio que a justifique.
+
+### 2.2 Produção
+
+Produção **não é bounded context nem aggregate independente no MVP**.
+
+Ela representa uma fase do ciclo de vida do orçamento:
+
+```text
+CONFIRMADO → EM_PRODUCAO → CONCLUIDO
+```
+
+A ordem de produção é uma projeção/documento derivado do orçamento, sem identidade, tabela, repository ou ciclo de vida próprios.
+
+### 2.3 Bounded context, módulo NestJS e feature
+
+Os conceitos não são equivalentes:
+
+```text
+Bounded Context ≠ NestJS Module ≠ pasta ≠ feature
+```
+
+A organização física deve servir ao modelo e não criar fronteiras de domínio artificiais.
 
 ---
 
-#### **Context 2: Orçamentos (Orçamento Management)**
+## 3. Modelo de domínio
 
-**Responsabilidades**:
-- Criar e gerenciar orçamentos
-- Calcular valores com precisão
-- Gerar representações (PDF, JSON)
-- Validar mudanças de estado
+### 3.1 Aggregate Root `Cliente`
 
-**Agregado Principal: Orçamento**
-```
-Orçamento (Aggregate Root)
-├── OrcamentoId (Value Object)
-├── NumeroOrcamento (Value Object - único, auto-gerado)
-├── ClienteId (Reference a outro agregado)
-├── DataCriacao (Value Object)
-├── DataValidade (Value Object)
-├── Status (Value Object - enum)
-├── Dinheiro (Value Object)
-│   ├── Subtotal
-│   ├── Desconto
-│   ├── CustosTotais
-│   └── Total
-├── Itens[] (ItemOrcamento - Entity)
-│   ├── ItemId
-│   ├── Material (Value Object)
-│   ├── Medidas (Value Object - altura x largura x prof)
-│   ├── Trilho (Value Object)
-│   └── Custo (Value Object)
-├── CustosAdicionais[] (Entity)
-│   ├── CustoId
-│   ├── Tipo (Value Object - pré-definido ou custom)
-│   ├── Valor (Value Object)
-│   └── Percentual (Value Object)
-├── Observações (Value Object)
-└── Auditoria (Value Object)
+`Cliente` é Aggregate Root independente.
+
+Responsabilidades principais:
+
+- identidade e dados cadastrais;
+- validações cadastrais necessárias;
+- soft delete.
+
+O histórico exibido na tela do cliente não é uma coleção interna do aggregate. Ele é obtido consultando os orçamentos associados ao `clienteId`.
+
+### 3.2 Aggregate Root `Orcamento`
+
+`Orcamento` é o Aggregate Root do núcleo comercial e operacional.
+
+Sua fronteira inclui conceitualmente:
+
+```text
+Orcamento (AR)
+├── clienteId
+├── numeroOrcamento
+├── status
+├── enderecoInstalacao
+├── Cortina[]
+│   └── ItemFinanceiro[]
+├── adicionaisGerais: ItemFinanceiro[]
+├── descontoGlobal
+├── ajusteComercial
+├── observacoes
+└── datas do ciclo
 ```
 
-**Value Objects Importantes**:
-- `NumeroOrcamento`: Formato ORÇ-YYYY-XXX (imutável)
-- `Medidas`: { altura, largura, profundidade } (imutável)
-- `Dinheiro`: Valor em centavos (precision)
-- `OrcamentoStatus`: enum ['rascunho', 'enviado', 'confirmado', 'cancelado', 'expirado']
+O aggregate é responsável por preservar invariantes relacionadas a cálculos, edição, envio, confirmação, produção, instalação e conclusão.
 
-**Use Cases**:
-- `CreateOrcamentoUseCase`: Criar novo orçamento
-- `AddItemOrcamentoUseCase`: Adicionar cortina
-- `UpdateItemOrcamentoUseCase`: Editar cortina
-- `RemoveItemOrcamentoUseCase`: Remover cortina
-- `AddCustoAdicionalUseCase`: Adicionar custo extra
-- `ConfirmOrcamentoUseCase`: Marcar como confirmado
-- `CancelOrcamentoUseCase`: Cancelar
-- `ExportOrcamentoPdfUseCase`: Gerar PDF para cliente
-- `CalculateOrcamentoUseCase`: Recalcular totais (internal)
+### 3.3 `Cortina`
 
-**Domain Events** (publicar quando algo importante acontece):
-- `OrcamentoCriadoEvent`
-- `OrcamentoConfirmadoEvent`
-- `OrcamentoCanceladoEvent`
-- `ItemAdicionadoEvent`
+`Cortina` é uma **Entity interna** do aggregate `Orcamento`.
+
+Ela possui identidade estável dentro do orçamento e não possui repository próprio.
+
+O campo `sequencia` representa posição/apresentação e não substitui sua identidade técnica.
+
+A própria entidade protege cálculos intrínsecos:
+
+```text
+larguraFinal = larguraVao + (2 × valorBorda)
+quantidadeTecido = larguraFinal × fatorTecido
+```
+
+### 3.4 Itens financeiros
+
+Componentes financeiros de cortinas e adicionais gerais compartilham o mesmo modelo de domínio, provisoriamente denominado `ItemFinanceiro`.
+
+```text
+ItemFinanceiro
+- id
+- nome
+- quantidade
+- unidade
+- valorUnitario
+- total derivado
+```
+
+O modelo é uma Entity interna do aggregate.
+
+As coleções permanecem semanticamente separadas:
+
+```text
+Cortina.componentesFinanceiros[]
+Orcamento.adicionaisGerais[]
+```
+
+Nomes como `Tecido`, `Mão de obra`, `Trilho`, `Entretela`, `Frete` e `Instalação` são presets de UX, não enums do domínio.
+
+### 3.5 Value Objects
+
+Os VOs inicialmente justificados são:
+
+- `NumeroOrcamento`;
+- `Money`;
+- `EnderecoInstalacao`;
+- `Desconto`.
+
+Não serão criados VOs individuais para cada medida enquanto não houver comportamento adicional que justifique isso.
+
+### 3.6 Desconto
+
+`Desconto` é Value Object global do orçamento.
+
+Tipos:
+
+```text
+SEM_DESCONTO
+PERCENTUAL
+VALOR_FIXO
+```
+
+O VO garante combinações válidas e calcula o valor monetário do desconto a partir do subtotal quando necessário.
+
+### 3.7 Ajuste comercial
+
+`ajusteComercial` é um valor monetário global e opcional, positivo ou negativo, aplicado após desconto.
+
+```text
+totalCalculado = subtotalOrcamento - valorDesconto
+totalOrcamento = totalCalculado + ajusteComercial
+```
+
+A interface pode receber diretamente o valor final desejado e derivar o ajuste correspondente.
+
+O ajuste não substitui o desconto e deve permanecer rastreável internamente.
+
+### 3.8 Endereço de instalação
+
+`EnderecoInstalacao` é Value Object pertencente ao orçamento.
+
+Quando copiado do cliente, uma nova instância/snapshot é criada. Alterações posteriores no cadastro do cliente não modificam o endereço histórico do orçamento.
 
 ---
 
-#### **Context 3: Produção (Produção Management)**
+## 4. Ciclo de vida do orçamento
 
-**Responsabilidades**:
-- Exportar dados para produção (sem preços)
-- Rastrear status de produção (future)
-- Comunicar com equipe de produção
+### 4.1 Estados persistidos
 
-**Agregado Principal: OrdemProducao**
-```
-OrdemProducao (Aggregate Root)
-├── OrdemId (Value Object)
-├── OrcamentoId (Reference)
-├── ItenProducao[] (Entity)
-│   ├── Material
-│   ├── Medidas
-│   ├── Trilho
-│   └── Quantidade
-├── DataEntregaEsperada (Value Object)
-├── Status (Value Object - enum)
-└── Observacoes (Value Object)
+```text
+RASCUNHO
+ENVIADO
+CONFIRMADO
+EM_PRODUCAO
+CONCLUIDO
+CANCELADO
 ```
 
-**Use Cases**:
-- `GenerateOrcamentoProducaoPdfUseCase`: Exportar PDF de produção
-- `GenerateProducaoSummaryUseCase`: Resumo para costureiras
-- `UpdateProducaoStatusUseCase`: Atualizar status (future)
+`EXPIRADO` não é persistido.
+
+### 4.2 Comportamento do Aggregate Root
+
+As transições são operações explícitas do domínio, por exemplo:
+
+```text
+marcarComoEnviado()
+confirmar()
+reabrir()
+renovar()
+cancelar()
+iniciarProducao()
+concluir()
+```
+
+Os nomes concretos poderão ser refinados na implementação, mas as regras não serão implementadas como simples atribuição de `status` na Application ou Presentation Layer.
+
+### 4.3 Condições derivadas
+
+```text
+expirado =
+  status == ENVIADO
+  && agora > dataValidade
+```
+
+```text
+instalacaoAtrasada =
+  dataInstalacaoAgendada < agora
+  && status in [CONFIRMADO, EM_PRODUCAO]
+```
+
+Essas condições não serão persistidas como estados.
+
+### 4.4 Datas persistidas
+
+Serão persistidos:
+
+- `dataCriacao`;
+- `dataPrimeiroEnvio?`;
+- `dataValidade?`;
+- `dataConfirmacao?`;
+- `dataInicioProducao?`;
+- `dataInstalacaoAgendada?`;
+- `dataConclusao?`.
+
+Eventos auxiliares como reabertura, renovação e cancelamento serão preservados pelo histórico em vez de originarem campos adicionais inicialmente.
 
 ---
 
-### 2.2 Anti-Corruption Layer (ACL)
+## 5. Camadas e responsabilidades
 
-Padrão para comunicação entre bounded contexts:
+### 5.1 Domain
 
-```typescript
-// src/shared/adapters/anticorruption-layer.ts
+Responsável por:
 
-/**
- * Converte dados do contexto de Orçamento
- * para o formato esperado pelo contexto de Produção
- * Protege a integridade de cada domínio
- */
-export class OrcamentoProducaoACL {
-  static adaptarParaProducao(orcamento: Orcamento): OrdemProducaoDto {
-    // Filtra apenas dados de produção
-    // Nunca expõe preços
-    // Mapeia estrutura de Orçamento para OrdemProducao
-  }
+- invariantes;
+- cálculos de negócio;
+- transições de estado;
+- Entities;
+- Value Objects;
+- regras intrínsecas dos aggregates.
+
+Não conhece:
+
+- NestJS;
+- HTTP;
+- Prisma;
+- PostgreSQL;
+- geração de PDF;
+- cookies/sessões;
+- filesystem/storage.
+
+### 5.2 Application
+
+Responsável por:
+
+- casos de uso;
+- carregar aggregates;
+- chamar comportamentos de domínio;
+- coordenar repositories;
+- controlar transações;
+- registrar histórico;
+- coordenar geração de documentos;
+- devolver DTOs.
+
+Regra geral:
+
+> Domain decide o que é válido. Application coordena a operação.
+
+### 5.3 Infrastructure
+
+Responsável por:
+
+- Prisma/PostgreSQL;
+- implementações concretas de repositories;
+- mappers Domain ↔ Persistence;
+- sessões persistidas;
+- geração de PDF;
+- logging técnico;
+- integrações externas futuras.
+
+### 5.4 Presentation
+
+Responsável por:
+
+- controllers;
+- DTOs HTTP;
+- validação estrutural de requests;
+- autenticação/guards;
+- mapeamento de erros para HTTP;
+- serialização de respostas.
+
+Controllers não contêm regras de negócio relevantes.
+
+---
+
+## 6. Casos de uso
+
+Operações de negócio relevantes terão casos de uso explícitos.
+
+Exemplos:
+
+```text
+CriarRascunho
+AtualizarOrcamento
+MarcarComoEnviado
+ConfirmarOrcamento
+ReabrirOrcamento
+RenovarOrcamento
+CancelarOrcamento
+IniciarProducao
+ConcluirServico
+GerarPdfComercial
+GerarOrdemProducao
+```
+
+CRUDs simples podem utilizar estruturas menos cerimoniais quando não houver comportamento relevante.
+
+Domain Services não serão criados por padrão. Só serão introduzidos quando existir regra de domínio legítima que não pertença naturalmente a uma Entity ou Value Object.
+
+---
+
+## 7. Repositories, queries e interfaces
+
+### 7.1 Aggregate repositories
+
+Repositories DDD serão criados somente para Aggregate Roots:
+
+```text
+ClienteRepository
+OrcamentoRepository
+```
+
+Não existirão repositories próprios para:
+
+- Cortina;
+- ItemFinanceiro;
+- Desconto;
+- EnderecoInstalacao.
+
+### 7.2 Interfaces
+
+Interfaces serão utilizadas nas fronteiras em que Application deve permanecer desacoplada da infraestrutura.
+
+Exemplo conceitual:
+
+```ts
+interface OrcamentoRepository {
+  findById(id: string): Promise<Orcamento | null>;
+  save(orcamento: Orcamento): Promise<void>;
 }
 ```
 
+Não será criado `Repository<T>` genérico.
+
+### 7.3 Queries
+
+Dashboard, buscas e listagens podem utilizar Query Services/read repositories com projeções diretas do Prisma.
+
+Não é necessário reconstruir aggregates completos para operações somente de leitura.
+
+Essa separação não constitui CQRS formal.
+
 ---
 
-## 3. PADRÕES DE IMPLEMENTAÇÃO
+## 8. Histórico
 
-### 3.1 Estrutura de Pastas (DDD + NestJS)
+O histórico é persistido separadamente e associado por `orcamentoId`.
 
+Estrutura conceitual:
+
+```text
+RegistroHistoricoOrcamento
+- id
+- orcamentoId
+- tipoEvento
+- ocorridoEm
+- detalhes?
 ```
-backend/src/
-│
+
+`detalhes` poderá utilizar estrutura flexível, preferencialmente JSON, para armazenar mudanças relevantes como valor anterior e novo.
+
+O histórico:
+
+- não faz parte da coleção interna carregada com o aggregate;
+- não reconstrói o estado atual;
+- não é event sourcing;
+- registra eventos de negócio, não navegação ou ações técnicas triviais.
+
+Domain Events/event bus não serão infraestrutura obrigatória no MVP.
+
+---
+
+## 9. Persistência e Prisma
+
+### 9.1 Isolamento
+
+Prisma fica restrito à Infrastructure Layer.
+
+Tipos como `Prisma.Decimal`, `Prisma.*Input` ou payloads gerados não devem aparecer no Domain nem como contrato público da Application Layer.
+
+### 9.2 Mappers
+
+Serão utilizados mappers concretos quando houver diferença real entre modelo relacional e domínio:
+
+```text
+ClienteMapper
+OrcamentoMapper
+```
+
+Não será criada infraestrutura genérica de mapper sem necessidade.
+
+### 9.3 Modelo relacional inicial
+
+#### `orcamentos`
+
+Campos principais:
+
+```text
+id UUID PK
+numero_orcamento UNIQUE
+cliente_id FK
+status
+observacoes?
+
+desconto_tipo
+desconto_percentual?
+desconto_valor_fixo_centavos?
+ajuste_comercial_centavos?
+
+campos de endereco_instalacao...
+
+data_criacao
+data_primeiro_envio?
+data_validade?
+data_confirmacao?
+data_inicio_producao?
+data_instalacao_agendada?
+data_conclusao?
+```
+
+#### `cortinas`
+
+```text
+id UUID PK
+orcamento_id FK
+sequencia
+ambiente
+descricao?
+material
+largura_vao
+valor_borda
+altura
+fator_tecido
+observacoes?
+```
+
+`larguraFinal` e `quantidadeTecido` não serão persistidos inicialmente porque são deterministicamente derivados.
+
+#### `componentes_financeiros`
+
+```text
+id UUID PK
+cortina_id FK
+nome
+quantidade
+unidade
+valor_unitario_centavos
+```
+
+#### `adicionais_gerais`
+
+```text
+id UUID PK
+orcamento_id FK
+nome
+quantidade
+unidade
+valor_unitario_centavos
+```
+
+Componentes e adicionais compartilham o mesmo modelo de domínio, mas utilizam tabelas diferentes por clareza referencial.
+
+Totais derivados não serão persistidos inicialmente.
+
+### 9.4 Soft delete de cliente
+
+Cliente utiliza `deletedAt` (ou campo equivalente).
+
+Consultas normais ignoram clientes removidos logicamente, mas orçamentos históricos continuam associados ao registro.
+
+### 9.5 Exclusão de orçamento
+
+Exclusão física é permitida apenas para `RASCUNHO`, conforme o `PROJECT_SPEC`.
+
+O número comercial consumido não volta para a sequência.
+
+---
+
+## 10. Precisão numérica e Money
+
+### 10.1 Medidas, fatores e quantidades
+
+No domínio funcional, medidas são expressas em metros.
+
+Para **entradas de medida** (`larguraVao`, `altura`, `valorBorda`) e para `fatorTecido`, a escala funcional adotada será de 3 casas decimais:
+
+```text
+Decimal(..., 3)
+```
+
+Três casas nas medidas representam precisão de milímetros.
+
+Valores derivados não serão artificialmente limitados a três casas. Como `quantidadeTecido = larguraFinal × fatorTecido`, o cálculo pode produzir até 6 casas decimais a partir de entradas com escala 3. Essa precisão será preservada durante o cálculo.
+
+Quando `quantidadeTecido` for copiada como quantidade de um item financeiro (por exemplo, Tecido ou Mão de obra), a coluna de quantidade deverá suportar a precisão necessária para não introduzir arredondamento automático de metragem; inicialmente, escala de até 6 casas é adequada.
+
+A precisão total (`p`) será dimensionada no schema Prisma conforme a faixa esperada.
+
+Não será usado `Float` para medidas ou quantidades relevantes.
+
+### 10.2 Dinheiro
+
+Valores monetários terão precisão de centavos.
+
+O Domain utilizará `Money`, conceitualmente baseado em centavos inteiros.
+
+```text
+R$ 125,90 → 12590 centavos
+```
+
+O banco persiste valores monetários em centavos inteiros quando forem valores monetários finais/unitários.
+
+### 10.3 Arredondamento monetário
+
+Cálculos que gerarem fração de centavo utilizarão arredondamento **HALF_UP** para 2 casas decimais.
+
+Exemplo:
+
+```text
+2,375 × R$ 37,90 = R$ 90,0125
+→ R$ 90,01
+```
+
+Regra:
+
+1. calcular com precisão decimal;
+2. arredondar o total do item para centavos usando HALF_UP;
+3. somar valores já monetários;
+4. aplicar a mesma política ao valor monetário derivado de desconto percentual;
+5. aplicar eventual ajuste comercial;
+6. obter o total final em centavos.
+
+Essa política se aplica apenas a dinheiro. Medidas e quantidade de tecido não sofrem arredondamento automático de negócio.
+
+---
+
+## 11. Transações
+
+A Application Layer controla transações quando uma operação precisa persistir múltiplas alterações atomicamente.
+
+Exemplo:
+
+```text
+BEGIN
+  salvar orçamento
+  registrar histórico
+COMMIT
+```
+
+O Prisma fornecerá o mecanismo concreto via `$transaction`.
+
+Não será criado inicialmente um Unit of Work genérico.
+
+Geração de arquivos PDF não deve manter uma transação de banco aberta durante processamento de documento.
+
+---
+
+## 12. Numeração do orçamento
+
+A numeração comercial segue:
+
+```text
+ORÇ-AAAA-NNN
+```
+
+Será utilizado contador persistido por ano, por exemplo:
+
+```text
+orcamento_sequence
+- ano PK/UNIQUE
+- ultimo_numero
+```
+
+No primeiro salvamento do rascunho:
+
+```text
+BEGIN
+  reservar/incrementar contador anual atomicamente
+  montar NumeroOrcamento
+  criar orçamento
+COMMIT
+```
+
+Regras:
+
+- não utilizar `MAX(numero) + 1`;
+- número nunca é reutilizado;
+- lacunas são permitidas;
+- exclusão de rascunho não devolve número;
+- `numero_orcamento` possui constraint `UNIQUE`.
+
+`NumeroOrcamento` representa/valida o valor, mas não conhece SQL, locks ou concorrência.
+
+---
+
+## 13. Autenticação e sessão
+
+### 13.1 Estratégia
+
+O MVP utilizará **sessão server-side**, não access/refresh JWT.
+
+Fluxo:
+
+```text
+login email + senha
+→ validar credenciais
+→ criar token aleatório de sessão
+→ armazenar somente hash/token derivado no servidor
+→ enviar identificador em cookie seguro
+→ validar sessão nas rotas privadas
+```
+
+### 13.2 Cookie
+
+Em produção:
+
+```text
+HttpOnly
+Secure
+SameSite=Lax ou Strict
+Path=/
+```
+
+Preferencialmente utilizar prefixo `__Host-` quando compatível com o deployment.
+
+### 13.3 Baseline de segurança
+
+- senha armazenada com hash forte (`Argon2id` preferencialmente; bcrypt aceitável quando justificado);
+- HTTPS obrigatório em produção;
+- token de sessão gerado por CSPRNG com alta entropia;
+- armazenar somente representação segura/hash do token quando aplicável;
+- expiração de sessão;
+- regeneração/substituição da sessão após login;
+- invalidação no logout;
+- proteção CSRF para requisições mutáveis;
+- rate limiting/backoff no login;
+- mensagens de autenticação que não facilitem enumeração de conta;
+- logging de falhas sem registrar credenciais.
+
+MFA/TOTP é melhoria recomendada para produção, mas não é requisito funcional obrigatório do MVP neste momento.
+
+### 13.4 Usuário
+
+Mesmo com uma única conta, a credencial será persistida como registro de usuário. Não serão utilizadas credenciais administrativas fixas em `.env` como mecanismo permanente de autenticação.
+
+Não haverá no MVP:
+
+- signup público;
+- RBAC;
+- gestão de usuários;
+- recuperação pública de senha.
+
+---
+
+## 14. API REST
+
+### 14.1 Princípio
+
+CRUD convencional será usado para recursos.
+
+Transições relevantes do aggregate serão expostas como **ações explícitas com `POST`**, evitando permitir alterações arbitrárias de `status` via PATCH genérico.
+
+### 14.2 Rotas conceituais
+
+```text
+POST   /auth/login
+POST   /auth/logout
+GET    /auth/me
+
+GET    /clientes
+POST   /clientes
+GET    /clientes/:id
+PATCH  /clientes/:id
+DELETE /clientes/:id
+GET    /clientes/:id/orcamentos
+
+POST   /clientes/:clienteId/orcamentos
+GET    /orcamentos
+GET    /orcamentos/:id
+PATCH  /orcamentos/:id
+DELETE /orcamentos/:id
+
+POST   /orcamentos/:id/enviar
+POST   /orcamentos/:id/confirmar
+POST   /orcamentos/:id/reabrir
+POST   /orcamentos/:id/renovar
+POST   /orcamentos/:id/cancelar
+POST   /orcamentos/:id/iniciar-producao
+POST   /orcamentos/:id/concluir
+
+PUT    /orcamentos/:id/instalacao
+DELETE /orcamentos/:id/instalacao
+
+GET    /orcamentos/:id/historico
+GET    /orcamentos/:id/pdf
+GET    /orcamentos/:id/ordem-producao
+
+GET    /dashboard
+GET    /dados-do-negocio
+PUT    /dados-do-negocio
+```
+
+Os nomes exatos podem sofrer pequenos refinamentos sem alterar a decisão arquitetural.
+
+### 14.3 DTOs
+
+DTOs HTTP são separados dos objetos de domínio.
+
+Entities não são retornadas diretamente pela API.
+
+---
+
+## 15. Tratamento de erros
+
+O Domain utiliza erros/exceções sem dependência de HTTP.
+
+A Presentation Layer mapeia categorias para respostas HTTP adequadas.
+
+Referência inicial:
+
+```text
+input/regra inválida → 400 ou 422
+recurso inexistente → 404
+conflito → 409
+autenticação ausente/inválida → 401
+```
+
+Stack traces e detalhes internos não são enviados ao cliente em produção.
+
+---
+
+## 16. Documentos
+
+### 16.1 PDF comercial
+
+O PDF é uma projeção dos dados atuais do orçamento.
+
+Não será persistido nem versionado no MVP.
+
+Sempre que necessário, um novo arquivo será gerado a partir dos dados atuais permitidos pelo `PROJECT_SPEC`.
+
+Gerar ou compartilhar PDF não altera status.
+
+### 16.2 Ordem de produção
+
+A ordem de produção também é gerada sob demanda a partir do orçamento.
+
+Não existem:
+
+- tabela `ordem_producao`;
+- `OrdemProducao` Aggregate Root;
+- `OrdemProducaoRepository`;
+- status próprio da ordem;
+- ACL entre contextos de Orçamento e Produção.
+
+A projeção deve incluir somente as informações autorizadas pelo `PROJECT_SPEC` e nunca expor preços ou dados pessoais indevidos.
+
+---
+
+## 17. Testes
+
+A estratégia prioriza risco e regras críticas, não porcentagem isolada de coverage.
+
+### 17.1 Unitários
+
+Foco em:
+
+- `Orcamento`;
+- `Cortina`;
+- `Desconto`;
+- `Money`;
+- transições de estado;
+- gates;
+- cálculos.
+
+### 17.2 Integração
+
+Foco em:
+
+- repositories Prisma;
+- mappers;
+- transações;
+- sequência anual;
+- constraints do banco;
+- sessão/autenticação.
+
+### 17.3 E2E
+
+Cobrir fluxos críticos do produto:
+
+```text
+login
+→ cliente
+→ rascunho
+→ envio
+→ confirmação
+→ produção
+→ instalação opcional
+→ conclusão
+```
+
+Também cobrir transições inválidas e proteção de rotas.
+
+Coverage será acompanhado, mas não haverá meta global rígida de `>80%` como substituto de qualidade.
+
+---
+
+## 18. Frontend
+
+React/Vite será organizado preferencialmente por features alinhadas ao produto.
+
+Princípios:
+
+- mobile-first;
+- estado local e form state por padrão;
+- biblioteca global de estado somente quando surgir necessidade concreta;
+- cliente HTTP isolado;
+- frontend não replica regras críticas como fonte de verdade;
+- validações de UX podem existir, mas o backend continua responsável pela integridade.
+
+---
+
+## 19. Estrutura de pastas
+
+Estrutura inicial recomendada:
+
+```text
+src/
 ├── modules/
-│   │
-│   ├── clientes/                          # BOUNDED CONTEXT: Cliente
+│   ├── orcamentos/
 │   │   ├── domain/
 │   │   │   ├── entities/
-│   │   │   │   └── cliente.entity.ts      # Entity: regras de negócio
 │   │   │   ├── value-objects/
-│   │   │   │   ├── cliente-id.vo.ts
-│   │   │   │   ├── email.vo.ts            # Validação de email
-│   │   │   │   └── telefone.vo.ts
-│   │   │   ├── repositories/
-│   │   │   │   └── cliente.repository.interface.ts  # Contrato
-│   │   │   ├── services/
-│   │   │   │   └── cliente-domain.service.ts  # Lógica de negócio
-│   │   │   └── events/
-│   │   │       └── cliente-criado.event.ts
-│   │   │
+│   │   │   └── repositories/
 │   │   ├── application/
 │   │   │   ├── use-cases/
-│   │   │   │   ├── create-cliente.use-case.ts
-│   │   │   │   ├── update-cliente.use-case.ts
-│   │   │   │   ├── list-clientes.use-case.ts
-│   │   │   │   ├── deactivate-cliente.use-case.ts
-│   │   │   │   └── export-cliente-data.use-case.ts  # LGPD
-│   │   │   └── dtos/
-│   │   │       ├── create-cliente.dto.ts
-│   │   │       ├── update-cliente.dto.ts
-│   │   │       └── cliente.dto.ts
-│   │   │
+│   │   │   ├── queries/
+│   │   │   └── dto/
 │   │   ├── infrastructure/
-│   │   │   ├── repositories/
-│   │   │   │   └── prisma-cliente.repository.ts  # Implementação
-│   │   │   └── mappers/
-│   │   │       └── cliente.mapper.ts  # Domain ↔ Prisma
-│   │   │
+│   │   │   ├── persistence/
+│   │   │   └── documents/
 │   │   ├── presentation/
 │   │   │   ├── controllers/
-│   │   │   │   └── clientes.controller.ts
-│   │   │   └── http-dtos/
-│   │   │       └── create-cliente.http.dto.ts
-│   │   │
-│   │   └── clientes.module.ts              # Dependency Injection
-│   │
-│   ├── orcamentos/                         # BOUNDED CONTEXT: Orçamento
-│   │   ├── domain/
-│   │   │   ├── entities/
-│   │   │   │   ├── orcamento.entity.ts
-│   │   │   │   ├── item-orcamento.entity.ts
-│   │   │   │   └── custo-adicional.entity.ts
-│   │   │   ├── value-objects/
-│   │   │   │   ├── orcamento-id.vo.ts
-│   │   │   │   ├── numero-orcamento.vo.ts
-│   │   │   │   ├── medidas.vo.ts         # { altura, largura, prof }
-│   │   │   │   ├── dinheiro.vo.ts        # Valor em centavos (precision)
-│   │   │   │   └── orcamento-status.vo.ts
-│   │   │   ├── repositories/
-│   │   │   │   └── orcamento.repository.interface.ts
-│   │   │   ├── services/
-│   │   │   │   ├── orcamento-domain.service.ts
-│   │   │   │   ├── orcamento-calculos.service.ts
-│   │   │   │   └── orcamento-validator.service.ts
-│   │   │   └── events/
-│   │   │       ├── orcamento-criado.event.ts
-│   │   │       ├── orcamento-confirmado.event.ts
-│   │   │       └── orcamento-cancelado.event.ts
-│   │   │
-│   │   ├── application/
-│   │   │   ├── use-cases/
-│   │   │   │   ├── create-orcamento/
-│   │   │   │   │   ├── create-orcamento.use-case.ts
-│   │   │   │   │   └── create-orcamento.use-case.spec.ts
-│   │   │   │   ├── add-item-orcamento/
-│   │   │   │   ├── update-item-orcamento/
-│   │   │   │   ├── confirm-orcamento/
-│   │   │   │   ├── cancel-orcamento/
-│   │   │   │   ├── export-orcamento-pdf/
-│   │   │   │   ├── export-producao-pdf/
-│   │   │   │   └── list-orcamentos/
-│   │   │   └── dtos/
-│   │   │       └── ...
-│   │   │
-│   │   ├── infrastructure/
-│   │   │   ├── repositories/
-│   │   │   │   └── prisma-orcamento.repository.ts
-│   │   │   ├── mappers/
-│   │   │   │   └── orcamento.mapper.ts
-│   │   │   └── services/
-│   │   │       └── pdf-generation.service.ts
-│   │   │
-│   │   ├── presentation/
-│   │   │   ├── controllers/
-│   │   │   │   └── orcamentos.controller.ts
-│   │   │   └── http-dtos/
-│   │   │       └── ...
-│   │   │
+│   │   │   └── dto/
 │   │   └── orcamentos.module.ts
 │   │
-│   └── producao/                          # BOUNDED CONTEXT: Produção
-│       ├── domain/
-│       │   ├── entities/
-│       │   │   └── ordem-producao.entity.ts
-│       │   ├── value-objects/
-│       │   │   └── ordem-producao-id.vo.ts
-│       │   └── repositories/
-│       │       └── ordem-producao.repository.interface.ts
-│       │
+│   ├── clientes/
+│   │   ├── domain/
+│   │   ├── application/
+│   │   ├── infrastructure/
+│   │   ├── presentation/
+│   │   └── clientes.module.ts
+│   │
+│   ├── auth/
+│   │   ├── application/
+│   │   ├── infrastructure/
+│   │   ├── presentation/
+│   │   └── auth.module.ts
+│   │
+│   └── dados-do-negocio/
 │       ├── application/
-│       │   └── use-cases/
-│       │       ├── generate-producao-pdf.use-case.ts
-│       │       └── generate-summary.use-case.ts
-│       │
 │       ├── infrastructure/
-│       │   └── repositories/
-│       │       └── prisma-ordem-producao.repository.ts
-│       │
-│       └── producao.module.ts
+│       ├── presentation/
+│       └── dados-do-negocio.module.ts
 │
-├── shared/                                 # SHARED KERNEL
-│   ├── domain/
-│   │   ├── base/
-│   │   │   ├── entity.ts                  # Classe base para entities
-│   │   │   ├── aggregate-root.ts         # Classe base para aggregates
-│   │   │   ├── value-object.ts           # Classe base para VOs
-│   │   │   └── domain-event.ts           # Event base class
-│   │   └── value-objects/
-│   │       ├── id.vo.ts                  # ID genérico
-│   │       ├── email.vo.ts               # Email reutilizável
-│   │       └── audit.vo.ts               # Auditoria
-│   │
-│   ├── application/
-│   │   ├── handlers/
-│   │   │   └── event-bus.service.ts
-│   │   ├── exceptions/
-│   │   │   ├── business.exception.ts
-│   │   │   ├── validation.exception.ts
-│   │   │   └── not-found.exception.ts
-│   │   └── decorators/
-│   │       └── use-case.decorator.ts
-│   │
-│   ├── infrastructure/
-│   │   ├── database/
-│   │   │   └── prisma.service.ts
-│   │   ├── cache/
-│   │   │   └── cache.service.ts          # future
-│   │   └── email/
-│   │       └── email.service.ts          # future
-│   │
-│   ├── presentation/
-│   │   ├── filters/
-│   │   │   ├── http-exception.filter.ts
-│   │   │   └── business-exception.filter.ts
-│   │   ├── interceptors/
-│   │   │   ├── logging.interceptor.ts
-│   │   │   ├── performance.interceptor.ts
-│   │   │   └── request-audit.interceptor.ts
-│   │   ├── guards/
-│   │   │   ├── jwt-auth.guard.ts
-│   │   │   └── rate-limit.guard.ts        # future
-│   │   └── decorators/
-│   │       ├── current-user.decorator.ts
-│   │       └── public.decorator.ts
-│   │
-│   └── utils/
-│       ├── validators/
-│       │   ├── cpf.validator.ts          # Brazillian validators
-│       │   ├── email.validator.ts
-│       │   └── phone.validator.ts
-│       └── formatters/
-│           ├── money.formatter.ts
-│           └── date.formatter.ts
-│
+├── shared/
+│   ├── database/
+│   └── errors/
 ├── config/
-│   ├── environment.ts
-│   ├── database.config.ts
-│   └── jwt.config.ts
-│
 └── main.ts
 ```
 
-### 3.2 Base Classes para DDD
+`shared/` deve permanecer pequeno e não funcionar como depósito genérico.
 
-```typescript
-// src/shared/domain/base/entity.ts
-import { randomUUID } from 'crypto';
+`Money` permanece inicialmente em `orcamentos/domain/value-objects/`. Só será movido para `shared` se outro módulo realmente passar a reutilizá-lo.
 
-/**
- * Entity: Tem identidade única
- * Pode ser modificada mas é rastreada pela ID
- */
-export abstract class Entity<Props> {
-  protected readonly _id: string;
-  protected props: Props;
-  protected createdAt: Date;
-  protected updatedAt: Date;
+---
 
-  constructor(props: Props, id?: string) {
-    this.props = props;
-    this._id = id || randomUUID();
-    this.createdAt = new Date();
-    this.updatedAt = new Date();
-  }
+## 20. Infraestrutura e deployment
 
-  get id(): string {
-    return this._id;
-  }
+Arquitetura do MVP:
 
-  equals(other: Entity<Props>): boolean {
-    return this._id === other._id;
-  }
-
-  touch(): void {
-    this.updatedAt = new Date();
-  }
-}
-
-// src/shared/domain/base/aggregate-root.ts
-import { Entity } from './entity';
-import { DomainEvent } from './domain-event';
-
-/**
- * Aggregate Root: Entity que é raiz de um agregado
- * Responsável por guardar eventos de domínio
- */
-export abstract class AggregateRoot<Props> extends Entity<Props> {
-  private _domainEvents: DomainEvent[] = [];
-
-  get domainEvents(): DomainEvent[] {
-    return this._domainEvents;
-  }
-
-  protected addDomainEvent(event: DomainEvent): void {
-    this._domainEvents.push(event);
-  }
-
-  clearDomainEvents(): void {
-    this._domainEvents = [];
-  }
-}
-
-// src/shared/domain/base/value-object.ts
-/**
- * Value Object: Imutável, identificado pelo seus valores
- * Sem identidade única (dois VOs com mesmos valores são iguais)
- */
-export abstract class ValueObject<Props> {
-  protected props: Props;
-
-  constructor(props: Props) {
-    // Deep freeze para garantir imutabilidade
-    this.props = Object.freeze(props);
-  }
-
-  equals(other: ValueObject<Props>): boolean {
-    return JSON.stringify(this.props) === JSON.stringify(other.props);
-  }
-
-  getProps(): Props {
-    return this.props;
-  }
-}
-
-// src/shared/domain/base/domain-event.ts
-export abstract class DomainEvent {
-  public readonly occurredAt: Date;
-  public readonly aggregateId: string;
-
-  constructor(aggregateId: string) {
-    this.aggregateId = aggregateId;
-    this.occurredAt = new Date();
-  }
-
-  abstract getEventType(): string;
-}
+```text
+React frontend
+      ↓ HTTPS
+NestJS backend
+      ↓
+PostgreSQL
 ```
 
-### 3.3 Exemplo Prático: Cliente Entity + Value Objects
+Docker/Docker Compose será utilizado no desenvolvimento e pode ser utilizado no deployment conforme o provedor escolhido.
 
-```typescript
-// src/modules/clientes/domain/value-objects/email.vo.ts
-import { ValueObject } from '@shared/domain/base/value-object';
+Não são necessários inicialmente:
 
-export class Email extends ValueObject<{ value: string }> {
-  private constructor(email: string) {
-    // Validação no constructor
-    if (!Email.isValid(email)) {
-      throw new Error('Email inválido');
-    }
-    super({ value: email.toLowerCase() });
-  }
+- Redis;
+- broker;
+- Kubernetes;
+- múltiplos serviços;
+- banco por módulo.
 
-  static create(email: string): Email {
-    return new Email(email);
-  }
+Produção deve possuir estratégia de backup adequada para PostgreSQL.
 
-  static isValid(email: string): boolean {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
-  }
+---
 
-  get value(): string {
-    return this.props.value;
-  }
-}
+## 21. Logging, segurança e privacidade
 
-// src/modules/clientes/domain/value-objects/telefone.vo.ts
-import { ValueObject } from '@shared/domain/base/value-object';
+### 21.1 Logging técnico
 
-export class Telefone extends ValueObject<{ value: string }> {
-  private constructor(telefone: string) {
-    if (!Telefone.isValid(telefone)) {
-      throw new Error('Telefone inválido');
-    }
-    // Remove formatação, armazena apenas números
-    const apenasNumeros = telefone.replace(/\D/g, '');
-    super({ value: apenasNumeros });
-  }
+Logs técnicos são separados do histórico de negócio.
 
-  static create(telefone: string): Telefone {
-    return new Telefone(telefone);
-  }
+Não registrar integralmente:
 
-  static isValid(telefone: string): boolean {
-    const apenasNumeros = telefone.replace(/\D/g, '');
-    return apenasNumeros.length >= 10 && apenasNumeros.length <= 11;
-  }
+- senhas;
+- tokens de sessão;
+- cookies;
+- CPF/CNPJ;
+- payloads contendo dados pessoais sem necessidade.
 
-  get value(): string {
-    return this.props.value;
-  }
+### 21.2 Privacidade
 
-  getFormatted(): string {
-    // (11) 99999-9999
-    if (this.props.value.length === 11) {
-      return `(${this.props.value.slice(0, 2)}) ${this.props.value.slice(2, 7)}-${this.props.value.slice(7)}`;
-    }
-    return `(${this.props.value.slice(0, 2)}) ${this.props.value.slice(2, 6)}-${this.props.value.slice(6)}`;
-  }
-}
+A arquitetura não tratará soft delete como equivalente a "direito ao esquecimento" nem assumirá consentimento obrigatório sem requisito funcional correspondente.
 
-// src/modules/clientes/domain/entities/cliente.entity.ts
-import { AggregateRoot } from '@shared/domain/base/aggregate-root';
-import { Email } from '../value-objects/email.vo';
-import { Telefone } from '../value-objects/telefone.vo';
-import { ClienteCriadoEvent } from '../events/cliente-criado.event';
+Medidas concretas do MVP incluem:
 
-interface ClienteProps {
-  nome: string;
-  email: Email;
-  telefone: Telefone;
-  endereco: string;
-  cidade?: string;
-  estado?: string;
-  cep?: string;
-  anotacoes?: string;
-  statusCliente: 'ativo' | 'inativo' | 'bloqueado';
-  dataUltimoContato?: Date;
-}
+- minimização de dados;
+- autenticação;
+- hash de senha;
+- proteção de sessões;
+- não exposição de dados pessoais/financeiros na ordem de produção;
+- logs seguros;
+- backup;
+- soft delete conforme requisito funcional.
 
-export class Cliente extends AggregateRoot<ClienteProps> {
-  private constructor(props: ClienteProps, id?: string) {
-    super(props, id);
-  }
+---
 
-  static create(props: Omit<ClienteProps, 'statusCliente'>): Cliente {
-    const cliente = new Cliente(
-      {
-        ...props,
-        statusCliente: 'ativo',
-      }
-    );
+## 22. Decisões explicitamente adiadas
 
-    // Publicar evento de domínio
-    cliente.addDomainEvent(
-      new ClienteCriadoEvent(cliente.id, props.nome, props.email.value)
-    );
+Podem ser decididas durante implementação sem alterar a arquitetura-base:
 
-    return cliente;
-  }
+- biblioteca específica de PDF;
+- provedor de hosting;
+- ferramenta exata de observabilidade;
+- implementação concreta de CSRF dentro do stack escolhido;
+- adoção de MFA/TOTP;
+- refinamento dos nomes de endpoints;
+- precisão total `p` dos `Decimal(p,3)`, mantendo escala de 3 casas;
+- criação de abstração própria de Unit of Work caso repetição real justifique;
+- introdução de optimistic locking se surgir edição concorrente real;
+- Domain Events se múltiplos efeitos desacoplados passarem a justificar o padrão.
 
-  static with(props: ClienteProps, id: string): Cliente {
-    return new Cliente(props, id);
-  }
+---
 
-  // Getters
-  get nome(): string {
-    return this.props.nome;
-  }
+## 23. Resumo das decisões consolidadas
 
-  get email(): Email {
-    return this.props.email;
-  }
-
-  get telefone(): Telefone {
-    return this.props.telefone;
-  }
-
-  get endereco(): string {
-    return this.props.endereco;
-  }
-
-  get statusCliente(): string {
-    return this.props.statusCliente;
-  }
-
-  // Métodos de negócio
-  inativar(): void {
-    if (this.props.statusCliente === 'inativo') {
-      throw new Error('Cliente já está inativo');
-    }
-    this.props.statusCliente = 'inativo';
-    this.touch();
-  }
-
-  ativar(): void {
-    if (this.props.statusCliente === 'ativo') {
-      throw new Error('Cliente já está ativo');
-    }
-    this.props.statusCliente = 'ativo';
-    this.touch();
-  }
-
-  atualizarAnotacoes(novasAnotacoes: string): void {
-    this.props.anotacoes = novasAnotacoes;
-    this.props.dataUltimoContato = new Date();
-    this.touch();
-  }
-
-  isAtivo(): boolean {
-    return this.props.statusCliente === 'ativo';
-  }
-}
-```
-
-### 3.4 Use Case Pattern
-
-```typescript
-// src/shared/application/use-case.decorator.ts
-export interface UseCase<Request, Response> {
-  execute(request: Request): Promise<Response>;
-}
-
-// src/modules/clientes/application/use-cases/create-cliente.use-case.ts
-import { Injectable } from '@nestjs/common';
-import { UseCase } from '@shared/application/use-case.decorator';
-import { ClienteRepository } from '@modules/clientes/domain/repositories/cliente.repository.interface';
-import { Cliente } from '@modules/clientes/domain/entities/cliente.entity';
-import { Email } from '@modules/clientes/domain/value-objects/email.vo';
-import { Telefone } from '@modules/clientes/domain/value-objects/telefone.vo';
-import { CreateClienteDto } from '../dtos/create-cliente.dto';
-import { ClienteDto } from '../dtos/cliente.dto';
-
-@Injectable()
-export class CreateClienteUseCase implements UseCase<CreateClienteDto, ClienteDto> {
-  constructor(
-    private clienteRepository: ClienteRepository,
-    private eventBus: EventBusService,
-  ) {}
-
-  async execute(request: CreateClienteDto): Promise<ClienteDto> {
-    // 1. Validar se email já existe (LGPD: não reutilizar emails)
-    const clienteExistente = await this.clienteRepository.findByEmail(request.email);
-    if (clienteExistente) {
-      throw new BusinessException('Email já cadastrado');
-    }
-
-    // 2. Criar agregado com Value Objects (validações acontecem aqui)
-    const cliente = Cliente.create({
-      nome: request.nome.trim(),
-      email: Email.create(request.email),
-      telefone: Telefone.create(request.telefone),
-      endereco: request.endereco,
-      cidade: request.cidade,
-      estado: request.estado,
-      cep: request.cep,
-      anotacoes: request.anotacoes,
-    });
-
-    // 3. Persistir no repositório
-    const clienteSalvo = await this.clienteRepository.save(cliente);
-
-    // 4. Publicar eventos de domínio (triggers para outras ações)
-    // Ex: enviar email de boas-vindas
-    for (const event of clienteSalvo.domainEvents) {
-      await this.eventBus.publish(event);
-    }
-    clienteSalvo.clearDomainEvents();
-
-    // 5. Retornar DTO (nunca expor entidade diretamente)
-    return ClienteMapper.toPersistence(clienteSalvo);
-  }
-}
-```
-
-### 3.5 Repository Pattern
-
-```typescript
-// src/modules/clientes/domain/repositories/cliente.repository.interface.ts
-import { Cliente } from '../entities/cliente.entity';
-
-/**
- * Interface de repositório - define contrato
- * Implementação fica em infrastructure layer
- */
-export interface IClienteRepository {
-  save(cliente: Cliente): Promise<Cliente>;
-  findById(id: string): Promise<Cliente | null>;
-  findByEmail(email: string): Promise<Cliente | null>;
-  findAll(filters?: ClienteFilters): Promise<Cliente[]>;
-  delete(id: string): Promise<void>;
-  update(cliente: Cliente): Promise<Cliente>;
-}
-
-// src/modules/clientes/infrastructure/repositories/prisma-cliente.repository.ts
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@shared/infrastructure/database/prisma.service';
-import { IClienteRepository } from '@modules/clientes/domain/repositories/cliente.repository.interface';
-import { Cliente } from '@modules/clientes/domain/entities/cliente.entity';
-import { ClienteMapper } from '../mappers/cliente.mapper';
-
-@Injectable()
-export class PrismaClienteRepository implements IClienteRepository {
-  constructor(private prisma: PrismaService) {}
-
-  async save(cliente: Cliente): Promise<Cliente> {
-    const clienteData = ClienteMapper.toPersistence(cliente);
-    const clienteSalvo = await this.prisma.cliente.create({
-      data: clienteData,
-    });
-    return ClienteMapper.toDomain(clienteSalvo);
-  }
-
-  async findById(id: string): Promise<Cliente | null> {
-    const cliente = await this.prisma.cliente.findUnique({
-      where: { id },
-    });
-    return cliente ? ClienteMapper.toDomain(cliente) : null;
-  }
-
-  // ... outros métodos
-}
-
-// src/modules/clientes/infrastructure/mappers/cliente.mapper.ts
-/**
- * Mapper: Converte entre diferentes representações
- * Domain ↔ Persistence ↔ HTTP
- */
-export class ClienteMapper {
-  // Domain Entity → Prisma Persistence
-  static toPersistence(cliente: Cliente) {
-    return {
-      id: cliente.id,
-      nome: cliente.nome,
-      email: cliente.email.value,
-      telefone: cliente.telefone.value,
-      endereco: cliente.endereco,
-      statusCliente: cliente.statusCliente,
-      // ... outros campos
-    };
-  }
-
-  // Prisma → Domain Entity
-  static toDomain(raw: any): Cliente {
-    return Cliente.with(
-      {
-        nome: raw.nome,
-        email: Email.create(raw.email),
-        telefone: Telefone.create(raw.telefone),
-        endereco: raw.endereco,
-        statusCliente: raw.statusCliente,
-        // ... outros
-      },
-      raw.id
-    );
-  }
-
-  // Domain Entity → HTTP Response DTO
-  static toDto(cliente: Cliente): ClienteDto {
-    return {
-      id: cliente.id,
-      nome: cliente.nome,
-      email: cliente.email.value,
-      telefone: cliente.telefone.getFormatted(),
-      endereco: cliente.endereco,
-      status: cliente.statusCliente,
-    };
-  }
-}
+```text
+Estilo                     → Monólito modular
+Organização                → Arquitetura em camadas pragmática
+DDD                         → Tático seletivo
+Aggregate Roots             → Cliente, Orçamento
+Cortina                     → Entity interna de Orçamento
+ItemFinanceiro              → Entity interna compartilhada semanticamente
+Desconto                    → Value Object
+EnderecoInstalacao          → Value Object/snapshot
+Produção                    → fase de Orçamento, não contexto separado
+Histórico                   → persistência separada, sem event sourcing
+Repositories DDD            → ClienteRepository, OrcamentoRepository
+Prisma                      → Infrastructure apenas
+Queries                     → projeções diretas quando apropriado
+Transações                  → Application + Prisma $transaction
+Unit of Work                → não inicialmente
+Número ORÇ-AAAA-NNN         → contador anual atômico
+Medidas de entrada          → decimal com 3 casas
+Quantidades derivadas        → preservar precisão (até 6 casas quando necessário)
+Dinheiro                    → centavos / 2 casas
+Arredondamento monetário    → HALF_UP
+Ajuste comercial            → global, positivo ou negativo
+Autenticação                → sessão server-side + cookie seguro
+API                         → REST CRUD + POST para ações de domínio
+PDF                         → gerado sob demanda, não persistido
+Ordem de produção           → projeção gerada sob demanda
+Testes                      → orientados a risco/regras críticas
+Deployment                  → aplicação única + PostgreSQL
 ```
 
 ---
 
-## 4. ESTRATÉGIA DE TESTES
-
-### 4.1 Pirâmide de Testes (Objetivo: >80% coverage)
-
-```
-        ╱╲
-       ╱  ╲        E2E Tests (10%)
-      ╱    ╲       - Fluxo completo (API + Frontend)
-     ╱──────╲      - 2-3 cenários críticos
-    ╱        ╲
-   ╱          ╲     Integration Tests (30%)
-  ╱            ╲    - Service + Repository
- ╱──────────────╲   - Banco de dados
-╱                ╲  
-─────────────────   Unit Tests (60%)
-                    - Entities
-                    - Value Objects
-                    - Services
-                    - Use Cases
-```
-
-### 4.2 Unit Tests: Entities e Value Objects
-
-```typescript
-// src/modules/clientes/domain/entities/cliente.entity.spec.ts
-import { describe, it, expect } from '@jest/globals';
-import { Cliente } from './cliente.entity';
-import { Email } from '../value-objects/email.vo';
-import { Telefone } from '../value-objects/telefone.vo';
-
-describe('Cliente Entity', () => {
-  describe('create', () => {
-    it('should create a valid cliente', () => {
-      const props = {
-        nome: 'João Silva',
-        email: Email.create('joao@example.com'),
-        telefone: Telefone.create('11999999999'),
-        endereco: 'Rua A, 123',
-      };
-
-      const cliente = Cliente.create(props);
-
-      expect(cliente.id).toBeDefined();
-      expect(cliente.nome).toBe('João Silva');
-      expect(cliente.statusCliente).toBe('ativo');
-    });
-
-    it('should publish ClienteCriadoEvent on creation', () => {
-      const cliente = Cliente.create({
-        nome: 'Maria',
-        email: Email.create('maria@example.com'),
-        telefone: Telefone.create('11998888888'),
-        endereco: 'Rua B, 456',
-      });
-
-      expect(cliente.domainEvents).toHaveLength(1);
-      expect(cliente.domainEvents[0].getEventType()).toBe('ClienteCriadoEvent');
-    });
-  });
-
-  describe('inativar', () => {
-    it('should deactivate an active cliente', () => {
-      const cliente = Cliente.create({
-        nome: 'Pedro',
-        email: Email.create('pedro@example.com'),
-        telefone: Telefone.create('11997777777'),
-        endereco: 'Rua C, 789',
-      });
-
-      cliente.inativar();
-
-      expect(cliente.statusCliente).toBe('inativo');
-    });
-
-    it('should throw error when inativating already inactive cliente', () => {
-      const cliente = Cliente.create({
-        nome: 'Ana',
-        email: Email.create('ana@example.com'),
-        telefone: Telefone.create('11996666666'),
-        endereco: 'Rua D, 101',
-      });
-
-      cliente.inativar();
-
-      expect(() => cliente.inativar()).toThrow('Cliente já está inativo');
-    });
-  });
-
-  describe('atualizarAnotacoes', () => {
-    it('should update anotacoes and dataUltimoContato', () => {
-      const cliente = Cliente.create({
-        nome: 'Carlos',
-        email: Email.create('carlos@example.com'),
-        telefone: Telefone.create('11995555555'),
-        endereco: 'Rua E, 202',
-      });
-
-      const novasAnotacoes = 'Cliente muito exigente com cores';
-      cliente.atualizarAnotacoes(novasAnotacoes);
-
-      expect(cliente['props'].anotacoes).toBe(novasAnotacoes);
-      expect(cliente['props'].dataUltimoContato).toBeDefined();
-    });
-  });
-});
-
-// src/modules/clientes/domain/value-objects/email.vo.spec.ts
-describe('Email Value Object', () => {
-  describe('create', () => {
-    it('should create a valid email', () => {
-      const email = Email.create('user@example.com');
-      expect(email.value).toBe('user@example.com');
-    });
-
-    it('should throw when email is invalid', () => {
-      expect(() => Email.create('invalid-email')).toThrow('Email inválido');
-      expect(() => Email.create('test@')).toThrow('Email inválido');
-    });
-
-    it('should normalize email to lowercase', () => {
-      const email = Email.create('User@EXAMPLE.COM');
-      expect(email.value).toBe('user@example.com');
-    });
-  });
-
-  describe('equals', () => {
-    it('should consider two emails with same value as equal', () => {
-      const email1 = Email.create('test@example.com');
-      const email2 = Email.create('test@example.com');
-      expect(email1.equals(email2)).toBe(true);
-    });
-
-    it('should consider two emails with different values as not equal', () => {
-      const email1 = Email.create('test1@example.com');
-      const email2 = Email.create('test2@example.com');
-      expect(email1.equals(email2)).toBe(false);
-    });
-  });
-});
-```
-
-### 4.3 Integration Tests: Use Cases + Repository
-
-```typescript
-// src/modules/clientes/application/use-cases/create-cliente.use-case.spec.ts
-import { Test, TestingModule } from '@nestjs/testing';
-import { CreateClienteUseCase } from './create-cliente.use-case';
-import { ClienteRepository } from '@modules/clientes/domain/repositories/cliente.repository.interface';
-import { PrismaClienteRepository } from '@modules/clientes/infrastructure/repositories/prisma-cliente.repository';
-import { PrismaService } from '@shared/infrastructure/database/prisma.service';
-import { EventBusService } from '@shared/application/handlers/event-bus.service';
-
-describe('CreateClienteUseCase (Integration)', () => {
-  let useCase: CreateClienteUseCase;
-  let repository: ClienteRepository;
-  let prismaService: PrismaService;
-
-  beforeAll(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        CreateClienteUseCase,
-        {
-          provide: ClienteRepository,
-          useClass: PrismaClienteRepository,
-        },
-        {
-          provide: PrismaService,
-          useValue: {
-            cliente: {
-              create: jest.fn(),
-              findUnique: jest.fn(),
-            },
-          },
-        },
-        {
-          provide: EventBusService,
-          useValue: {
-            publish: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
-
-    useCase = module.get<CreateClienteUseCase>(CreateClienteUseCase);
-    repository = module.get<ClienteRepository>(ClienteRepository);
-    prismaService = module.get<PrismaService>(PrismaService);
-  });
-
-  it('should create cliente with valid data', async () => {
-    const dto = {
-      nome: 'João Silva',
-      email: 'joao@example.com',
-      telefone: '11999999999',
-      endereco: 'Rua A, 123',
-    };
-
-    jest.spyOn(repository, 'findByEmail').mockResolvedValue(null);
-    jest.spyOn(repository, 'save').mockResolvedValue({
-      id: '123',
-      ...dto,
-      statusCliente: 'ativo',
-    } as any);
-
-    const result = await useCase.execute(dto);
-
-    expect(result).toBeDefined();
-    expect(result.nome).toBe('João Silva');
-    expect(repository.save).toHaveBeenCalled();
-  });
-
-  it('should throw when email already exists (LGPD)', async () => {
-    const dto = {
-      nome: 'Maria',
-      email: 'existing@example.com',
-      telefone: '11988888888',
-      endereco: 'Rua B, 456',
-    };
-
-    jest.spyOn(repository, 'findByEmail').mockResolvedValue({
-      id: 'existing-id',
-    } as any);
-
-    await expect(useCase.execute(dto)).rejects.toThrow('Email já cadastrado');
-  });
-});
-```
-
-### 4.4 E2E Tests: Fluxo Completo
-
-```typescript
-// test/e2e/cliente.e2e-spec.ts
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
-import { AppModule } from '@src/app.module';
-import { PrismaService } from '@src/shared/infrastructure/database/prisma.service';
-
-describe('Cliente E2E', () => {
-  let app: INestApplication;
-  let prismaService: PrismaService;
-  let token: string;
-
-  beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
-
-    prismaService = moduleFixture.get<PrismaService>(PrismaService);
-
-    // Login e obter token
-    const loginResponse = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({
-        email: 'admin@cortinas.com',
-        password: 'senha123',
-      });
-
-    token = loginResponse.body.access_token;
-  });
-
-  afterAll(async () => {
-    await app.close();
-  });
-
-  describe('POST /clientes', () => {
-    it('should create a cliente with valid data', async () => {
-      const response = await request(app.getHttpServer())
-        .post('/clientes')
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          nome: 'João da Silva',
-          email: 'joao@example.com',
-          telefone: '11999999999',
-          endereco: 'Rua A, 123',
-          cidade: 'São Paulo',
-          estado: 'SP',
-        })
-        .expect(201);
-
-      expect(response.body.id).toBeDefined();
-      expect(response.body.nome).toBe('João da Silva');
-    });
-
-    it('should return 400 when email is invalid', async () => {
-      await request(app.getHttpServer())
-        .post('/clientes')
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          nome: 'Maria',
-          email: 'invalid-email',
-          telefone: '11988888888',
-          endereco: 'Rua B, 456',
-        })
-        .expect(400);
-    });
-
-    it('should return 409 when email already exists', async () => {
-      // Criar primeiro cliente
-      await request(app.getHttpServer())
-        .post('/clientes')
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          nome: 'Pedro',
-          email: 'duplicate@example.com',
-          telefone: '11977777777',
-          endereco: 'Rua C, 789',
-        })
-        .expect(201);
-
-      // Tentar criar com mesmo email
-      await request(app.getHttpServer())
-        .post('/clientes')
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          nome: 'Ana',
-          email: 'duplicate@example.com',
-          telefone: '11966666666',
-          endereco: 'Rua D, 101',
-        })
-        .expect(409);
-    });
-  });
-
-  describe('GET /clientes/:id', () => {
-    it('should retrieve a cliente by id', async () => {
-      // Criar cliente
-      const createResponse = await request(app.getHttpServer())
-        .post('/clientes')
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          nome: 'Carlos',
-          email: 'carlos@example.com',
-          telefone: '11955555555',
-          endereco: 'Rua E, 202',
-        });
-
-      const clienteId = createResponse.body.id;
-
-      // Buscar
-      const getResponse = await request(app.getHttpServer())
-        .get(`/clientes/${clienteId}`)
-        .set('Authorization', `Bearer ${token}`)
-        .expect(200);
-
-      expect(getResponse.body.id).toBe(clienteId);
-      expect(getResponse.body.nome).toBe('Carlos');
-    });
-
-    it('should return 404 when cliente not found', async () => {
-      await request(app.getHttpServer())
-        .get('/clientes/non-existent-id')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(404);
-    });
-  });
-
-  describe('Complete Flow', () => {
-    it('should: create → retrieve → update → deactivate cliente', async () => {
-      // 1. Create
-      const createResp = await request(app.getHttpServer())
-        .post('/clientes')
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          nome: 'Complete Flow Test',
-          email: 'flow@example.com',
-          telefone: '11944444444',
-          endereco: 'Rua F, 303',
-        })
-        .expect(201);
-
-      const clienteId = createResp.body.id;
-
-      // 2. Retrieve
-      await request(app.getHttpServer())
-        .get(`/clientes/${clienteId}`)
-        .set('Authorization', `Bearer ${token}`)
-        .expect(200);
-
-      // 3. Update
-      await request(app.getHttpServer())
-        .put(`/clientes/${clienteId}`)
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          anotacoes: 'Cliente atualizado via E2E test',
-        })
-        .expect(200);
-
-      // 4. Deactivate
-      await request(app.getHttpServer())
-        .patch(`/clientes/${clienteId}/inativar`)
-        .set('Authorization', `Bearer ${token}`)
-        .expect(200);
-
-      // Verify deactivation
-      const finalResp = await request(app.getHttpServer())
-        .get(`/clientes/${clienteId}`)
-        .set('Authorization', `Bearer ${token}`)
-        .expect(200);
-
-      expect(finalResp.body.status).toBe('inativo');
-    });
-  });
-});
-```
-
-### 4.5 Configuração de Testes
-
-```json
-// jest.config.js
-module.exports = {
-  moduleFileExtensions: ['js', 'json', 'ts'],
-  rootDir: 'src',
-  testRegex: '.*\\.spec\\.ts$',
-  transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
-  },
-  collectCoverageFrom: [
-    '**/*.(t|j)s',
-    '!**/*.interface.ts',
-    '!**/*.module.ts',
-    '!**/main.ts',
-    '!**/index.ts',
-  ],
-  coverageDirectory: '../coverage',
-  testEnvironment: 'node',
-  moduleNameMapper: {
-    '^@src/(.*)$': '<rootDir>/$1',
-    '^@shared/(.*)$': '<rootDir>/shared/$1',
-    '^@modules/(.*)$': '<rootDir>/modules/$1',
-  },
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.spec.ts',
-    '!src/**/*.interface.ts',
-    '!src/**/*.module.ts',
-    '!src/main.ts',
-  ],
-  coverageThreshold: {
-    global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80,
-    },
-  },
-};
-```
-
----
-
-## 5. LGPD E SEGURANÇA
-
-### 5.1 Princípios LGPD Implementados
-
-| Princípio | Implementação |
-|-----------|---------------|
-| **Consentimento** | Explícito ao criar cliente (terms accepted) |
-| **Coleta Mínima** | Apenas dados necessários (nome, email, phone, address) |
-| **Direito ao Esquecimento** | Soft delete, dados não são realmente apagados |
-| **Portabilidade** | `ExportClienteDataUseCase` → JSON/CSV |
-| **Transparência** | Histórico de alterações (quem, quando, o quê) |
-| **Segurança de Dados** | Encriptação de dados sensíveis (future) |
-
-### 5.2 Use Case: Exportar Dados (LGPD)
-
-```typescript
-// src/modules/clientes/application/use-cases/export-cliente-data.use-case.ts
-import { Injectable } from '@nestjs/common';
-import { UseCase } from '@shared/application/use-case.decorator';
-
-/**
- * Implementa direito de portabilidade da LGPD
- * Cliente pode solicitar seus dados em formato portável (JSON/CSV)
- */
-@Injectable()
-export class ExportClienteDataUseCase implements UseCase<string, any> {
-  constructor(
-    private clienteRepository: ClienteRepository,
-  ) {}
-
-  async execute(clienteId: string): Promise<any> {
-    // 1. Buscar cliente
-    const cliente = await this.clienteRepository.findById(clienteId);
-    if (!cliente) {
-      throw new NotFoundException('Cliente não encontrado');
-    }
-
-    // 2. Compilar todos os dados do cliente
-    const dados = {
-      cliente: {
-        id: cliente.id,
-        nome: cliente.nome,
-        email: cliente.email.value,
-        telefone: cliente.telefone.value,
-        endereco: cliente.endereco,
-        dataCadastro: cliente['createdAt'],
-      },
-      orcamentos: [], // Buscar todos os orçamentos
-      servicos: [],   // Buscar todos os serviços
-    };
-
-    // 3. Retornar em formato exportável (JSON)
-    // Frontend converte para CSV se necessário
-    return dados;
-  }
-}
-```
-
-### 5.3 Auditoria e Logging
-
-```typescript
-// src/shared/domain/value-objects/audit.vo.ts
-import { ValueObject } from './value-object';
-
-interface AuditProps {
-  criadoPor: string;
-  criadoEm: Date;
-  modificadoPor?: string;
-  modificadoEm?: Date;
-}
-
-export class Audit extends ValueObject<AuditProps> {
-  private constructor(props: AuditProps) {
-    super(props);
-  }
-
-  static create(criadoPor: string): Audit {
-    return new Audit({
-      criadoPor,
-      criadoEm: new Date(),
-    });
-  }
-
-  updateModification(modificadoPor: string): Audit {
-    return new Audit({
-      ...this.props,
-      modificadoPor,
-      modificadoEm: new Date(),
-    });
-  }
-
-  get criadoPor(): string {
-    return this.props.criadoPor;
-  }
-
-  get modificadoPor(): string | undefined {
-    return this.props.modificadoPor;
-  }
-}
-
-// src/shared/presentation/interceptors/request-audit.interceptor.ts
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
-import { Logger } from '@nestjs/common';
-
-/**
- * Loga todas as requisições (quem, quando, o quê)
- * Importante para LGPD e auditoria de segurança
- */
-@Injectable()
-export class RequestAuditInterceptor implements NestInterceptor {
-  private logger = new Logger('AuditLog');
-
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest();
-    const { method, url, user, body } = request;
-    const timestamp = new Date().toISOString();
-
-    this.logger.log(
-      `[${timestamp}] ${method} ${url} | User: ${user?.email || 'anonymous'} | Body: ${JSON.stringify(body)}`
-    );
-
-    return next.handle().pipe(
-      tap(() => {
-        this.logger.log(`[${timestamp}] Response: OK`);
-      }),
-    );
-  }
-}
-```
-
-### 5.4 Validação e Sanitização
-
-```typescript
-// src/shared/presentation/filters/business-exception.filter.ts
-import { ExceptionFilter, Catch, ArgumentsHost, HttpStatus, BadRequestException } from '@nestjs/common';
-import { Response } from 'express';
-import { BusinessException } from '@shared/application/exceptions/business.exception';
-
-/**
- * Captura exceções de negócio e retorna erro apropriado
- * Nunca expõe stack trace ou detalhes técnicos
- */
-@Catch(BusinessException)
-export class BusinessExceptionFilter implements ExceptionFilter {
-  catch(exception: BusinessException, host: ArgumentsHost) {
-    const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
-
-    response.status(HttpStatus.BAD_REQUEST).json({
-      statusCode: HttpStatus.BAD_REQUEST,
-      message: exception.message,
-      // Nunca expor: stack, detalhes técnicos, dados sensíveis
-    });
-  }
-}
-
-// src/shared/application/exceptions/business.exception.ts
-export class BusinessException extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'BusinessException';
-    // Remove stack trace para não expor detalhes técnicos
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
-```
-
-### 5.5 Criptografia (future, mas estrutura já)
-
-```typescript
-// src/shared/infrastructure/encryption/encryption.service.ts
-import { Injectable } from '@nestjs/common';
-import * as crypto from 'crypto';
-
-/**
- * Estrutura para criptografia de dados sensíveis (future)
- * Usar para CPF, dados de pagamento, etc
- */
-@Injectable()
-export class EncryptionService {
-  private algorithm = 'aes-256-gcm';
-  private key = crypto.scryptSync(process.env.ENCRYPTION_KEY, 'salt', 32);
-
-  encrypt(text: string): string {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(this.algorithm, this.key, iv);
-    let encrypted = cipher.update(text, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    const authTag = cipher.getAuthTag();
-    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
-  }
-
-  decrypt(encrypted: string): string {
-    const [iv, authTag, encryptedText] = encrypted.split(':');
-    const decipher = crypto.createDecipheriv(
-      this.algorithm,
-      this.key,
-      Buffer.from(iv, 'hex'),
-    );
-    decipher.setAuthTag(Buffer.from(authTag, 'hex'));
-    let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
-  }
-}
-```
-
----
-
-## 6. CONVENÇÕES DE CÓDIGO
-
-### 6.1 Naming Conventions
-
-```typescript
-// Entities e Aggregates: Singular, PascalCase
-class Cliente { }
-class Orcamento { }
-
-// Value Objects: Sufixo "VO" ou descritor, PascalCase
-class Email { }
-class ClienteId { }
-class OrcamentoStatus { }
-
-// Repositories: Interface com "I" prefix, implementação com nome da DB
-interface IClienteRepository { }
-class PrismaClienteRepository { }
-
-// Use Cases: Nome + "UseCase"
-class CreateClienteUseCase { }
-class ConfirmOrcamentoUseCase { }
-
-// Services: Nome + "Service"
-class ClienteDomainService { }
-class OrcamentoCalculosService { }
-
-// Controllers: Sufixo "Controller"
-class ClientesController { }
-class OrcamentosController { }
-
-// DTOs: Nome + "Dto" ou "HttpDto"
-class CreateClienteDto { }
-class ClienteResponseDto { }
-
-// Events: Nome + "Event"
-class ClienteCriadoEvent { }
-class OrcamentoConfirmadoEvent { }
-
-// Variáveis e métodos: camelCase
-let clienteId: string;
-function calcularTotal(): number { }
-
-// Constantes: UPPER_SNAKE_CASE
-const MAX_CLIENTES_PER_PAGE = 20;
-const STATUS_ATIVO = 'ativo';
-
-// Private fields: prefixo underscore
-private _domainEvents: DomainEvent[] = [];
-```
-
-### 6.2 Imports: Absolute Imports
-
-```typescript
-// ❌ Evitar: Relative imports
-import { Cliente } from '../../../domain/entities/cliente.entity';
-
-// ✅ Usar: Absolute imports via tsconfig alias
-import { Cliente } from '@modules/clientes/domain/entities/cliente.entity';
-import { EventBusService } from '@shared/application/handlers/event-bus.service';
-import { PrismaService } from '@shared/infrastructure/database/prisma.service';
-```
-
-**tsconfig.json**:
-```json
-{
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@src/*": ["src/*"],
-      "@shared/*": ["src/shared/*"],
-      "@modules/*": ["src/modules/*"]
-    }
-  }
-}
-```
-
-### 6.3 Comentários
-
-```typescript
-// ✅ Bom: Comentários explicam POR QUÊ, não O QUÊ
-class Cliente {
-  // LGPD: Email único para evitar duplicação de dados pessoais
-  async findByEmail(email: string): Promise<Cliente | null> {
-    // ...
-  }
-}
-
-// ❌ Ruim: Comentário óbvio
-class Cliente {
-  // Encontra cliente por email
-  async findByEmail(email: string): Promise<Cliente | null> {
-    // ...
-  }
-}
-
-// ✅ Use JSDoc para métodos públicos
-/**
- * Inativa um cliente e marca como não mais contato
- * @param clienteId - ID do cliente a inativar
- * @throws BusinessException se cliente já está inativo
- */
-async deactivateCliente(clienteId: string): Promise<void> {
-  // ...
-}
-```
-
-### 6.4 Logging
-
-```typescript
-// src/shared/infrastructure/logger/logger.service.ts
-import { Injectable, Logger } from '@nestjs/common';
-
-@Injectable()
-export class LoggerService extends Logger {
-  log(message: string, context?: string) {
-    super.log(`[${context}] ${message}`);
-  }
-
-  error(message: string, error: Error, context?: string) {
-    super.error(`[${context}] ${message} - ${error.message}`);
-  }
-
-  warn(message: string, context?: string) {
-    super.warn(`[${context}] ${message}`);
-  }
-
-  debug(message: string, context?: string) {
-    super.debug(`[${context}] ${message}`);
-  }
-}
-
-// Uso em services
-@Injectable()
-export class CreateClienteUseCase {
-  constructor(
-    private logger: LoggerService,
-    private repository: ClienteRepository,
-  ) {}
-
-  async execute(request: CreateClienteDto): Promise<ClienteDto> {
-    this.logger.log('Iniciando criação de cliente', 'CreateClienteUseCase');
-
-    try {
-      const cliente = Cliente.create({ /* ... */ });
-      const saved = await this.repository.save(cliente);
-      this.logger.log(`Cliente criado: ${saved.id}`, 'CreateClienteUseCase');
-      return saved;
-    } catch (error) {
-      this.logger.error('Erro ao criar cliente', error, 'CreateClienteUseCase');
-      throw error;
-    }
-  }
-}
-```
-
----
-
-## 7. DIAGRAMAS
-
-### 7.1 Arquitetura em Camadas
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│                    PRESENTATION LAYER                         │
-│  Controllers | HTTP DTOs | Filters | Interceptors | Guards   │
-├──────────────────────────────────────────────────────────────┤
-│                   APPLICATION LAYER                           │
-│  Use Cases | Application Services | Command/Query Handlers    │
-├──────────────────────────────────────────────────────────────┤
-│                      DOMAIN LAYER                             │
-│  Entities | Aggregates | Value Objects | Domain Services      │
-│  Domain Events | Repository Interfaces | Business Rules       │
-├──────────────────────────────────────────────────────────────┤
-│                  INFRASTRUCTURE LAYER                         │
-│  Repository Implementations | Prisma | External Services      │
-├──────────────────────────────────────────────────────────────┤
-│                     SHARED KERNEL                             │
-│  Base Classes | Common Value Objects | Exceptions | Utilities │
-└──────────────────────────────────────────────────────────────┘
-```
-
-### 7.2 Fluxo de Dados (Use Case)
-
-```
-HTTP Request
-    ↓
-[Controller]
-    ↓ (HTTP DTO → Application DTO)
-[Use Case]
-    ↓ (valida, orquestra)
-[Domain Services / Entities]
-    ↓ (lógica de negócio pura)
-[Repository Interface]
-    ↓
-[Prisma Repository]
-    ↓
-[PostgreSQL Database]
-    ↓ (retorna)
-[Mapper] (DB → Domain)
-    ↓
-[Domain Events published]
-    ↓
-[Application DTOs → HTTP Response DTO]
-    ↓
-[Controller]
-    ↓
-HTTP Response
-```
-
-### 7.3 Relacionamento Entre Bounded Contexts
-
-```
-┌──────────────────────────┐
-│  Cliente Context         │
-│  - Aggregate: Cliente    │
-│  - Value Objects        │
-└────────────┬─────────────┘
-             │ (ClienteId reference)
-             │
-┌────────────▼─────────────┐
-│  Orçamento Context       │
-│  - Aggregate: Orçamento  │
-│  - Relaciona com Cliente │
-└────────────┬─────────────┘
-             │ (OrcamentoId reference)
-             │
-┌────────────▼─────────────┐
-│  Produção Context        │
-│  - Aggregate: OrdemProd  │
-│  - Anti-Corruption Layer │
-│  - (sem preços)          │
-└──────────────────────────┘
-```
-
----
-
-## 8. CODE REVIEW CHECKLIST
-
-### 8.1 Domain Layer Review
-
-- [ ] Entidade implementa lógica de negócio corretamente?
-- [ ] Value Objects são imutáveis?
-- [ ] Validações ocorrem nos construtores de VOs?
-- [ ] Não há lógica de infraestrutura (BD, HTTP, etc)?
-- [ ] Aggregate Root publica Domain Events?
-- [ ] Repository Interface definida (sem implementação)?
-- [ ] Testes unitários > 90% coverage?
-
-### 8.2 Application Layer Review
-
-- [ ] Use Case implementa Dependency Injection?
-- [ ] Use Case traduz entre DTOs e Domain Objects?
-- [ ] Exceções de negócio são lançadas corretamente?
-- [ ] Domain Events são publicados pós-persistência?
-- [ ] Testes de integração cobrem fluxos críticos?
-
-### 8.3 Infrastructure Layer Review
-
-- [ ] Repository implementa interface corretamente?
-- [ ] Mapper converte entre Domain e Persistence corretamente?
-- [ ] Nenhuma lógica de negócio aqui?
-- [ ] Transações de BD gerenciadas corretamente?
-
-### 8.4 Presentation Layer Review
-
-- [ ] Controller apenas orquestra (delega para Use Case)?
-- [ ] HTTP DTOs não expõem detalhes internos?
-- [ ] Validação de input antes de chamar Use Case?
-- [ ] Tratamento de erros com mensagens claras (sem stack trace)?
-- [ ] Autenticação verificada via Guard?
-
-### 8.5 Testes Review
-
-- [ ] Coverage > 80%?
-- [ ] Testes têm nomes descritivos?
-- [ ] Testes são independentes (sem side effects)?
-- [ ] Mocks usados apenas onde necessário?
-- [ ] AAA (Arrange, Act, Assert) pattern seguido?
-
-### 8.6 Segurança & LGPD Review
-
-- [ ] Dados sensíveis não são logados?
-- [ ] Validações happening em todas as layers?
-- [ ] Autorização verificada (não apenas autenticação)?
-- [ ] Auditoria registrada (quem, quando)?
-- [ ] Soft delete implementado?
-- [ ] Sem exposição de stack traces?
-
----
-
-## RESUMO: DDD + Testes + LGPD
-
-```
-✅ Domain Layer: Lógica de negócio pura, testes coverage 90%+
-✅ Application Layer: Orquestração, DTOs, > 80% coverage
-✅ Infrastructure Layer: Implementações concretas (Prisma)
-✅ Presentation Layer: Thin controllers, delegam para Use Cases
-✅ Unit Tests: Entities, VOs, Services
-✅ Integration Tests: Use Cases + Repository
-✅ E2E Tests: Fluxos completos críticos
-✅ LGPD: Soft delete, export, auditoria, validação
-✅ Segurança: Sem stack traces, validação em camadas, logging
-```
-
----
-
-**Versão**: 1.0
-**Data**: 18/01/2025
-**Status**: Pronto para implementação com padrões maduros
+**Status da arquitetura:** decisões principais do MVP consolidadas e alinhadas ao `PROJECT_SPEC.md` revisado.
