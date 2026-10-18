@@ -1,9 +1,10 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, Logger } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
+import { LoggingThrottlerGuard } from '../../../shared/http/logging-throttler.guard.js';
 import { LoginUseCase } from '../application/login.use-case.js';
 import { LogoutUseCase } from '../application/logout.use-case.js';
 import { PasswordHasher } from '../application/password-hasher.js';
@@ -63,7 +64,7 @@ describe('POST /auth/login rate limiting (HTTP)', () => {
         LogoutUseCase,
         SessionTokenService,
         AuthGuard,
-        { provide: APP_GUARD, useClass: ThrottlerGuard },
+        { provide: APP_GUARD, useClass: LoggingThrottlerGuard },
         { provide: UserStore, useValue: new FakeUserStore() },
         { provide: PasswordHasher, useValue: new FakePasswordHasher() },
         { provide: SessionStore, useValue: new FakeSessionStore() },
@@ -91,10 +92,37 @@ describe('POST /auth/login rate limiting (HTTP)', () => {
 
     const blocked = await attempt().expect(429);
 
-    expect(blocked.body).toMatchObject({
+    expect(blocked.body).toEqual({
       statusCode: 429,
-      message: 'ThrottlerException: Too Many Requests',
+      message: 'Too Many Requests',
     });
+  });
+
+  it('logs a blocked attempt without credentials', async () => {
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+
+    try {
+      for (let index = 0; index < 5; index += 1) {
+        await attempt().expect(401);
+      }
+      await attempt().expect(429);
+
+      const logged = warnSpy.mock.calls
+        .map((call) => call.map(String).join(' '))
+        .filter((message) => message.startsWith('event=rate_limited'))
+        .join('\n');
+
+      expect(logged).toContain('event=rate_limited');
+      expect(logged).toContain('method=POST');
+      expect(logged).toContain('path=/auth/login');
+      expect(logged).toContain('limit=5');
+      expect(logged).not.toContain('wrong-password');
+      expect(logged).not.toContain('admin@example.com');
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('recovers after the window elapses', async () => {

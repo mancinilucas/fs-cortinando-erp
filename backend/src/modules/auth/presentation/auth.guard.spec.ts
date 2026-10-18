@@ -1,4 +1,5 @@
-import { ExecutionContext } from '@nestjs/common';
+import { ExecutionContext, Logger } from '@nestjs/common';
+import type { MockInstance } from 'vitest';
 import { SessionRecord, SessionStore } from '../application/session-store.js';
 import { SessionTokenService } from '../application/session-token.service.js';
 import {
@@ -81,6 +82,23 @@ function buildGuard(
 }
 
 describe('AuthGuard', () => {
+  let warnSpy: MockInstance<typeof Logger.prototype.warn>;
+
+  beforeEach(() => {
+    warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+  });
+
+  function warnings(): string[] {
+    return warnSpy.mock.calls
+      .map((call) => call[0])
+      .filter((message): message is string => typeof message === 'string')
+      .filter((message) => message.startsWith('event='));
+  }
+
   it('rejects a request without a session cookie', async () => {
     const { guard, sessions, request } = buildGuard(
       session,
@@ -92,6 +110,7 @@ describe('AuthGuard', () => {
       message: 'Authentication required',
     });
     expect(sessions.lastTokenHash).toBeNull();
+    expect(warnings()).toEqual(['event=session_missing ip=unknown']);
   });
 
   it('rejects a malformed token without querying the session store', async () => {
@@ -110,6 +129,11 @@ describe('AuthGuard', () => {
 
     await expect(guard.canActivate(contextFor(request))).rejects.toThrow();
     expect(sessions.lastTokenHash).toBe(sessionTokens.hash(token));
+
+    const logged = warnings().join('\n');
+    expect(logged).toContain('event=session_invalid');
+    expect(logged).not.toContain(token);
+    expect(logged).not.toContain(sessionTokens.hash(token));
   });
 
   it('rejects a session that is no longer valid', async () => {
@@ -131,5 +155,6 @@ describe('AuthGuard', () => {
     await expect(guard.canActivate(contextFor(request))).resolves.toBe(true);
     expect(sessions.lastTokenHash).toBe(sessionTokens.hash(token));
     expect(request.user).toEqual(USER);
+    expect(warnings()).toEqual([]);
   });
 });

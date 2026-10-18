@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../../shared/database/prisma.service.js';
 import { PrismaSessionStore } from './prisma-session-store.js';
@@ -85,10 +86,26 @@ describe('PrismaSessionStore', () => {
       },
     });
 
-    await expect(store.findValidByTokenHash(tokenHash)).resolves.toBeNull();
-    await expect(
-      prisma.session.findUnique({ where: { id: expired.id } }),
-    ).resolves.toBeNull();
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+
+    try {
+      await expect(store.findValidByTokenHash(tokenHash)).resolves.toBeNull();
+      await expect(
+        prisma.session.findUnique({ where: { id: expired.id } }),
+      ).resolves.toBeNull();
+
+      const logged = warnSpy.mock.calls
+        .map((call) => call.map(String).join(' '))
+        .join('\n');
+
+      expect(logged).toContain('event=session_expired');
+      expect(logged).not.toContain(tokenHash);
+      expect(logged).not.toContain(expired.id);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('removes a session by token hash', async () => {

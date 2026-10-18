@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service.js';
 import { SessionRecord, SessionStore } from '../application/session-store.js';
 
@@ -6,6 +6,8 @@ const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 @Injectable()
 export class PrismaSessionStore implements SessionStore {
+  private readonly logger = new Logger(PrismaSessionStore.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: string, tokenHash: string): Promise<SessionRecord> {
@@ -31,6 +33,8 @@ export class PrismaSessionStore implements SessionStore {
 
     if (session.expiresAt.getTime() <= Date.now()) {
       await this.prisma.session.deleteMany({ where: { id: session.id } });
+      // Neither the token hash nor the session id is logged.
+      this.logger.warn('event=session_expired');
       return null;
     }
 

@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Post,
   Req,
   Res,
@@ -11,10 +12,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
+import { clientIp } from '../../../shared/http/client-ip.js';
 import { LoginUseCase } from '../application/login.use-case.js';
 import { LogoutUseCase } from '../application/logout.use-case.js';
 import type { UserIdentity } from '../application/user-store.js';
+import { INVALID_CREDENTIALS_MESSAGE } from './auth-error-messages.js';
 import { AuthGuard } from './auth.guard.js';
 import type { AuthenticatedRequest } from './auth.guard.js';
 import { LoginDto } from './login.dto.js';
@@ -24,6 +27,8 @@ import { sessionCookieName, sessionCookieOptions } from './session-cookie.js';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly loginUseCase: LoginUseCase,
     private readonly logoutUseCase: LogoutUseCase,
@@ -34,12 +39,16 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() dto: LoginDto,
+    @Req() request: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.loginUseCase.execute(dto);
 
     if (!result) {
-      throw new UnauthorizedException('Invalid credentials');
+      // Same log for an unknown email and a wrong password: the failure
+      // never reveals which condition occurred (D38).
+      this.logger.warn(`event=login_failed ip=${clientIp(request)}`);
+      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
     res.cookie(sessionCookieName(), result.token, sessionCookieOptions());

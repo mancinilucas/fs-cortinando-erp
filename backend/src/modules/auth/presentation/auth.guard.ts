@@ -2,15 +2,16 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { clientIp } from '../../../shared/http/client-ip.js';
 import { SessionStore } from '../application/session-store.js';
 import { SessionTokenService } from '../application/session-token.service.js';
 import { UserIdentity, UserStore } from '../application/user-store.js';
+import { AUTHENTICATION_REQUIRED_MESSAGE } from './auth-error-messages.js';
 import { readSessionToken } from './request-session.js';
-
-const GENERIC_AUTH_ERROR = 'Authentication required';
 
 export interface AuthenticatedRequest extends Request {
   user?: UserIdentity;
@@ -18,6 +19,8 @@ export interface AuthenticatedRequest extends Request {
 
 @Injectable()
 export class AuthGuard implements CanActivate {
+  private readonly logger = new Logger(AuthGuard.name);
+
   constructor(
     private readonly sessions: SessionStore,
     private readonly sessionTokens: SessionTokenService,
@@ -29,7 +32,8 @@ export class AuthGuard implements CanActivate {
     const token = readSessionToken(request);
 
     if (!token) {
-      throw new UnauthorizedException(GENERIC_AUTH_ERROR);
+      this.logger.warn(`event=session_missing ip=${clientIp(request)}`);
+      throw new UnauthorizedException(AUTHENTICATION_REQUIRED_MESSAGE);
     }
 
     const session = await this.sessions.findValidByTokenHash(
@@ -37,13 +41,15 @@ export class AuthGuard implements CanActivate {
     );
 
     if (!session) {
-      throw new UnauthorizedException(GENERIC_AUTH_ERROR);
+      this.logger.warn(`event=session_invalid ip=${clientIp(request)}`);
+      throw new UnauthorizedException(AUTHENTICATION_REQUIRED_MESSAGE);
     }
 
     const user = await this.users.findById(session.userId);
 
     if (!user) {
-      throw new UnauthorizedException(GENERIC_AUTH_ERROR);
+      this.logger.warn(`event=session_invalid ip=${clientIp(request)}`);
+      throw new UnauthorizedException(AUTHENTICATION_REQUIRED_MESSAGE);
     }
 
     request.user = user;

@@ -1,6 +1,7 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import type { MockInstance } from 'vitest';
 import { App } from 'supertest/types.js';
 import { LoginUseCase } from '../application/login.use-case.js';
 import { LogoutUseCase } from '../application/logout.use-case.js';
@@ -108,8 +109,10 @@ describe('AuthController (HTTP)', () => {
   let app: INestApplication<App>;
   let users: FakeUserStore;
   let sessions: FakeSessionStore;
+  let warnSpy: MockInstance<typeof Logger.prototype.warn>;
 
   beforeEach(async () => {
+    warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     users = new FakeUserStore(USER);
     sessions = new FakeSessionStore();
 
@@ -132,8 +135,16 @@ describe('AuthController (HTTP)', () => {
   });
 
   afterEach(async () => {
+    warnSpy.mockRestore();
     await app.close();
   });
+
+  function warnings(): string[] {
+    return warnSpy.mock.calls
+      .map((call) => call[0])
+      .filter((message): message is string => typeof message === 'string')
+      .filter((message) => message.startsWith('event='));
+  }
 
   async function loginCookie(): Promise<string> {
     const response = await request(app.getHttpServer())
@@ -206,6 +217,48 @@ describe('AuthController (HTTP)', () => {
     expect(setCookieHeaders(wrongPassword)).toHaveLength(0);
     expect(setCookieHeaders(unknownEmail)).toHaveLength(0);
     expect(sessions.created).toHaveLength(0);
+
+    // Unknown email and wrong password must be indistinguishable in the logs.
+    const failures = warnings();
+    expect(failures).toHaveLength(2);
+    expect(failures[0]).toBe(failures[1]);
+    expect(failures[0]).toMatch(/^event=login_failed ip=/);
+    expect(failures.join('\n')).not.toContain('admin@example.com');
+    expect(failures.join('\n')).not.toContain('unknown@example.com');
+    expect(failures.join('\n')).not.toContain('wrong-password');
+  });
+
+  it('never writes credentials or session tokens to the logs', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'admin@example.com', password: 'correct-password' })
+      .expect(200);
+
+    const token = sessionToken(login);
+    const cookie = `${COOKIE_PREFIX}${token}`;
+
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'admin@example.com', password: 'wrong-password' })
+      .expect(401);
+    await request(app.getHttpServer())
+      .get('/auth/me')
+      .set('Cookie', cookie)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get('/auth/me')
+      .set('Cookie', `${COOKIE_PREFIX}${'a'.repeat(43)}`)
+      .expect(401);
+
+    const logged = warnSpy.mock.calls
+      .map((call) => call.map(String).join(' '))
+      .join('\n');
+
+    expect(logged).not.toContain('correct-password');
+    expect(logged).not.toContain('wrong-password');
+    expect(logged).not.toContain(token);
+    expect(logged).not.toContain(new SessionTokenService().hash(token));
+    expect(logged).not.toContain('a'.repeat(43));
   });
 
   it('normalizes the email before looking the user up', async () => {
@@ -242,14 +295,28 @@ describe('AuthController (HTTP)', () => {
     });
 
     it('rejects a request without a session cookie', async () => {
-      await request(app.getHttpServer()).get('/auth/me').expect(401);
+      const response = await request(app.getHttpServer())
+        .get('/auth/me')
+        .expect(401);
+
+      expect(response.body).toEqual({
+        statusCode: 401,
+        message: 'Authentication required',
+        error: 'Unauthorized',
+      });
     });
 
     it('rejects an unknown session token', async () => {
-      await request(app.getHttpServer())
+      const response = await request(app.getHttpServer())
         .get('/auth/me')
         .set('Cookie', `${COOKIE_PREFIX}${'a'.repeat(43)}`)
         .expect(401);
+
+      expect(response.body).toEqual({
+        statusCode: 401,
+        message: 'Authentication required',
+        error: 'Unauthorized',
+      });
     });
   });
 
