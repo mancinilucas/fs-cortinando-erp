@@ -110,6 +110,7 @@ A numeração continua a série iniciada em `01-prisma-audit.md` §3.1.
 | D36 | Sessões concorrentes | Cada login cria uma sessão independente. Sessões anteriores permanecem válidas até logout ou expiração; não existe política de sessão única no MVP. |
 | D37 | Resposta do login | `POST /auth/login` responde `200` com `{ id, email }` em autenticação bem-sucedida. |
 | D38 | Mitigação de timing | Quando o e-mail não existir, o login executa verificação Argon2id contra um hash dummy antes de retornar falha. Usuário inexistente e senha incorreta seguem fluxo computacional equivalente, retornam o mesmo status HTTP e a mesma mensagem, e não produzem logs que revelem qual condição ocorreu. |
+| D40 | Lint da pasta Prisma | `prisma/` permanece fora do escopo do `oxlint` no MVP. Scripts e arquivos TypeScript dessa pasta devem continuar sendo validados por TypeScript e pelos testes aplicáveis. A configuração de lint só será ampliada se surgir necessidade concreta. |
 
 ### 6.1 Configuração exigida
 
