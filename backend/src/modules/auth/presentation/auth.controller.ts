@@ -10,6 +10,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { LoginUseCase } from '../application/login.use-case.js';
 import { LogoutUseCase } from '../application/logout.use-case.js';
@@ -17,6 +18,7 @@ import type { UserIdentity } from '../application/user-store.js';
 import { AuthGuard } from './auth.guard.js';
 import type { AuthenticatedRequest } from './auth.guard.js';
 import { LoginDto } from './login.dto.js';
+import { loginTracker } from './login-tracker.js';
 import { readSessionToken } from './request-session.js';
 import { sessionCookieName, sessionCookieOptions } from './session-cookie.js';
 
@@ -28,6 +30,7 @@ export class AuthController {
   ) {}
 
   @Post('login')
+  @Throttle({ default: { limit: 5, getTracker: loginTracker } })
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() dto: LoginDto,
