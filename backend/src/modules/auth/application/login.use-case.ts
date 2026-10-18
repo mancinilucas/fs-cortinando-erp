@@ -5,6 +5,12 @@ import { SessionStore } from './session-store.js';
 import { SessionTokenService } from './session-token.service.js';
 import { UserStore } from './user-store.js';
 
+// Argon2id hash of a random value using the parameters approved in D26.
+// It is verified when the email does not exist so that both failure paths
+// perform the same computation before returning (D38).
+export const DUMMY_PASSWORD_HASH =
+  '$argon2id$v=19$m=19456,t=2,p=1$ORWaS4tzjo2Mpw6uYRAppg$mKaRFUj6UwBczLQK32slEruCptYV7r7Ce0Kp64KQSIM';
+
 export interface LoginCommand {
   email: string;
   password: string;
@@ -30,16 +36,12 @@ export class LoginUseCase {
   async execute(command: LoginCommand): Promise<LoginResult | null> {
     const user = await this.users.findByEmail(normalizeEmail(command.email));
 
-    if (!user) {
-      return null;
-    }
-
     const passwordMatches = await this.passwordHasher.verify(
-      user.passwordHash,
+      user?.passwordHash ?? DUMMY_PASSWORD_HASH,
       command.password,
     );
 
-    if (!passwordMatches) {
+    if (!user || !passwordMatches) {
       return null;
     }
 

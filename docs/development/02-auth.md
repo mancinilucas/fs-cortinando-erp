@@ -31,7 +31,7 @@ Em caso de conflito, prevalece a ordem acima. Não inventar regra de negócio.
 - A senha é persistida somente como hash forte.
 - O token de sessão é gerado por CSPRNG com alta entropia e apenas sua representação segura é persistida.
 - O identificador de sessão trafega em cookie `HttpOnly`, `Secure`, `SameSite` e `Path=/`.
-- Sessão expira, é substituída após login e é invalidada no logout.
+- Sessão expira, é recriada a cada login (D36, sessões concorrentes) e é invalidada no logout.
 - Requisições mutáveis têm proteção CSRF.
 - Login tem rate limiting/backoff e mensagens que não facilitam enumeração de conta.
 - Falhas de autenticação são registradas sem credenciais.
@@ -107,6 +107,9 @@ A numeração continua a série iniciada em `01-prisma-audit.md` §3.1.
 | D33 | Sessão expirada | Cookie ausente/malformado, token desconhecido ou `expires_at <= now` → `401` genérico. A linha expirada é removida de forma preguiçosa durante a validação. Não há renovação automática; cada login cria uma nova sessão e um novo token. |
 | D34 | Normalização de e-mail | Aplicar `trim()`, normalização Unicode NFC e `toLowerCase()` antes de persistir e antes de qualquer lookup por e-mail. Seed e login devem usar exatamente a mesma função. |
 | D35 | Rate limiting do login | Aplicar rate limiting específico em `POST /auth/login`, considerando IP + e-mail normalizado. A resposta de falha deve permanecer genérica e não permitir enumeração da conta. |
+| D36 | Sessões concorrentes | Cada login cria uma sessão independente. Sessões anteriores permanecem válidas até logout ou expiração; não existe política de sessão única no MVP. |
+| D37 | Resposta do login | `POST /auth/login` responde `200` com `{ id, email }` em autenticação bem-sucedida. |
+| D38 | Mitigação de timing | Quando o e-mail não existir, o login executa verificação Argon2id contra um hash dummy antes de retornar falha. Usuário inexistente e senha incorreta seguem fluxo computacional equivalente, retornam o mesmo status HTTP e a mesma mensagem, e não produzem logs que revelem qual condição ocorreu. |
 
 ### 6.1 Configuração exigida
 

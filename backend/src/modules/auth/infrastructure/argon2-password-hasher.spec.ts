@@ -1,3 +1,4 @@
+import { DUMMY_PASSWORD_HASH } from '../application/login.use-case.js';
 import { Argon2PasswordHasher } from './argon2-password-hasher.js';
 
 describe('Argon2PasswordHasher', () => {
@@ -34,5 +35,11 @@ describe('Argon2PasswordHasher', () => {
 
   it('returns false for a malformed hash', async () => {
     await expect(hasher.verify('not-a-hash', password)).resolves.toBe(false);
+  });
+
+  it('accepts the login dummy hash as a valid Argon2id hash', async () => {
+    await expect(hasher.verify(DUMMY_PASSWORD_HASH, password)).resolves.toBe(
+      false,
+    );
   });
 });

@@ -1,4 +1,4 @@
-import { LoginUseCase } from './login.use-case.js';
+import { DUMMY_PASSWORD_HASH, LoginUseCase } from './login.use-case.js';
 import { PasswordHasher } from './password-hasher.js';
 import { SessionRecord, SessionStore } from './session-store.js';
 import { SessionTokenService } from './session-token.service.js';
@@ -124,10 +124,11 @@ describe('LoginUseCase', () => {
     });
 
     expect(result).toBeNull();
+    expect(passwordHasher.calls).toHaveLength(1);
     expect(sessions.created).toHaveLength(0);
   });
 
-  it('rejects an unknown email without verifying a password', async () => {
+  it('verifies the dummy hash when the email does not exist', async () => {
     users = new FakeUserStore(null);
     useCase = new LoginUseCase(
       users,
@@ -142,7 +143,9 @@ describe('LoginUseCase', () => {
     });
 
     expect(result).toBeNull();
-    expect(passwordHasher.calls).toHaveLength(0);
+    expect(passwordHasher.calls).toEqual([
+      { passwordHash: DUMMY_PASSWORD_HASH, password: 'correct-password' },
+    ]);
     expect(sessions.created).toHaveLength(0);
   });
 });
