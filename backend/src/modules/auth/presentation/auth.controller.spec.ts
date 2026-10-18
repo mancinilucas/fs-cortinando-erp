@@ -6,7 +6,11 @@ import { LoginUseCase } from '../application/login.use-case.js';
 import { PasswordHasher } from '../application/password-hasher.js';
 import { SessionRecord, SessionStore } from '../application/session-store.js';
 import { SessionTokenService } from '../application/session-token.service.js';
-import { UserRecord, UserStore } from '../application/user-store.js';
+import {
+  UserIdentity,
+  UserRecord,
+  UserStore,
+} from '../application/user-store.js';
 import { AuthController } from './auth.controller.js';
 
 const USER: UserRecord = {
@@ -27,6 +31,10 @@ class FakeUserStore extends UserStore {
   async findByEmail(email: string): Promise<UserRecord | null> {
     this.lastEmail = email;
     return this.user;
+  }
+
+  async findById(): Promise<UserIdentity | null> {
+    return null;
   }
 }
 

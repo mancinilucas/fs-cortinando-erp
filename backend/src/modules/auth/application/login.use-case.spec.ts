@@ -2,7 +2,7 @@ import { DUMMY_PASSWORD_HASH, LoginUseCase } from './login.use-case.js';
 import { PasswordHasher } from './password-hasher.js';
 import { SessionRecord, SessionStore } from './session-store.js';
 import { SessionTokenService } from './session-token.service.js';
-import { UserRecord, UserStore } from './user-store.js';
+import { UserIdentity, UserRecord, UserStore } from './user-store.js';
 
 const USER: UserRecord = {
   id: 'user-id',
@@ -20,6 +20,10 @@ class FakeUserStore extends UserStore {
   async findByEmail(email: string): Promise<UserRecord | null> {
     this.lastEmail = email;
     return this.user;
+  }
+
+  async findById(): Promise<UserIdentity | null> {
+    return null;
   }
 }
 

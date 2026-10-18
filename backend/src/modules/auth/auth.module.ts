@@ -9,6 +9,7 @@ import { Argon2PasswordHasher } from './infrastructure/argon2-password-hasher.js
 import { PrismaSessionStore } from './infrastructure/prisma-session-store.js';
 import { PrismaUserStore } from './infrastructure/prisma-user-store.js';
 import { AuthController } from './presentation/auth.controller.js';
+import { AuthGuard } from './presentation/auth.guard.js';
 
 @Module({
   imports: [PrismaModule],
@@ -19,6 +20,7 @@ import { AuthController } from './presentation/auth.controller.js';
     { provide: UserStore, useClass: PrismaUserStore },
     SessionTokenService,
     LoginUseCase,
+    AuthGuard,
   ],
 })
 export class AuthModule {}
