@@ -1,6 +1,6 @@
 # DEVELOPMENT SPEC 01 — Prisma e Fundação de Persistência
 
-**Status:** próxima etapa  
+**Status:** concluída em 2026-10-18  
 **Objetivo:** definir e implementar o primeiro schema Prisma coerente com o domínio aprovado, em tasks atômicas e verificáveis, sem permitir que o ORM redefina as fronteiras arquiteturais.
 
 ---
@@ -641,19 +641,19 @@ Somente depois marcar a development spec como concluída.
 
 A etapa Prisma/Fundação de Persistência está concluída somente quando:
 
-- [ ] estado anterior do Prisma foi auditado;
-- [ ] modelo relacional foi revisado antes da migration;
-- [ ] enums, nulabilidade, FKs e constraints foram validados;
-- [ ] precisão numérica foi materializada corretamente;
-- [ ] schema Prisma está implementado;
-- [ ] índices do MVP estão justificados;
-- [ ] migration foi aplicada com sucesso;
-- [ ] Prisma Client é gerado sem erro;
-- [ ] NestJS conecta ao banco;
-- [ ] seed administrativo foi implementado ou explicitamente movido para a spec de Auth;
-- [ ] verificação mecânica final passou;
-- [ ] revisão semântica final passou;
-- [ ] nenhum requisito funcional foi inventado ou alterado silenciosamente.
+- [x] estado anterior do Prisma foi auditado;
+- [x] modelo relacional foi revisado antes da migration;
+- [x] enums, nulabilidade, FKs e constraints foram validados;
+- [x] precisão numérica foi materializada corretamente;
+- [x] schema Prisma está implementado;
+- [x] índices do MVP estão justificados;
+- [x] migration foi aplicada com sucesso;
+- [x] Prisma Client é gerado sem erro;
+- [x] NestJS conecta ao banco;
+- [x] seed administrativo adiado explicitamente para `02-auth.md` (ver PRISMA-09);
+- [x] verificação mecânica final passou;
+- [x] revisão semântica final passou;
+- [x] nenhum requisito funcional foi inventado ou alterado silenciosamente.
 
 ---
 

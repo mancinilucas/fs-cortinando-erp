@@ -578,6 +578,12 @@ Exclusão física é permitida apenas para `RASCUNHO`, conforme o `PROJECT_SPEC`
 
 O número comercial consumido não volta para a sequência.
 
+### 9.6 Runtime do Prisma 7
+
+O Prisma Client é gerado pelo generator `prisma-client` em `backend/src/generated/prisma`, diretório não versionado compilado junto com o backend. O runtime exige driver adapter: `@prisma/adapter-pg` sobre `pg`.
+
+`PrismaService` fica em `src/shared/database/` e é o único ponto de acesso ao client. Na inicialização ele valida a conexão com o banco, de modo que o NestJS não sobe com um datasource inválido.
+
 ---
 
 ## 10. Precisão numérica e Money
