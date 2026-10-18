@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../shared/database/prisma.module.js';
 import { LoginUseCase } from './application/login.use-case.js';
+import { LogoutUseCase } from './application/logout.use-case.js';
 import { PasswordHasher } from './application/password-hasher.js';
 import { SessionStore } from './application/session-store.js';
 import { SessionTokenService } from './application/session-token.service.js';
@@ -20,6 +21,7 @@ import { AuthGuard } from './presentation/auth.guard.js';
     { provide: UserStore, useClass: PrismaUserStore },
     SessionTokenService,
     LoginUseCase,
+    LogoutUseCase,
     AuthGuard,
   ],
 })

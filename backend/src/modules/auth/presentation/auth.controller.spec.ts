@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { LoginUseCase } from '../application/login.use-case.js';
+import { LogoutUseCase } from '../application/logout.use-case.js';
 import { PasswordHasher } from '../application/password-hasher.js';
 import { SessionRecord, SessionStore } from '../application/session-store.js';
 import { SessionTokenService } from '../application/session-token.service.js';
@@ -116,6 +117,7 @@ describe('AuthController (HTTP)', () => {
       controllers: [AuthController],
       providers: [
         LoginUseCase,
+        LogoutUseCase,
         SessionTokenService,
         AuthGuard,
         { provide: UserStore, useValue: users },
@@ -132,6 +134,15 @@ describe('AuthController (HTTP)', () => {
   afterEach(async () => {
     await app.close();
   });
+
+  async function loginCookie(): Promise<string> {
+    const response = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'admin@example.com', password: 'correct-password' })
+      .expect(200);
+
+    return `${COOKIE_PREFIX}${sessionToken(response)}`;
+  }
 
   it('returns success and emits a secure session cookie', async () => {
     const response = await request(app.getHttpServer())
@@ -218,15 +229,6 @@ describe('AuthController (HTTP)', () => {
   });
 
   describe('GET /auth/me', () => {
-    async function loginCookie(): Promise<string> {
-      const response = await request(app.getHttpServer())
-        .post('/auth/login')
-        .send({ email: 'admin@example.com', password: 'correct-password' })
-        .expect(200);
-
-      return `${COOKIE_PREFIX}${sessionToken(response)}`;
-    }
-
     it('returns the authenticated user for a valid session', async () => {
       const cookie = await loginCookie();
 
@@ -248,6 +250,66 @@ describe('AuthController (HTTP)', () => {
         .get('/auth/me')
         .set('Cookie', `${COOKIE_PREFIX}${'a'.repeat(43)}`)
         .expect(401);
+    });
+  });
+
+  describe('POST /auth/logout', () => {
+    it('removes the session, clears the cookie, and returns 204', async () => {
+      const cookie = await loginCookie();
+
+      const response = await request(app.getHttpServer())
+        .post('/auth/logout')
+        .set('Cookie', cookie)
+        .expect(204);
+
+      const clearCookie = setCookieHeaders(response).find((value) =>
+        value.startsWith(COOKIE_PREFIX),
+      );
+
+      expect(clearCookie).toMatch(/^cortinando_session=;/);
+      expect(clearCookie).toContain('Max-Age=0');
+      expect(clearCookie).toContain('Path=/');
+      expect(clearCookie).toContain('HttpOnly');
+      expect(clearCookie).toContain('SameSite=Strict');
+      expect(clearCookie).not.toContain('Secure');
+
+      await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Cookie', cookie)
+        .expect(401);
+    });
+
+    it('returns 204 when called again with the same cookie', async () => {
+      const cookie = await loginCookie();
+
+      await request(app.getHttpServer())
+        .post('/auth/logout')
+        .set('Cookie', cookie)
+        .expect(204);
+
+      await request(app.getHttpServer())
+        .post('/auth/logout')
+        .set('Cookie', cookie)
+        .expect(204);
+    });
+
+    it('returns 204 and clears the cookie without a session', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/auth/logout')
+        .expect(204);
+
+      expect(
+        setCookieHeaders(response).some((value) =>
+          value.startsWith(`${COOKIE_PREFIX};`),
+        ),
+      ).toBe(true);
+    });
+
+    it('returns 204 for an unknown session token', async () => {
+      await request(app.getHttpServer())
+        .post('/auth/logout')
+        .set('Cookie', `${COOKIE_PREFIX}${'a'.repeat(43)}`)
+        .expect(204);
     });
   });
 });
