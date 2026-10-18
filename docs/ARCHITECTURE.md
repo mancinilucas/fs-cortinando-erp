@@ -108,6 +108,8 @@ Responsabilidades principais:
 - validações cadastrais necessárias;
 - soft delete.
 
+O endereço cadastral é estruturado (`PROJECT_SPEC` §2.8) e usa a mesma estrutura do endereço de instalação do orçamento, como Value Object próprio do módulo `clientes`. Não há Value Object compartilhado entre módulos por simetria.
+
 O histórico exibido na tela do cliente não é uma coleção interna do aggregate. Ele é obtido consultando os orçamentos associados ao `clienteId`.
 
 ### 3.2 Aggregate Root `Orcamento`
@@ -215,7 +217,25 @@ O ajuste não substitui o desconto e deve permanecer rastreável internamente.
 
 `EnderecoInstalacao` é Value Object pertencente ao orçamento.
 
-Quando copiado do cliente, uma nova instância/snapshot é criada. Alterações posteriores no cadastro do cliente não modificam o endereço histórico do orçamento.
+Estrutura:
+
+```text
+logradouro *
+numero *
+bairro *
+cidade *
+complemento?
+cep?
+uf?
+```
+
+Um endereço é considerado preenchido quando possui `logradouro`, `numero`, `bairro` e `cidade`. `complemento`, `cep` e `uf` são opcionais. `numero` é textual.
+
+O orçamento em `RASCUNHO` pode ter endereço vazio ou incompleto; o gate de envio exige endereço preenchido.
+
+O cadastro do `Cliente` utiliza a mesma estrutura e as mesmas regras de preenchimento, como Value Object próprio do módulo `clientes`.
+
+Quando copiado do cliente, uma nova instância/snapshot é criada, campo a campo. Alterações posteriores no cadastro do cliente não modificam o endereço histórico do orçamento.
 
 ---
 
@@ -483,7 +503,13 @@ desconto_percentual?
 desconto_valor_fixo_centavos?
 ajuste_comercial_centavos?
 
-campos de endereco_instalacao...
+endereco_instalacao_logradouro
+endereco_instalacao_numero
+endereco_instalacao_bairro
+endereco_instalacao_cidade
+endereco_instalacao_complemento?
+endereco_instalacao_cep?
+endereco_instalacao_uf?
 
 data_criacao
 data_primeiro_envio?
@@ -537,6 +563,8 @@ valor_unitario_centavos
 Componentes e adicionais compartilham o mesmo modelo de domínio, mas utilizam tabelas diferentes por clareza referencial.
 
 Totais derivados não serão persistidos inicialmente.
+
+No bloco de endereço acima, `?` indica campo opcional do endereço, não nulabilidade de coluna: **todas** as colunas de endereço são nullable no banco, tanto no orçamento quanto no cadastro de `clientes` (`endereco_...`). Um orçamento em `RASCUNHO` pode não ter endereço e um cliente pode não ter endereço cadastrado; a regra de endereço preenchido pertence ao domínio, não ao schema.
 
 ### 9.4 Soft delete de cliente
 
@@ -1036,7 +1064,8 @@ Aggregate Roots             → Cliente, Orçamento
 Cortina                     → Entity interna de Orçamento
 ItemFinanceiro              → Entity interna compartilhada semanticamente
 Desconto                    → Value Object
-EnderecoInstalacao          → Value Object/snapshot
+EnderecoInstalacao          → Value Object/snapshot estruturado (cliente usa a mesma estrutura)
+CPF/CNPJ                    → normalizado (somente dígitos) e único em `clientes`
 Produção                    → fase de Orçamento, não contexto separado
 Histórico                   → persistência separada, sem event sourcing
 Repositories DDD            → ClienteRepository, OrcamentoRepository

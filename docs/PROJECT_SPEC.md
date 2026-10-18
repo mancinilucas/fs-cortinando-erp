@@ -81,7 +81,7 @@ Cliente
 - telefone *
 - email?
 - cpfCnpj?
-- endereco?
+- endereco? (estruturado — ver 2.8)
 - observacoes?
 - dados de criação/atualização
 ```
@@ -90,6 +90,9 @@ Regras:
 
 -   Nome e telefone são obrigatórios.
 -   E-mail, CPF/CNPJ, endereço e observações são opcionais.
+-   O endereço é estruturado (ver 2.8). Um endereço é considerado
+    preenchido quando possui logradouro, número, bairro e cidade.
+-   CPF/CNPJ é armazenado normalizado, somente com dígitos.
 -   Clientes utilizam soft delete.
 -   Um cliente removido logicamente continua associado aos seus
     registros históricos.
@@ -112,7 +115,7 @@ Orcamento
 - id
 - numeroOrcamento
 - cliente
-- enderecoInstalacao
+- enderecoInstalacao (estruturado — ver 2.8)
 - status
 - cortinas[]
 - adicionaisGerais[]
@@ -274,6 +277,35 @@ Não haverá upload ou gerenciamento de logo.
 
 Campos opcionais vazios não devem ser exibidos no PDF.
 
+### 2.8 Endereço
+
+O endereço é um dado estruturado, utilizado tanto no cadastro do cliente
+quanto no endereço de instalação do orçamento.
+
+``` text
+Endereco
+- logradouro *
+- numero *
+- bairro *
+- cidade *
+- complemento?
+- cep?
+- uf?
+```
+
+Regras:
+
+-   O endereço como um todo é opcional no cadastro do cliente.
+-   Um endereço é considerado preenchido quando possui `logradouro`,
+    `numero`, `bairro` e `cidade`.
+-   `complemento`, `cep` e `uf` são opcionais.
+-   `numero` é textual e aceita valores como `123A` ou `s/n`.
+-   O endereço de instalação do orçamento utiliza a mesma estrutura, como
+    um snapshot próprio do orçamento (ver 5).
+-   Durante `RASCUNHO`, o endereço do orçamento pode estar vazio ou
+    incompleto. A exigência de endereço preenchido vale no envio (ver 5 e
+    8.5).
+
 ------------------------------------------------------------------------
 
 ## 3. Fluxo de Clientes
@@ -291,7 +323,7 @@ Campos opcionais:
 
 -   e-mail;
 -   CPF/CNPJ;
--   endereço;
+-   endereço (estruturado — ver 2.8);
 -   observações.
 
 ### 3.2 Detalhes do cliente
@@ -337,7 +369,8 @@ Nome, telefone e demais informações cadastrais são lidos do cadastro
 atual do cliente.
 
 O `enderecoInstalacao`, porém, é dado próprio do orçamento e preserva o
-endereço utilizado naquele serviço.
+endereço utilizado naquele serviço, copiado campo a campo a partir do
+endereço do cliente quando essa opção é utilizada (ver 5).
 
 ------------------------------------------------------------------------
 
@@ -407,7 +440,8 @@ ou:
 Informar outro endereço
 ```
 
-Se utilizar o endereço do cliente, o valor é copiado para o orçamento.
+Se utilizar o endereço do cliente, os campos do endereço são copiados
+campo a campo para o orçamento.
 
 Se informar outro endereço, o valor é registrado diretamente no
 orçamento.
@@ -415,6 +449,10 @@ orçamento.
 Em ambos os casos, o resultado é um `enderecoInstalacao` próprio do
 orçamento. Alterações posteriores no endereço cadastral do cliente não
 modificam o endereço histórico do orçamento.
+
+O endereço de instalação utiliza a mesma estrutura definida em 2.8. Um
+endereço é considerado preenchido quando possui logradouro, número, bairro
+e cidade; complemento, CEP e UF são opcionais.
 
 Se o cliente não possuir endereço cadastrado, a opção de copiá-lo não
 fica disponível e a consultora deve informar o endereço manualmente.
@@ -775,7 +813,7 @@ O rascunho pode estar incompleto.
 Para `Marcar como enviado`, é necessário:
 
 -   cliente vinculado;
--   endereço de instalação preenchido;
+-   endereço de instalação preenchido (ver 2.8);
 -   pelo menos uma cortina;
 -   para cada cortina:
     -   ambiente preenchido;
