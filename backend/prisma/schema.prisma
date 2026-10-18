@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -10,4 +8,199 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  IN_PRODUCTION
+  COMPLETED
+  CANCELLED
+
+  @@map("quote_status")
+}
+
+enum DiscountType {
+  NO_DISCOUNT
+  PERCENTAGE
+  FIXED_AMOUNT
+
+  @@map("discount_type")
+}
+
+enum HistoryEventType {
+  QUOTE_CREATED
+  QUOTE_SENT
+  QUOTE_EDITED
+  QUOTE_CONFIRMED
+  QUOTE_REOPENED
+  QUOTE_RENEWED
+  QUOTE_CANCELLED
+  PRODUCTION_STARTED
+  INSTALLATION_SCHEDULED
+  INSTALLATION_CHANGED
+  INSTALLATION_REMOVED
+  SERVICE_COMPLETED
+  COMMERCIAL_PDF_GENERATED
+  PRODUCTION_ORDER_GENERATED
+
+  @@map("history_event_type")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  sessions Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Customer {
+  id                  String    @id @default(uuid()) @db.Uuid
+  name                String
+  phone               String
+  email               String?
+  taxId               String?   @unique @map("tax_id")
+  addressPostalCode   String?   @map("address_postal_code")
+  addressStreet       String?   @map("address_street")
+  addressNumber       String?   @map("address_number")
+  addressComplement   String?   @map("address_complement")
+  addressNeighborhood String?   @map("address_neighborhood")
+  addressCity         String?   @map("address_city")
+  addressState        String?   @map("address_state") @db.Char(2)
+  notes               String?
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  quotes Quote[]
+
+  @@map("customers")
+}
+
+model Quote {
+  id                              String       @id @default(uuid()) @db.Uuid
+  quoteNumber                     String       @unique @map("quote_number")
+  customerId                      String       @map("customer_id") @db.Uuid
+  status                          QuoteStatus
+  notes                           String?
+  discountType                    DiscountType @default(NO_DISCOUNT) @map("discount_type")
+  discountPercentage              Decimal?     @map("discount_percentage") @db.Decimal(5, 2)
+  discountFixedAmountCents        Int?         @map("discount_fixed_amount_cents")
+  commercialAdjustmentCents       Int?         @map("commercial_adjustment_cents")
+  installationAddressPostalCode   String?      @map("installation_address_postal_code")
+  installationAddressStreet       String?      @map("installation_address_street")
+  installationAddressNumber       String?      @map("installation_address_number")
+  installationAddressComplement   String?      @map("installation_address_complement")
+  installationAddressNeighborhood String?      @map("installation_address_neighborhood")
+  installationAddressCity         String?      @map("installation_address_city")
+  installationAddressState        String?      @map("installation_address_state") @db.Char(2)
+  createdAt                       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  firstSentAt                     DateTime?    @map("first_sent_at") @db.Timestamptz(3)
+  validUntil                      DateTime?    @map("valid_until") @db.Timestamptz(3)
+  confirmedAt                     DateTime?    @map("confirmed_at") @db.Timestamptz(3)
+  productionStartedAt             DateTime?    @map("production_started_at") @db.Timestamptz(3)
+  scheduledInstallationAt         DateTime?    @map("scheduled_installation_at") @db.Timestamptz(3)
+  completedAt                     DateTime?    @map("completed_at") @db.Timestamptz(3)
+
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  curtains      Curtain[]
+  generalAddOns GeneralAddOn[]
+  history       QuoteHistory[]
+
+  @@map("quotes")
+}
+
+model Curtain {
+  id           String   @id @default(uuid()) @db.Uuid
+  quoteId      String   @map("quote_id") @db.Uuid
+  sequence     Int
+  room         String?
+  description  String?
+  material     String?
+  openingWidth Decimal? @map("opening_width") @db.Decimal(9, 3)
+  borderValue  Decimal? @map("border_value") @db.Decimal(6, 3)
+  height       Decimal? @db.Decimal(9, 3)
+  fabricFactor Decimal? @map("fabric_factor") @db.Decimal(6, 3)
+  notes        String?
+
+  quote      Quote                @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  components FinancialComponent[]
+
+  @@unique([quoteId, sequence])
+  @@map("curtains")
+}
+
+model FinancialComponent {
+  id             String   @id @default(uuid()) @db.Uuid
+  curtainId      String   @map("curtain_id") @db.Uuid
+  name           String
+  quantity       Decimal? @db.Decimal(12, 6)
+  unit           String?
+  unitPriceCents Int?     @map("unit_price_cents")
+
+  curtain Curtain @relation(fields: [curtainId], references: [id], onDelete: Cascade)
+
+  @@map("financial_components")
+}
+
+model GeneralAddOn {
+  id             String   @id @default(uuid()) @db.Uuid
+  quoteId        String   @map("quote_id") @db.Uuid
+  name           String
+  quantity       Decimal? @db.Decimal(12, 6)
+  unit           String?
+  unitPriceCents Int?     @map("unit_price_cents")
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@map("general_add_ons")
+}
+
+model QuoteHistory {
+  id         String           @id @default(uuid()) @db.Uuid
+  quoteId    String           @map("quote_id") @db.Uuid
+  eventType  HistoryEventType @map("event_type")
+  occurredAt DateTime         @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  details    Json?
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@map("quote_history")
+}
+
+model QuoteSequence {
+  year       Int @id
+  lastNumber Int @default(0) @map("last_number")
+
+  @@map("quote_sequence")
+}
+
+model BusinessData {
+  id                         String   @id
+  commercialNameOrConsultant String   @map("commercial_name_or_consultant")
+  phone                      String
+  email                      String?
+  taxId                      String?  @map("tax_id")
+  updatedAt                  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("business_data")
 }
