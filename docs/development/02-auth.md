@@ -1,6 +1,6 @@
 # DEVELOPMENT SPEC 02 — Autenticação e Sessão
 
-**Status:** AUTH-01 e AUTH-02 concluídas em 2026-10-18; próximas tasks a definir  
+**Status:** AUTH-01 a AUTH-03 concluídas em 2026-10-18; próxima task: AUTH-04  
 **Objetivo:** proteger toda a aplicação com autenticação de conta única, sessão server-side e cookie seguro, antes de implementar dados reais do negócio.
 
 ---
