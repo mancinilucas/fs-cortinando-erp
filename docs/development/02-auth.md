@@ -1,6 +1,6 @@
 # DEVELOPMENT SPEC 02 — Autenticação e Sessão
 
-**Status:** AUTH-01 concluída em 2026-10-18; AUTH-02 pendente  
+**Status:** AUTH-01 e AUTH-02 concluídas em 2026-10-18; próximas tasks a definir  
 **Objetivo:** proteger toda a aplicação com autenticação de conta única, sessão server-side e cookie seguro, antes de implementar dados reais do negócio.
 
 ---
@@ -93,7 +93,27 @@ Seção 6 deste documento.
 
 ## 6. Decisões técnicas
 
-Pendente — AUTH-02.
+A numeração continua a série iniciada em `01-prisma-audit.md` §3.1.
+
+| # | Tema | Decisão |
+|---|---|---|
+| D26 | Hash de senha (fecha D20) | **Argon2id**, com `memoryCost` 19456 KiB (19 MiB), `timeCost` 2, `parallelism` 1, hash de 32 bytes e salt de 16 bytes. O hash é persistido como string PHC em `users.password_hash`. Biblioteca: `@node-rs/argon2` (binários pré-compilados, sem etapa de build nativa). |
+| D27 | Token de sessão | 32 bytes de CSPRNG (`crypto.randomBytes(32)`), codificados em base64url (43 caracteres). O valor bruto só existe no cookie; nunca é persistido nem registrado em log. |
+| D28 | Hash do token | SHA-256 do token bruto, em hexadecimal minúsculo, persistido em `sessions.token_hash` (`UNIQUE`). O hash rápido é adequado porque o token já tem 256 bits de entropia e permite lookup indexado; Argon2 é desnecessário aqui. |
+| D29 | Duração da sessão | Expiração absoluta de **12 horas** a partir da criação (`expires_at` fixo). Não há renovação deslizante nem refresh token; após expirar, é necessário login novamente. |
+| D30 | Cookie | Produção: `__Host-cortinando_session`; desenvolvimento (`NODE_ENV !== "production"`): `cortinando_session`. Flags: `HttpOnly`, `Path=/`, `SameSite=Strict`, `Secure` em produção e `Max-Age=43200` (12 h). Sem `Domain`. O prefixo `__Host-` exige `Secure` e `Path=/`, por isso não é usado sobre HTTP em desenvolvimento. |
+| D31 | CSRF | Defesa em profundidade sem token sincronizador: `SameSite=Strict` no cookie + validação de `Origin` (com `Referer` como fallback) em métodos mutáveis (`POST`, `PUT`, `PATCH`, `DELETE`) contra uma allowlist configurada em `APP_ORIGIN`. Origem ausente ou divergente → `403`. CORS com credenciais não aceita origem curinga. Premissa: SPA e API pertencem ao mesmo site. |
+| D32 | Logout | `POST /auth/logout` remove a linha de `sessions` pelo `token_hash` e limpa o cookie com os mesmos atributos e `Max-Age=0`. Responde `204` de forma idempotente: sessão ausente, inválida ou expirada também limpa o cookie e não revela estado. |
+| D33 | Sessão expirada | Cookie ausente/malformado, token desconhecido ou `expires_at <= now` → `401` genérico. A linha expirada é removida de forma preguiçosa durante a validação. Não há renovação automática; cada login cria uma nova sessão e um novo token. |
+| D34 | Normalização de e-mail | Aplicar `trim()`, normalização Unicode NFC e `toLowerCase()` antes de persistir e antes de qualquer lookup por e-mail. Seed e login devem usar exatamente a mesma função. |
+| D35 | Rate limiting do login | Aplicar rate limiting específico em `POST /auth/login`, considerando IP + e-mail normalizado. A resposta de falha deve permanecer genérica e não permitir enumeração da conta. |
+
+### 6.1 Configuração exigida
+
+- `APP_ORIGIN` — origem permitida para validação CSRF (ex.: `http://localhost:5173` em desenvolvimento).
+- `NODE_ENV` — distingue os atributos do cookie entre desenvolvimento e produção.
+
+`backend/.env` é gitignored e não deve ser editado nem commitado; os valores acima são configurados pelo responsável pelo ambiente.
 
 ---
 
