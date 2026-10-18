@@ -117,6 +117,736 @@ A numeração continua a série iniciada em `01-prisma-audit.md` §3.1.
 
 ---
 
-## 7. Próximas tasks
+## 7. Tasks de implementação
 
-As tasks de implementação (seed administrativo, hash de senha, login, sessão, guard, logout, `/auth/me`, rate limiting e CSRF) serão adicionadas a esta spec depois de AUTH-02, seguindo a Fase 2 de `docs/IMPLEMENTATION_PLAN.md`.
+### AUTH-03 — Configurar infraestrutura básica do módulo Auth
+
+**Goal**  
+Criar a estrutura mínima do módulo de autenticação sem implementar login, sessão ou regras de segurança ainda.
+
+**Dependencies**
+- AUTH-01
+- AUTH-02
+
+**Scope**
+- `src/modules/auth/auth.module.ts`
+- estrutura mínima de:
+  - `application/`
+  - `infrastructure/`
+  - `presentation/`
+- importação do `AuthModule` no `AppModule`
+- dependências estritamente necessárias para as próximas tasks
+
+**Acceptance criteria**
+- `AuthModule` existe e é carregado pela aplicação;
+- estrutura segue `ARCHITECTURE.md`;
+- nenhuma implementação de JWT é adicionada;
+- nenhuma regra de autenticação é colocada em controller;
+- nenhuma abstração genérica é criada sem necessidade.
+
+**Verification**
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+**Review**
+- verificar ausência de mudanças fora do módulo Auth e bootstrap;
+- verificar que Prisma continua restrito à infraestrutura;
+- verificar que nenhuma feature de login foi antecipada.
+
+**Commit sugerido**
+`chore(AUTH-03): scaffold auth module`
+
+---
+
+### AUTH-04 — Implementar normalização de e-mail
+
+**Goal**  
+Garantir que seed, login e lookup de usuário utilizem a mesma representação normalizada de e-mail.
+
+**Dependencies**
+- AUTH-03
+- D34
+
+**Scope**
+Implementar função ou serviço simples responsável por:
+
+```text
+trim
+→ normalize("NFC")
+→ toLowerCase
+```
+
+**Acceptance criteria**
+- a mesma rotina pode ser reutilizada pela seed e pelo login;
+- e-mails equivalentes por caixa ou espaços resultam no mesmo valor normalizado;
+- nenhum acesso ao banco é feito nesta task.
+
+**Tests**
+Cobrir pelo menos:
+- espaços antes/depois;
+- letras maiúsculas;
+- combinação de espaços + caixa;
+- entrada já normalizada.
+
+**Verification**
+- testes unitários;
+- `pnpm lint`
+- `pnpm build`
+
+**Review**
+- não adicionar validação de domínio além da normalização;
+- não duplicar a função em múltiplos módulos.
+
+**Commit sugerido**
+`feat(AUTH-04): add email normalization`
+
+---
+
+### AUTH-05 — Implementar PasswordHasher com Argon2id
+
+**Goal**  
+Centralizar hash e verificação de senha utilizando a decisão D26.
+
+**Dependencies**
+- AUTH-03
+- D26
+
+**Scope**
+- instalar `@node-rs/argon2`;
+- criar contrato de hashing de senha;
+- criar implementação Argon2id;
+- implementar:
+  - `hash(password)`
+  - `verify(hash, password)`
+
+Configuração aprovada:
+- memory: 19456 KiB;
+- iterations: 2;
+- parallelism: 1;
+- hash: 32 bytes;
+- salt: 16 bytes.
+
+**Acceptance criteria**
+- senha nunca é persistida ou logada em texto puro;
+- hashes utilizam Argon2id;
+- verificação correta para senha válida;
+- verificação falha para senha incorreta;
+- detalhes da biblioteca ficam isolados da camada de aplicação.
+
+**Tests**
+- gera hash diferente do plaintext;
+- senha correta valida;
+- senha incorreta falha;
+- hashes possuem formato esperado pela biblioteca.
+
+**Verification**
+- testes unitários;
+- `pnpm lint`
+- `pnpm build`
+
+**Review**
+- aplicação não depende diretamente de `@node-rs/argon2`;
+- nenhuma configuração secreta hardcoded;
+- nenhuma implementação duplicada de hash.
+
+**Commit sugerido**
+`feat(AUTH-05): add Argon2id password hashing`
+
+---
+
+### AUTH-06 — Implementar seed da conta administrativa
+
+**Goal**  
+Permitir criação controlada da única conta administrativa do MVP.
+
+**Dependencies**
+- AUTH-04
+- AUTH-05
+
+**Scope**
+- criar script de seed;
+- utilizar normalização de e-mail;
+- utilizar `PasswordHasher`;
+- configurar execução do seed;
+- utilizar credenciais vindas de ambiente.
+
+**Configuração esperada**
+Exemplo em `.env.example`:
+
+```env
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
+```
+
+**Acceptance criteria**
+- nenhuma credencial administrativa fica no repositório;
+- senha passa pelo mesmo `PasswordHasher` usado pela aplicação;
+- e-mail é normalizado antes da persistência;
+- execução repetida não cria usuários duplicados;
+- o seed não implementa gestão de usuários.
+
+**Verification**
+- executar seed em banco de desenvolvimento;
+- confirmar exatamente um usuário;
+- confirmar que `password_hash` não contém plaintext;
+- `pnpm lint`
+- `pnpm build`
+
+**Review**
+- nenhuma senha aparece em logs;
+- nenhuma credencial default é criada automaticamente;
+- operação é idempotente.
+
+**Commit sugerido**
+`feat(AUTH-06): add administrative user seed`
+
+---
+
+### AUTH-07 — Implementar SessionTokenService
+
+**Goal**  
+Isolar geração e transformação segura do token de sessão.
+
+**Dependencies**
+- AUTH-03
+- D27
+- D28
+
+**Scope**
+Implementar operações:
+
+```text
+generate()
+hash(token)
+```
+
+Regras:
+- token bruto: 32 bytes de CSPRNG;
+- representação: base64url;
+- persistência: SHA-256 hexadecimal.
+
+**Acceptance criteria**
+- token gerado possui 256 bits de entropia;
+- tokens sucessivos são diferentes;
+- hash é determinístico;
+- token bruto nunca é persistido;
+- serviço não acessa banco ou HTTP.
+
+**Tests**
+- formato base64url;
+- comprimento esperado;
+- unicidade entre gerações;
+- SHA-256 determinístico;
+- tokens diferentes geram hashes diferentes.
+
+**Verification**
+- testes unitários;
+- `pnpm lint`
+- `pnpm build`
+
+**Commit sugerido**
+`feat(AUTH-07): add session token service`
+
+---
+
+### AUTH-08 — Implementar persistência e validação de sessão
+
+**Goal**  
+Criar infraestrutura para armazenar, recuperar, validar e remover sessões server-side.
+
+**Dependencies**
+- AUTH-07
+- Prisma Foundation concluída
+- D29
+- D33
+
+**Scope**
+Operações mínimas:
+- criar sessão;
+- encontrar por `tokenHash`;
+- remover sessão;
+- remover sessão expirada.
+
+**Acceptance criteria**
+- somente `tokenHash` é persistido;
+- `expiresAt` é calculado para 12 horas;
+- sessão expirada nunca é considerada válida;
+- sessão expirada encontrada pode ser removida de forma preguiçosa;
+- nenhuma renovação deslizante é implementada.
+
+**Tests**
+- cria sessão corretamente;
+- encontra sessão válida;
+- sessão inexistente retorna ausência;
+- sessão expirada é rejeitada;
+- remoção funciona.
+
+**Verification**
+- testes de integração com Prisma;
+- `pnpm lint`
+- `pnpm build`
+
+**Review**
+- nenhum token bruto persistido;
+- nenhuma regra HTTP na infraestrutura;
+- nenhuma renovação automática introduzida.
+
+**Commit sugerido**
+`feat(AUTH-08): add server-side session persistence`
+
+---
+
+### AUTH-09 — Implementar POST /auth/login
+
+**Goal**  
+Autenticar a conta administrativa e criar uma nova sessão.
+
+**Dependencies**
+- AUTH-04
+- AUTH-05
+- AUTH-08
+
+**Scope**
+Fluxo:
+
+```text
+receber email/senha
+→ validar DTO
+→ normalizar email
+→ localizar usuário
+→ verificar senha
+→ gerar sessão
+→ persistir tokenHash
+→ emitir cookie
+```
+
+**Acceptance criteria**
+- credenciais válidas retornam sucesso;
+- cookie de sessão é emitido;
+- token bruto existe apenas no cookie;
+- credenciais inválidas retornam resposta genérica;
+- não há enumeração explícita entre e-mail inexistente e senha incorreta;
+- nenhuma senha é logada.
+
+**Cookie**
+Seguir D30.
+
+**Verification**
+- testes de aplicação;
+- teste HTTP de login;
+- `pnpm lint`
+- `pnpm build`
+
+**Review**
+- controller fino;
+- regra de autenticação fora do controller;
+- nenhuma dependência JWT;
+- nenhuma informação sensível na resposta.
+
+**Commit sugerido**
+`feat(AUTH-09): implement login endpoint`
+
+---
+
+### AUTH-10 — Implementar AuthGuard
+
+**Goal**  
+Proteger rotas privadas utilizando sessão server-side.
+
+**Dependencies**
+- AUTH-08
+- AUTH-09
+
+**Scope**
+Fluxo:
+
+```text
+ler cookie
+→ validar formato
+→ hash(token)
+→ buscar sessão
+→ verificar expiração
+→ resolver usuário
+→ permitir ou rejeitar request
+```
+
+**Acceptance criteria**
+- ausência de cookie → `401`;
+- token inválido → `401`;
+- sessão expirada → `401`;
+- sessão válida disponibiliza identidade autenticada para a request;
+- mensagens de erro permanecem genéricas.
+
+**Tests**
+- sem cookie;
+- token inválido;
+- sessão expirada;
+- sessão válida.
+
+**Verification**
+- testes unitários/integrados;
+- `pnpm lint`
+- `pnpm build`
+
+**Review**
+- guard não contém regra de domínio de negócio;
+- nenhuma query Prisma direta no controller.
+
+**Commit sugerido**
+`feat(AUTH-10): add session authentication guard`
+
+---
+
+### AUTH-11 — Implementar GET /auth/me
+
+**Goal**  
+Fornecer uma rota simples para validar a sessão autenticada.
+
+**Dependencies**
+- AUTH-10
+
+**Scope**
+Endpoint:
+
+```http
+GET /auth/me
+```
+
+Resposta mínima:
+
+```json
+{
+  "id": "...",
+  "email": "..."
+}
+```
+
+**Acceptance criteria**
+- sessão válida retorna usuário autenticado;
+- sessão ausente/inválida retorna `401`;
+- nenhum dado desnecessário é exposto;
+- `passwordHash` nunca aparece.
+
+**Verification**
+- teste HTTP autenticado;
+- teste HTTP sem sessão;
+- `pnpm lint`
+- `pnpm build`
+
+**Commit sugerido**
+`feat(AUTH-11): add current user endpoint`
+
+---
+
+### AUTH-12 — Implementar POST /auth/logout
+
+**Goal**  
+Invalidar a sessão atual e remover o cookie.
+
+**Dependencies**
+- AUTH-08
+- AUTH-10
+- D32
+
+**Scope**
+Endpoint:
+
+```http
+POST /auth/logout
+```
+
+**Acceptance criteria**
+- remove sessão encontrada por `tokenHash`;
+- limpa cookie;
+- responde `204`;
+- chamada repetida também responde `204`;
+- token antigo não autentica após logout.
+
+**Verification**
+- teste de logout válido;
+- logout sem sessão;
+- tentativa de reutilização do cookie;
+- `pnpm lint`
+- `pnpm build`
+
+**Commit sugerido**
+`feat(AUTH-12): implement logout endpoint`
+
+---
+
+### AUTH-13 — Implementar proteção CSRF
+
+**Goal**  
+Bloquear requisições mutáveis originadas de origem não autorizada.
+
+**Dependencies**
+- AUTH-03
+- D31
+- configuração `APP_ORIGIN`
+
+**Scope**
+Aplicar em:
+
+```text
+POST
+PUT
+PATCH
+DELETE
+```
+
+Algoritmo:
+1. ler `Origin`;
+2. se ausente, tentar `Referer`;
+3. comparar origem normalizada com allowlist;
+4. ausência ou divergência → `403`.
+
+**Acceptance criteria**
+- origem válida passa;
+- origem divergente recebe `403`;
+- ausência de ambos os headers em operação mutável recebe `403`;
+- métodos de leitura não são bloqueados por essa regra;
+- CORS não usa wildcard com credentials.
+
+**Tests**
+- `Origin` válido;
+- `Origin` inválido;
+- fallback por `Referer`;
+- ausência de ambos;
+- GET sem headers.
+
+**Verification**
+- testes;
+- `pnpm lint`
+- `pnpm build`
+
+**Review**
+- nenhuma biblioteca CSRF adicionada sem necessidade;
+- regra usa configuração, não URL hardcoded.
+
+**Commit sugerido**
+`feat(AUTH-13): add origin-based CSRF protection`
+
+---
+
+### AUTH-14 — Implementar rate limiting do login
+
+**Goal**  
+Reduzir tentativas automatizadas de descoberta ou força bruta.
+
+**Dependencies**
+- AUTH-04
+- AUTH-09
+- D35
+
+**Scope**
+- instalar/configurar `@nestjs/throttler`;
+- aplicar política específica ao login;
+- utilizar IP e e-mail normalizado conforme decisão aprovada.
+
+**Acceptance criteria**
+- login possui limite mais restritivo que rotas comuns;
+- excesso de tentativas recebe `429`;
+- mensagens não revelam existência do usuário;
+- não há bloqueio permanente da conta;
+- não introduzir Redis no MVP.
+
+**Verification**
+- teste de múltiplas tentativas;
+- confirmar `429`;
+- confirmar recuperação após janela;
+- `pnpm lint`
+- `pnpm build`
+
+**Review**
+- solução proporcional ao MVP;
+- nenhuma infraestrutura distribuída desnecessária.
+
+**Commit sugerido**
+`feat(AUTH-14): add login rate limiting`
+
+---
+
+### AUTH-15 — Padronizar erros e logs de autenticação
+
+**Goal**  
+Evitar vazamento de informação sensível e manter comportamento previsível.
+
+**Dependencies**
+- AUTH-09
+- AUTH-10
+- AUTH-12
+
+**Scope**
+Padronizar:
+- credenciais inválidas;
+- sessão inválida;
+- sessão expirada;
+- tentativas bloqueadas;
+- logs de falha.
+
+**Acceptance criteria**
+- senha nunca aparece em logs;
+- token ou tokenHash nunca aparecem em logs;
+- respostas não revelam se o e-mail existe;
+- erros de autenticação retornam status apropriado;
+- logs contêm somente contexto técnico seguro.
+
+**Verification**
+- testes relevantes;
+- inspeção dos logs;
+- `pnpm lint`
+- `pnpm build`
+
+**Commit sugerido**
+`refactor(AUTH-15): standardize authentication errors`
+
+---
+
+### AUTH-16 — Testes de integração da autenticação
+
+**Goal**  
+Validar componentes de autenticação contra PostgreSQL real de teste/desenvolvimento controlado.
+
+**Dependencies**
+- AUTH-05 até AUTH-15
+
+**Cobertura mínima**
+- hash de senha;
+- lookup de usuário;
+- criação de sessão;
+- recuperação por tokenHash;
+- sessão expirada;
+- exclusão de sessão;
+- normalização de e-mail;
+- seed idempotente.
+
+**Acceptance criteria**
+- testes não dependem de ordem de execução;
+- dados criados são isolados ou limpos;
+- nenhum teste utiliza credenciais reais.
+
+**Verification**
+- suíte completa de integração;
+- `pnpm lint`
+- `pnpm build`
+
+**Commit sugerido**
+`test(AUTH-16): add authentication integration tests`
+
+---
+
+### AUTH-17 — E2E do fluxo completo
+
+**Goal**  
+Validar autenticação como o cliente HTTP realmente a utilizará.
+
+**Dependencies**
+- AUTH-16
+
+**Fluxo principal**
+
+```text
+seed/test user
+→ login
+→ receber cookie
+→ GET /auth/me
+→ logout
+→ reutilizar cookie
+→ 401
+```
+
+**Casos adicionais**
+- senha inválida;
+- e-mail inexistente;
+- sessão expirada;
+- CSRF inválido;
+- rate limit.
+
+**Acceptance criteria**
+- fluxo completo funciona;
+- testes usam cookies reais;
+- logout realmente invalida acesso.
+
+**Verification**
+- suíte E2E;
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+**Commit sugerido**
+`test(AUTH-17): cover authentication e2e flow`
+
+---
+
+### AUTH-18 — Revisão semântica da fase
+
+**Goal**  
+Revisar toda a implementação sem modificar arquivos inicialmente.
+
+**Review against**
+- `PROJECT_SPEC.md`;
+- `ARCHITECTURE.md`;
+- `02-auth.md`;
+- `AGENTS.md`.
+
+**Checklist**
+- [ ] nenhum JWT introduzido;
+- [ ] nenhuma funcionalidade de signup;
+- [ ] nenhum RBAC;
+- [ ] token bruto nunca persistido;
+- [ ] senha nunca logada;
+- [ ] controllers permanecem finos;
+- [ ] Prisma não vazou para application/domain;
+- [ ] cookie segue D30;
+- [ ] CSRF segue D31;
+- [ ] logout é idempotente;
+- [ ] sessão expirada retorna `401`;
+- [ ] rate limiting não permite enumeração;
+- [ ] nenhuma abstração especulativa;
+- [ ] nenhum arquivo fora do escopo alterado.
+
+**Deliverable**
+Relatório de revisão com:
+- achados;
+- severidade;
+- arquivos afetados;
+- reparos necessários.
+
+**Commit**
+Nenhum, salvo se a revisão produzir apenas atualização documental.
+
+---
+
+### AUTH-19 — Repair, re-verificação e fechamento
+
+**Goal**  
+Corrigir achados da AUTH-18 e encerrar a fase somente após nova validação.
+
+**Dependencies**
+- AUTH-18
+
+**Flow**
+
+```text
+REPAIR
+→ TEST
+→ LINT
+→ BUILD
+→ E2E
+→ REVIEW AGAIN
+→ DONE
+```
+
+**Acceptance criteria**
+- nenhum achado bloqueante permanece;
+- testes unitários passam;
+- testes de integração passam;
+- E2E passa;
+- lint passa;
+- build passa;
+- documentação reflete decisões implementadas;
+- `IMPLEMENTATION_PLAN.md` pode marcar Auth como concluída.
+
+**Commit sugerido**
+`docs(AUTH-19): close authentication stage`
