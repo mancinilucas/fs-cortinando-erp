@@ -61,11 +61,11 @@ Não existe módulo `auth/`, controller de login, guard, decorator de usuário a
 - `rxjs`, `reflect-metadata`;
 - dev: `vitest`, `supertest`, `@nestjs/testing`, TypeScript 6, oxlint.
 
-**Não instaladas:** Argon2/bcrypt, `cookie-parser`, `class-validator`/`class-transformer`, `@nestjs/throttler`, biblioteca de CSRF, `@nestjs/config`, Helmet.
+**Não instaladas:** Argon2/bcrypt, `cookie-parser`, `class-validator`/`class-transformer`, `@nestjs/throttler`, `@nestjs/config`, Helmet.
 
 ### 2.4 Configuração e ambiente
 
-`backend/.env` (gitignored) contém apenas `DATABASE_URL` e `NODE_ENV`. Não há validação de variáveis de ambiente nem arquivo de exemplo versionado. O `main.ts` lê `PORT` diretamente.
+`backend/.env` (gitignored) contém `DATABASE_URL`, `NODE_ENV` e `APP_ORIGIN`. O exemplo versionado `backend/.env.example` documenta as variáveis esperadas. Não há validação de variáveis de ambiente no startup. O `main.ts` lê `PORT` diretamente.
 
 ### 2.5 Testes
 
@@ -99,15 +99,15 @@ Não existe módulo `auth/`, controller de login, guard, decorator de usuário a
 
 ## 4. Lacunas
 
-1. **Decisão D20 em aberto:** algoritmo de hash de senha, entropia e hash do token, duração da sessão, nome/flags do cookie, CSRF, logout e sessão expirada não estão definidos — são o escopo de AUTH-02.
+1. **Decisões técnicas:** hash de senha (D20), entropia e hash do token, duração da sessão, cookie, CSRF, logout e sessão expirada estavam em aberto na auditoria e foram fechadas por D26–D33 em `02-auth.md`.
 2. **Seed administrativa ausente:** nenhum usuário existe no banco; sem ela não há como autenticar.
 3. **Nenhuma camada de autenticação:** faltam hash de senha, login, criação/validação de sessão, guard, logout e `/auth/me`.
 4. **Sem parsing de cookie:** `cookie-parser` (ou leitura manual) ainda não está configurado.
 5. **Sem validação de DTO:** não há `ValidationPipe` global nem `class-validator`; o login precisa validar entrada.
-6. **Sem rate limiting:** exigido por `ARCHITECTURE.md` §13.3 para o login.
-7. **Sem proteção CSRF:** nenhum mecanismo no stack atual.
-8. **Sem configuração centralizada:** `APP_ORIGIN` e parâmetros de cookie ainda não existem; não há validação de env no startup.
-9. **Normalização de e-mail:** `users.email` é `TEXT` e `UNIQUE`; cabeçalhos HTTP não são confiáveis quanto a caixa/espaços. A normalização (trim + lowercase) precisa ser definida e aplicada consistentemente no login e na seed. Não exige mudança de schema.
+6. **Sem rate limiting:** exigido por `ARCHITECTURE.md` §13.3; decisão registrada em D35, implementação pendente.
+7. **Sem proteção CSRF:** ainda não implementada; conforme D31, será feita por `SameSite=Strict` + validação de `Origin`, sem biblioteca específica de CSRF.
+8. **Sem configuração centralizada:** `APP_ORIGIN` já existe em `.env`, mas não há leitura/validação dessa variável nem dos parâmetros de cookie no código.
+9. **Normalização de e-mail:** decisão registrada em D34 (trim + NFC + lowercase, mesma função na seed e no login); implementação pendente. Não exige mudança de schema.
 10. **Limpeza de sessões expiradas:** o schema não tem índice em `expires_at`; a estratégia de remoção precisa considerar isso (remoção preguiçosa não exige índice).
 11. **Testes de autenticação ausentes:** não há banco de teste isolado nem fixtures para sessão.
 12. **HTTPS:** não há terminação TLS no repositório; é responsabilidade do deployment (`ARCHITECTURE.md` §13.3).
