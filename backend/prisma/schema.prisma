@@ -69,6 +69,7 @@ model Session {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("sessions")
 }
 
@@ -92,6 +93,7 @@ model Customer {
 
   quotes Quote[]
 
+  @@index([name])
   @@map("customers")
 }
 
@@ -126,6 +128,10 @@ model Quote {
   generalAddOns GeneralAddOn[]
   history       QuoteHistory[]
 
+  @@index([customerId])
+  @@index([status])
+  @@index([validUntil])
+  @@index([scheduledInstallationAt])
   @@map("quotes")
 }
 
@@ -159,6 +165,7 @@ model FinancialComponent {
 
   curtain Curtain @relation(fields: [curtainId], references: [id], onDelete: Cascade)
 
+  @@index([curtainId])
   @@map("financial_components")
 }
 
@@ -172,6 +179,7 @@ model GeneralAddOn {
 
   quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 
+  @@index([quoteId])
   @@map("general_add_ons")
 }
 
@@ -184,6 +192,7 @@ model QuoteHistory {
 
   quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 
+  @@index([quoteId, occurredAt])
   @@map("quote_history")
 }
 
