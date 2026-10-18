@@ -535,6 +535,15 @@ Executar teste de conectividade ou teste de integração mínimo, se já houver 
 
 ## PRISMA-09 — Definir e implementar seed administrativo mínimo
 
+**Status:** adiada para `02-auth.md` em 2026-10-18.
+
+**Motivo**  
+O algoritmo de hash de senha é a decisão D20, adiada explicitamente para `02-auth.md` (`01-prisma-audit.md` §3.1). Não há dependência de hash instalada, e a task condiciona o hash à infraestrutura já disponível. Criar hash temporário ou armazenar senha em texto puro violaria `PROJECT_SPEC.md` §14.3 e `ARCHITECTURE.md` §13.3.
+
+Nenhuma implementação temporária foi criada e nenhum arquivo de código, schema ou migration foi alterado.
+
+**Ao criar `02-auth.md`, preservar:** seed idempotente da única conta administrativa, credenciais fora do repositório, sem signup público, sem RBAC e sem implementar login/sessão nesta etapa.
+
 **Goal**  
 Disponibilizar a única conta administrativa necessária para desenvolvimento, sem implementar o fluxo completo de autenticação.
 
