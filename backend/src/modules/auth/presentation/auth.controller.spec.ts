@@ -12,6 +12,7 @@ import {
   UserStore,
 } from '../application/user-store.js';
 import { AuthController } from './auth.controller.js';
+import { AuthGuard } from './auth.guard.js';
 
 const USER: UserRecord = {
   id: 'user-id',
@@ -33,8 +34,12 @@ class FakeUserStore extends UserStore {
     return this.user;
   }
 
-  async findById(): Promise<UserIdentity | null> {
-    return null;
+  async findById(id: string): Promise<UserIdentity | null> {
+    if (!this.user || this.user.id !== id) {
+      return null;
+    }
+
+    return { id: this.user.id, email: this.user.email };
   }
 }
 
@@ -50,17 +55,28 @@ class FakePasswordHasher extends PasswordHasher {
 
 class FakeSessionStore extends SessionStore {
   created: Array<{ userId: string; tokenHash: string }> = [];
+  private readonly sessions = new Map<string, SessionRecord>();
 
   async create(userId: string, tokenHash: string): Promise<SessionRecord> {
     this.created.push({ userId, tokenHash });
-    return { id: 'session-id', userId, expiresAt: new Date() };
+
+    const session = {
+      id: `session-${this.created.length}`,
+      userId,
+      expiresAt: new Date(Date.now() + 60_000),
+    };
+    this.sessions.set(tokenHash, session);
+
+    return session;
   }
 
-  async findValidByTokenHash(): Promise<SessionRecord | null> {
-    return null;
+  async findValidByTokenHash(tokenHash: string): Promise<SessionRecord | null> {
+    return this.sessions.get(tokenHash) ?? null;
   }
 
-  async deleteByTokenHash(): Promise<void> {}
+  async deleteByTokenHash(tokenHash: string): Promise<void> {
+    this.sessions.delete(tokenHash);
+  }
 }
 
 function setCookieHeaders(response: {
@@ -87,7 +103,7 @@ function sessionToken(response: { headers: Record<string, unknown> }): string {
   return cookie.slice(COOKIE_PREFIX.length).split(';')[0];
 }
 
-describe('POST /auth/login (HTTP)', () => {
+describe('AuthController (HTTP)', () => {
   let app: INestApplication<App>;
   let users: FakeUserStore;
   let sessions: FakeSessionStore;
@@ -101,6 +117,7 @@ describe('POST /auth/login (HTTP)', () => {
       providers: [
         LoginUseCase,
         SessionTokenService,
+        AuthGuard,
         { provide: UserStore, useValue: users },
         { provide: PasswordHasher, useValue: new FakePasswordHasher() },
         { provide: SessionStore, useValue: sessions },
@@ -198,5 +215,39 @@ describe('POST /auth/login (HTTP)', () => {
     expect(response.body).toMatchObject({ statusCode: 400 });
     expect(sessions.created).toHaveLength(0);
     expect(setCookieHeaders(response)).toHaveLength(0);
+  });
+
+  describe('GET /auth/me', () => {
+    async function loginCookie(): Promise<string> {
+      const response = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: 'admin@example.com', password: 'correct-password' })
+        .expect(200);
+
+      return `${COOKIE_PREFIX}${sessionToken(response)}`;
+    }
+
+    it('returns the authenticated user for a valid session', async () => {
+      const cookie = await loginCookie();
+
+      const response = await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Cookie', cookie)
+        .expect(200);
+
+      expect(response.body).toEqual({ id: USER.id, email: USER.email });
+      expect(response.body).not.toHaveProperty('passwordHash');
+    });
+
+    it('rejects a request without a session cookie', async () => {
+      await request(app.getHttpServer()).get('/auth/me').expect(401);
+    });
+
+    it('rejects an unknown session token', async () => {
+      await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Cookie', `${COOKIE_PREFIX}${'a'.repeat(43)}`)
+        .expect(401);
+    });
   });
 });
