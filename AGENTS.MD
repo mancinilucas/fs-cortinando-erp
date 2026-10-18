@@ -32,6 +32,7 @@ Do not silently override a higher-priority source.
 - Do not modify unrelated files.
 - Run relevant tests before considering a task complete.
 - Preserve existing architectural boundaries.
+- Write all source code, comments, tests, Prisma schema identifiers and commit messages in English; product and development documentation remains in Portuguese (`docs/ARCHITECTURE.md` §1.2).
 
 ## Backend
 
@@ -55,12 +56,13 @@ Do not silently override a higher-priority source.
 ## Task execution
 
 Before implementing a feature:
-1. Read the relevant development spec.
-2. Read the corresponding sections of PROJECT_SPEC and ARCHITECTURE.
-3. Identify affected modules.
-4. Implement only the requested scope.
-5. Run tests/lint relevant to the change.
-6. Report any unresolved ambiguity instead of inventing behavior.
+1. Read the relevant sections of PROJECT_SPEC and ARCHITECTURE.
+2. Read the relevant development spec.
+3. Read the relevant sections of IMPLEMENTATION_PLAN for sequence and dependencies.
+4. Identify affected modules.
+5. Implement only the requested scope.
+6. Run tests/lint relevant to the change.
+7. Report any unresolved ambiguity instead of inventing behavior.
 
 ## Task completion
 
@@ -78,3 +80,13 @@ A task is complete only when:
 6. Any review findings have been fixed and the relevant checks rerun.
 
 Do not report a task as complete only because the code compiles.
+
+## Git workflow
+
+- Prefer one atomic commit per completed task.
+- Commit only after acceptance criteria and verification checks pass.
+- A commit must contain only files related to the current task.
+- Do not include unrelated formatting or refactors.
+- Use the task ID in the commit message when available.
+- Write commit messages in English (see General rules).
+- Do not commit if the task is incomplete or verification is failing.

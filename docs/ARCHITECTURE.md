@@ -35,6 +35,7 @@ Pragmatic DDD
 - Interfaces e abstrações só são introduzidas quando representam uma fronteira real.
 - Não serão criadas camadas, repositories, Domain Services ou Domain Events apenas por simetria arquitetural.
 - A solução deve continuar compreensível e operável por um desenvolvedor solo.
+- Todo o código-fonte é escrito em inglês, incluindo schema Prisma (models, enums, campos e tabelas), identificadores, comentários, testes e mensagens de commit. A documentação de produto e de desenvolvimento permanece em português.
 
 ### 1.3 Fora da arquitetura inicial
 
@@ -1055,6 +1056,7 @@ PDF                         → gerado sob demanda, não persistido
 Ordem de produção           → projeção gerada sob demanda
 Testes                      → orientados a risco/regras críticas
 Deployment                  → aplicação única + PostgreSQL
+Idioma do código             → inglês (inclui schema Prisma e mensagens de commit)
 ```
 
 ---
