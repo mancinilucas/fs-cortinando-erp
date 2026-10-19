@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service.js';
 import { SessionRecord, SessionStore } from '../application/session-store.js';
-
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+import { SESSION_TTL_SECONDS } from '../session-ttl.js';
 
 @Injectable()
 export class PrismaSessionStore implements SessionStore {
@@ -15,7 +14,7 @@ export class PrismaSessionStore implements SessionStore {
       data: {
         userId,
         tokenHash,
-        expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+        expiresAt: new Date(Date.now() + SESSION_TTL_SECONDS * 1000),
       },
     });
 

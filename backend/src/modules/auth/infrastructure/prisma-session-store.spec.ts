@@ -2,9 +2,10 @@ import 'dotenv/config';
 import { Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../../shared/database/prisma.service.js';
+import { SESSION_TTL_SECONDS } from '../session-ttl.js';
 import { PrismaSessionStore } from './prisma-session-store.js';
 
-const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
+const SESSION_TTL_MS = SESSION_TTL_SECONDS * 1000;
 
 describe('PrismaSessionStore', () => {
   let prisma: PrismaService;
@@ -34,7 +35,7 @@ describe('PrismaSessionStore', () => {
     return randomUUID();
   }
 
-  it('creates a session expiring in twelve hours', async () => {
+  it('creates a session expiring after the shared session TTL', async () => {
     const before = Date.now();
 
     const session = await store.create(userId, newTokenHash());
@@ -42,10 +43,10 @@ describe('PrismaSessionStore', () => {
     const after = Date.now();
     expect(session.userId).toBe(userId);
     expect(session.expiresAt.getTime()).toBeGreaterThanOrEqual(
-      before + TWELVE_HOURS_MS,
+      before + SESSION_TTL_MS,
     );
     expect(session.expiresAt.getTime()).toBeLessThanOrEqual(
-      after + TWELVE_HOURS_MS,
+      after + SESSION_TTL_MS,
     );
   });
 

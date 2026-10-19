@@ -1,8 +1,5 @@
-import {
-  SESSION_COOKIE_MAX_AGE_MS,
-  sessionCookieName,
-  sessionCookieOptions,
-} from './session-cookie.js';
+import { SESSION_TTL_SECONDS } from '../session-ttl.js';
+import { sessionCookieName, sessionCookieOptions } from './session-cookie.js';
 
 describe('session cookie', () => {
   it('uses the __Host- prefix and the Secure flag in production', () => {
@@ -14,7 +11,7 @@ describe('session cookie', () => {
       path: '/',
       sameSite: 'strict',
       secure: true,
-      maxAge: SESSION_COOKIE_MAX_AGE_MS,
+      maxAge: SESSION_TTL_SECONDS * 1000,
     });
   });
 
@@ -27,7 +24,7 @@ describe('session cookie', () => {
       path: '/',
       sameSite: 'strict',
       secure: false,
-      maxAge: 43200000,
+      maxAge: SESSION_TTL_SECONDS * 1000,
     });
   });
 });

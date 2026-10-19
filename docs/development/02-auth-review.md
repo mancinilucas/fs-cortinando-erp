@@ -1,6 +1,6 @@
 # 02 — Revisão semântica da autenticação
 
-**Status:** AUTH-18 concluída em 2026-10-18  
+**Status:** AUTH-18 concluída em 2026-10-18; achados fechados na AUTH-19 em 2026-10-18.  
 **Task de origem:** `docs/development/02-auth.md` → AUTH-18  
 **Fontes de verdade:** `docs/PROJECT_SPEC.md` §13 e §14.3, `docs/ARCHITECTURE.md` §13, §14.2, §21 e §22, `docs/development/02-auth.md` (D26–D40) e `AGENTS.MD`
 
@@ -95,3 +95,15 @@ Verificações pontuais de escopo:
 Todos os itens do checklist da AUTH-18 foram atendidos. A implementação respeita as fronteiras arquiteturais, não introduz JWT, signup ou RBAC, não persiste token bruto, não registra credenciais e mantém controllers finos. As suítes de unidade/integração (86 testes) e E2E (7 testes) passam.
 
 Há um achado que exige reparo na AUTH-19: **A1 (média)**, ausência de teto por IP no login. **A2 (baixa)** é um pré-requisito de produção dependente da topologia de deployment, que permanece adiada; não há outro achado bloqueante.
+
+---
+
+## 6. Fechamento — AUTH-19
+
+- **A1 corrigido.** O limite global por IP voltou a valer no login; o limite de 5/min por IP + e-mail normalizado foi movido para um throttler nomeado (`login`), executado somente no handler de login. Os testes HTTP cobrem mesma conta, e-mails variados no mesmo IP, IPs distintos, resposta genérica e recuperação após a janela.
+- **TTL centralizado.** `SESSION_TTL_SECONDS` é a única fonte do TTL; `expires_at` da sessão e `Max-Age` do cookie derivam dela. Os testes de cookie, de persistência de sessão e do controller usam o mesmo valor.
+- **`APP_ORIGIN` validada no bootstrap.** Ausência ou entrada inválida impede a inicialização com erro claro; `.env.example` marca a variável como obrigatória.
+- **A2 registrado como `DEPLOY-SEC-01`** em `docs/IMPLEMENTATION_PLAN.md`, Fase 12. `trust proxy` continua não configurado, conforme a decisão.
+- **Seed sem alteração funcional**, mantendo `update: {}` e a idempotência aprovada.
+- **Re-verificação:** `pnpm build`, `pnpm lint`, `pnpm test` (16 arquivos / 95 testes) e `pnpm test:e2e` (2 arquivos / 7 testes) passam.
+- **Resultado:** nenhum achado bloqueante permanece; fase de autenticação encerrada.

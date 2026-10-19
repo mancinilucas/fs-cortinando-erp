@@ -13,6 +13,7 @@ import {
   UserRecord,
   UserStore,
 } from '../application/user-store.js';
+import { SESSION_TTL_SECONDS } from '../session-ttl.js';
 import { AuthController } from './auth.controller.js';
 import { AuthGuard } from './auth.guard.js';
 
@@ -170,7 +171,7 @@ describe('AuthController (HTTP)', () => {
     expect(cookie).toMatch(
       /^cortinando_session=[A-Za-z0-9_-]{43};.*HttpOnly.*SameSite=Strict/,
     );
-    expect(cookie).toContain('Max-Age=43200');
+    expect(cookie).toContain(`Max-Age=${SESSION_TTL_SECONDS}`);
     expect(cookie).toContain('Path=/');
     expect(cookie).not.toContain('Secure');
   });

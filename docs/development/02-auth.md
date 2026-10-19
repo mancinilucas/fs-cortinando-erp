@@ -1,6 +1,6 @@
 # DEVELOPMENT SPEC 02 — Autenticação e Sessão
 
-**Status:** AUTH-01 a AUTH-18 concluídas em 2026-10-18; próxima task: AUTH-19  
+**Status:** AUTH-01 a AUTH-19 concluídas em 2026-10-18; fase de autenticação encerrada.  
 **Objetivo:** proteger toda a aplicação com autenticação de conta única, sessão server-side e cookie seguro, antes de implementar dados reais do negócio.
 
 ---
@@ -111,6 +111,10 @@ A numeração continua a série iniciada em `01-prisma-audit.md` §3.1.
 | D37 | Resposta do login | `POST /auth/login` responde `200` com `{ id, email }` em autenticação bem-sucedida. |
 | D38 | Mitigação de timing | Quando o e-mail não existir, o login executa verificação Argon2id contra um hash dummy antes de retornar falha. Usuário inexistente e senha incorreta seguem fluxo computacional equivalente, retornam o mesmo status HTTP e a mesma mensagem, e não produzem logs que revelem qual condição ocorreu. |
 | D40 | Lint da pasta Prisma | `prisma/` permanece fora do escopo do `oxlint` no MVP. Scripts e arquivos TypeScript dessa pasta devem continuar sendo validados por TypeScript e pelos testes aplicáveis. A configuração de lint só será ampliada se surgir necessidade concreta. |
+| D41 | Rate limiting do login (revisão AUTH-19) | O `POST /auth/login` mantém o limite global por IP (60 req/min) e aplica um throttler nomeado `login` com 5 req/min por IP + e-mail normalizado. O throttler nomeado é executado somente no handler de login; os demais endpoints usam apenas o limite global. |
+| D42 | TTL da sessão (revisão AUTH-19) | `SESSION_TTL_SECONDS` (12 h) é a única fonte do TTL da sessão. `sessions.expires_at` e o `Max-Age` do cookie derivam desse valor. A expiração permanece absoluta, sem sliding expiration nem refresh token. |
+| D43 | `APP_ORIGIN` no bootstrap | `APP_ORIGIN` é obrigatória e validada durante o bootstrap. Ausência ou origem inválida impede a inicialização com erro claro, sem expor secrets. O `CsrfOriginGuard` continua falhando fechado em runtime. |
+| D44 | Trust proxy adiado | Não configurar `trust proxy` nesta fase; a topologia de produção ainda não está definida. Pendência registrada como `DEPLOY-SEC-01` em `docs/IMPLEMENTATION_PLAN.md` (Fase 12), exigindo número exato de hops confiáveis e validação do IP real em rate limiting e logs. |
 
 ### 6.1 Configuração exigida
 

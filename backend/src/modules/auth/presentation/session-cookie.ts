@@ -1,6 +1,5 @@
 import type { CookieOptions } from 'express';
-
-export const SESSION_COOKIE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+import { SESSION_TTL_SECONDS } from '../session-ttl.js';
 
 export function sessionCookieName(
   env: NodeJS.ProcessEnv = process.env,
@@ -20,6 +19,6 @@ export function sessionCookieOptions(
     path: '/',
     sameSite: 'strict',
     secure,
-    maxAge: SESSION_COOKIE_MAX_AGE_MS,
+    maxAge: SESSION_TTL_SECONDS * 1000,
   };
 }
