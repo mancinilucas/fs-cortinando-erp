@@ -758,7 +758,7 @@ Não haverá no MVP:
 - signup público;
 - RBAC;
 - gestão de usuários;
-- recuperação pública de senha.
+- recuperação e alteração de senha.
 
 ---
 

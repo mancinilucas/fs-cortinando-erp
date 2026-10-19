@@ -60,16 +60,16 @@ A primeira spec operacional é `docs/development/01-prisma-foundation.md`.
 
 **Objetivo:** proteger toda a aplicação antes de implementar dados reais do negócio.
 
-- [ ] Modelar usuário administrativo.
-- [ ] Implementar hash seguro de senha.
-- [ ] Implementar login.
-- [ ] Implementar sessão server-side.
-- [ ] Configurar cookie seguro.
-- [ ] Implementar guard das rotas privadas.
-- [ ] Implementar logout/invalidação de sessão.
-- [ ] Implementar `/auth/me`.
-- [ ] Adicionar rate limiting no login.
-- [ ] Adicionar proteção CSRF nas operações mutáveis.
+- [x] Modelar usuário administrativo.
+- [x] Implementar hash seguro de senha.
+- [x] Implementar login.
+- [x] Implementar sessão server-side.
+- [x] Configurar cookie seguro.
+- [x] Implementar guard das rotas privadas.
+- [x] Implementar logout/invalidação de sessão.
+- [x] Implementar `/auth/me`.
+- [x] Adicionar rate limiting no login.
+- [x] Adicionar proteção CSRF nas operações mutáveis.
 
 **Spec:** `docs/development/02-auth.md`
 
@@ -242,6 +242,7 @@ A primeira spec operacional é `docs/development/01-prisma-foundation.md`.
 - [ ] Revisar índices e queries relevantes.
 - [ ] Estratégia de backup.
 - [ ] Configuração de produção.
+- [ ] DEPLOY-SEC-01 — Configurar `trust proxy` com o número exato de hops confiáveis quando a topologia de produção for definida; nunca `trust proxy: true` indiscriminadamente; validar que rate limiting e logs recebem o IP real do cliente.
 - [ ] HTTPS.
 - [ ] Deploy.
 - [ ] Smoke tests pós-deploy.
