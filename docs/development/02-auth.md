@@ -115,6 +115,7 @@ A numeração continua a série iniciada em `01-prisma-audit.md` §3.1.
 | D42 | TTL da sessão (revisão AUTH-19) | `SESSION_TTL_SECONDS` (12 h) é a única fonte do TTL da sessão. `sessions.expires_at` e o `Max-Age` do cookie derivam desse valor. A expiração permanece absoluta, sem sliding expiration nem refresh token. |
 | D43 | `APP_ORIGIN` no bootstrap | `APP_ORIGIN` é obrigatória e validada durante o bootstrap. Ausência ou origem inválida impede a inicialização com erro claro, sem expor secrets. O `CsrfOriginGuard` continua falhando fechado em runtime. |
 | D44 | Trust proxy adiado | Não configurar `trust proxy` nesta fase; a topologia de produção ainda não está definida. Pendência registrada como `DEPLOY-SEC-01` em `docs/IMPLEMENTATION_PLAN.md` (Fase 12), exigindo número exato de hops confiáveis e validação do IP real em rate limiting e logs. |
+| D45 | Política da seed administrativa (revisão AUTH-19) | A seed não rotaciona a senha existente nem atualiza credenciais silenciosamente. O `upsert` usa `update: {}` e preserva o hash atual quando `ADMIN_PASSWORD` muda. Gestão e alteração de senha ficam fora do escopo do MVP. |
 
 ### 6.1 Configuração exigida
 

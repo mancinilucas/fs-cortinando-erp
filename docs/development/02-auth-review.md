@@ -104,6 +104,6 @@ Há um achado que exige reparo na AUTH-19: **A1 (média)**, ausência de teto po
 - **TTL centralizado.** `SESSION_TTL_SECONDS` é a única fonte do TTL; `expires_at` da sessão e `Max-Age` do cookie derivam dela. Os testes de cookie, de persistência de sessão e do controller usam o mesmo valor.
 - **`APP_ORIGIN` validada no bootstrap.** Ausência ou entrada inválida impede a inicialização com erro claro; `.env.example` marca a variável como obrigatória.
 - **A2 registrado como `DEPLOY-SEC-01`** em `docs/IMPLEMENTATION_PLAN.md`, Fase 12. `trust proxy` continua não configurado, conforme a decisão.
-- **Seed sem alteração funcional**, mantendo `update: {}` e a idempotência aprovada.
-- **Re-verificação:** `pnpm build`, `pnpm lint`, `pnpm test` (16 arquivos / 95 testes) e `pnpm test:e2e` (2 arquivos / 7 testes) passam.
+- **Seed sem alteração funcional**, mantendo `update: {}` e a idempotência aprovada. Reexecuções não rotacionam a senha existente nem atualizam credenciais silenciosamente; gestão e alteração de senha permanecem fora do MVP. Coberto por teste com senha diferente na segunda execução.
+- **Re-verificação:** `pnpm build`, `pnpm lint`, `pnpm test` (16 arquivos / 96 testes) e `pnpm test:e2e` (2 arquivos / 7 testes) passam.
 - **Resultado:** nenhum achado bloqueante permanece; fase de autenticação encerrada.

@@ -82,4 +82,21 @@ describe('administrative user seed', () => {
     expect(users).toHaveLength(1);
     expect(users[0].id).toBe(first!.id);
   });
+
+  it('does not rotate the password when rerun with a different one', async () => {
+    const email = `seed-${randomUUID()}@example.com`;
+    const originalPassword = randomUUID();
+
+    await seed(email, originalPassword);
+    const first = await prisma.user.findUnique({ where: { email } });
+
+    await seed(email, randomUUID());
+    const second = await prisma.user.findUnique({ where: { email } });
+
+    expect(second!.id).toBe(first!.id);
+    expect(second!.passwordHash).toBe(first!.passwordHash);
+    await expect(
+      new Argon2PasswordHasher().verify(second!.passwordHash, originalPassword),
+    ).resolves.toBe(true);
+  });
 });
