@@ -78,7 +78,7 @@ model Customer {
   name                String
   phone               String
   email               String?
-  taxId               String?   @unique @map("tax_id")
+  taxId               String?   @map("tax_id")
   addressPostalCode   String?   @map("address_postal_code")
   addressStreet       String?   @map("address_street")
   addressNumber       String?   @map("address_number")

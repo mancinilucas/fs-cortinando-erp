@@ -1071,7 +1071,7 @@ Cortina                     → Entity interna de Orçamento
 ItemFinanceiro              → Entity interna compartilhada semanticamente
 Desconto                    → Value Object
 EnderecoInstalacao          → Value Object/snapshot estruturado (cliente usa a mesma estrutura)
-CPF/CNPJ                    → normalizado (somente dígitos) e único em `clientes`
+CPF/CNPJ                    → normalizado (somente dígitos); sem unicidade no MVP (D52)
 Produção                    → fase de Orçamento, não contexto separado
 Histórico                   → persistência separada, sem event sourcing
 Repositories DDD            → ClienteRepository, OrcamentoRepository

@@ -170,7 +170,7 @@ Sem `ultimoUsoEm` (D13), sem `userAgent`/`ip` (minimização — ARCHITECTURE §
 | `nome` | `String` | NOT NULL | obrigatório (`PROJECT_SPEC` §2.1); busca do MVP é por nome |
 | `telefone` | `String` | NOT NULL | obrigatório |
 | `email` | `String?` | NULL | opcional |
-| `cpfCnpj` → `cpf_cnpj` | `String?` | NULL | opcional; **UNIQUE**; normalizado, somente dígitos (D19/D23) |
+| `cpfCnpj` → `cpf_cnpj` | `String?` | NULL | opcional; sem UNIQUE (D52, 2026-10-19); normalizado, somente dígitos (D23) |
 | `endereco*` → `endereco_*` | 7 colunas `String?` (ver 2.3.1) | NULL | endereço estruturado; bloco opcional (D22) |
 | `observacoes` | `String?` | NULL | opcional |
 | `criadoEm` → `criado_em` | `DateTime @db.Timestamptz(3)` | NOT NULL | `@default(now())` |
@@ -356,7 +356,7 @@ enum TipoEventoHistorico {
 | UNIQUE `numero_orcamento` | `orcamentos` | proteção adicional ao contador (§12) |
 | UNIQUE `email` | `usuarios` | login |
 | UNIQUE `token_hash` | `sessoes` | lookup da sessão |
-| UNIQUE `cpf_cnpj` | `clientes` | D19 + D23 — valor normalizado (somente dígitos) |
+| ~~UNIQUE `cpf_cnpj`~~ | `clientes` | **Removida por D52 (2026-10-19)** — CPF/CNPJ duplicado é permitido no MVP |
 | UNIQUE `(orcamento_id, sequencia)` | `cortinas` | D11 — impede duas cortinas na mesma posição de apresentação |
 | PK `ano` | `orcamento_sequence` | §12 |
 
@@ -379,7 +379,7 @@ Nenhum `Float` em medida, quantidade ou dinheiro. Nenhum total persistido. Nenhu
 |---|---|---|
 | `@unique numero_orcamento` | `orcamentos` | unicidade funcional + busca por número (§12.2) |
 | `@@index([nome])` | `clientes` | busca de clientes por nome (§3.3) |
-| `@unique cpf_cnpj` | `clientes` | D19 (constraint, gera índice) |
+| ~~`@unique cpf_cnpj`~~ | `clientes` | **Removido por D52 (2026-10-19)**; a coluna não possui índice próprio |
 | `@@index([cliente_id])` | `orcamentos` | histórico de orçamentos do cliente (§3.2, §12.4) |
 | `@@index([status])` | `orcamentos` | dashboard e filtros de situação (§12.1, §12.3) |
 | `@@index([data_validade])` | `orcamentos` | derivar `EXPIRADO` (§8.2) |
@@ -396,7 +396,7 @@ Deliberadamente **não** incluídos: compostos `status+data_validade` e `status+
 
 Também sem índice: `endereco_cidade` / `endereco_instalacao_cidade`. Filtro por cidade está explicitamente fora do escopo inicial (`PROJECT_SPEC` §12.3), logo não há query que o justifique.
 
-Nota PostgreSQL: UNIQUE em coluna nullable permite múltiplos `NULL` — comportamento desejado para `clientes.cpf_cnpj` (vários clientes sem CPF/CNPJ).
+Nota PostgreSQL: `clientes.cpf_cnpj` é nullable e **não possui UNIQUE** desde D52 (2026-10-19); CPF/CNPJ duplicado e múltiplos `NULL` são permitidos.
 
 ## 2.8 Revisão semântica
 
@@ -440,11 +440,11 @@ Sim — invariantes de domínio que o schema **não deve** tentar substituir (de
 | D16 | `orcamentos.atualizadoEm` | Adicionar | `atualizado_em` com `@updatedAt` |
 | D17 | Índices compostos | Adiar | Não incluídos |
 | D18 | Detalhes do histórico | `Json` livre | `detalhes Json?` |
-| D19 | `cpf_cnpj` | Criar UNIQUE | `@unique` em `clientes.cpf_cnpj` (ver D23) |
+| D19 | `cpf_cnpj` | ~~Criar UNIQUE~~ — **superada por D52 (2026-10-19)** | Sem `@unique`; CPF/CNPJ duplicado é permitido no MVP |
 | D20 | Hash de senha | Decidir em `02-auth.md` | `senha_hash String` não bloqueia |
 | D21 | Tipo de evento | Enum Prisma | `TipoEventoHistorico` |
 | D22 | Endereço do **Cliente** | Documentação normalizada: endereço é dado estruturado no cliente e no orçamento, com nulabilidade compatível | 7 colunas `endereco_*` em `clientes`, mesmas de `orcamentos` |
-| D23 | Normalização de CPF/CNPJ | Persistir somente dígitos, sem máscara | `cpf_cnpj` normalizado; UNIQUE passa a proteger de fato |
+| D23 | Normalização de CPF/CNPJ | Persistir somente dígitos, sem máscara | `cpf_cnpj` normalizado; unicidade revogada por D52 |
 | D24 | Campos do endereço | `logradouro`, `numero`, `bairro`, `cidade` obrigatórios; `complemento`, `cep`, `uf` opcionais | Nullability no banco inalterada (D3); regra de preenchimento no domínio — confirmada, sem `NOT NULL` |
 | D25 | Formato de `cep`/`uf` | `uf` em `@db.Char(2)` maiúsculo; `cep` com 8 dígitos, sem máscara; normalizados na entrada | Tipos finos definidos; nenhuma constraint adicional |
 
