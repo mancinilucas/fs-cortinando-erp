@@ -27,3 +27,7 @@ Do not silently override a higher-priority source.
 - Backend commands run from `backend/`: `pnpm build`, `pnpm lint`, `pnpm test`, `npx prisma validate`.
 - `backend/.env` is gitignored and must never be edited or committed.
 - The domain layer must not import NestJS, Prisma, or HTTP concerns.
+
+## Git Commit Guidelines
+- Nunca adicione linhas "Co-Authored-By" do Claude nos commits.
+- Mantenha o histórico de commits limpo e contendo apenas o autor humano.
