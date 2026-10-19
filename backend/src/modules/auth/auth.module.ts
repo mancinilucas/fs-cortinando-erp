@@ -24,5 +24,6 @@ import { AuthGuard } from './presentation/auth.guard.js';
     LogoutUseCase,
     AuthGuard,
   ],
+  exports: [AuthGuard],
 })
 export class AuthModule {}
