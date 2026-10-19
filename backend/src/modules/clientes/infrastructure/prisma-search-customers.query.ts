@@ -17,10 +17,22 @@ export class PrismaSearchCustomersQuery implements SearchCustomersQuery {
         deletedAt: null,
         ...(term === ''
           ? {}
-          : { name: { contains: term, mode: 'insensitive' } }),
+          : {
+              name: {
+                contains: escapeLikePattern(term),
+                mode: 'insensitive',
+              },
+            }),
       },
       select: { id: true, name: true, phone: true, email: true },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
   }
+}
+
+// Prisma passes `contains` to ILIKE without escaping its wildcards, so `\`,
+// `%` and `_` must be escaped for the search to remain a literal substring
+// (D58).
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
 }

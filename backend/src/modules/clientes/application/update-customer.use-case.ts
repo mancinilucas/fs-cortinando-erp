@@ -14,6 +14,12 @@ export class UpdateCustomerUseCase {
       throw new CustomerNotFoundError();
     }
 
+    // D62: an empty patch is a no-op, so it must not rewrite the row nor bump
+    // the persistence-managed updatedAt.
+    if (Object.values(input).every((value) => value === undefined)) {
+      return customer;
+    }
+
     customer.update(input);
     await this.customers.save(customer);
 

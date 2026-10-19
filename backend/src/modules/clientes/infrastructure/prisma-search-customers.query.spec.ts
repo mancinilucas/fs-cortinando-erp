@@ -137,4 +137,32 @@ describe('PrismaSearchCustomersQuery', () => {
       [first, second].sort(),
     );
   });
+
+  it('treats LIKE wildcards as literal characters', async () => {
+    const percent = await createCustomer(`Literal %${token}`);
+    await createCustomer(`Plain ${token}`);
+
+    const percentResults = await query.execute(`%${token}`);
+
+    expect(percentResults.map((summary) => summary.id)).toEqual([percent]);
+
+    const underscore = await createCustomer(`Under_${token}`);
+    const underscoreOther = await createCustomer(`UnderX${token}`);
+
+    const underscoreResults = await query.execute(`_${token}`);
+
+    expect(underscoreResults.map((summary) => summary.id)).toEqual([
+      underscore,
+    ]);
+    expect(underscoreResults.map((summary) => summary.id)).not.toContain(
+      underscoreOther,
+    );
+
+    const backslash = await createCustomer(`Back\\${token}`);
+    await createCustomer(`Backslash ${token}`);
+
+    const backslashResults = await query.execute(`\\${token}`);
+
+    expect(backslashResults.map((summary) => summary.id)).toEqual([backslash]);
+  });
 });

@@ -568,14 +568,13 @@ DeleteCustomerUseCase
 Leituras:
 
 ```text
-GetCustomerQuery
+GetCustomerUseCase
 SearchCustomersQuery
 ```
 
-- Implementadas como query services/projeções em `application/` com implementação Prisma em `infrastructure/`.
-- `GetCustomerQuery` retorna o DTO de detalhe e aplica `deletedAt: null`.
-- `SearchCustomersQuery` retorna a lista/resumos.
-- Não há necessidade de reconstruir o aggregate para leitura (`ARCHITECTURE.md` §7.3).
+- `GetCustomerUseCase` carrega o aggregate ativo e aplica `deletedAt: null`; a Presentation converte o aggregate no DTO de detalhe.
+- `SearchCustomersQuery` é uma projeção em `application/` com implementação Prisma em `infrastructure/` e retorna a lista/resumos.
+- Listagens não reconstroem aggregates (`ARCHITECTURE.md` §7.3); a consulta individual reconstrói o aggregate para reutilizar a validação do Value Object de endereço.
 
 Deliberadamente fora:
 
@@ -583,7 +582,7 @@ Deliberadamente fora:
 - Domain Services, Domain Events, Unit of Work genérico.
 - Um use case por campo ou “serviço genérico de CRUD”.
 
-**Motivo:** CRUD simples não vira DDD cerimonial; os use cases existem porque há normalização, invariantes e soft delete a coordenar. Leituras usam projeções simples.
+**Motivo:** CRUD simples não vira DDD cerimonial; os use cases existem porque há normalização, invariantes e soft delete a coordenar. Listagens usam projeções simples; a consulta individual reutiliza o aggregate.
 
 ---
 
@@ -614,6 +613,8 @@ O `AuthGuard` existe em `modules/auth/presentation/auth.guard.ts`, mas o `AuthMo
 3. Aplicar `@UseGuards(AuthGuard)` no controller de Clientes.
 4. **Não exportar dependências internas do Auth preventivamente** (`SessionStore`, `SessionTokenService`, `UserStore`, etc.).
 5. Validar a resolução de DI por teste/E2E. Se houver falha de resolução, tratá-la como achado concreto da task, ampliando o mínimo necessário — nunca por antecipação.
+
+> **Nota de implementação (CLIENTES-22, 2026-10-19):** o E2E revelou que o Nest resolve o `AuthGuard` no contexto do módulo importador. Para manter uma única implementação do guard, o `AuthModule` exportou, além de `AuthGuard`, apenas suas dependências diretas: `SessionStore`, `SessionTokenService` e `UserStore`. Essa é a ampliação mínima prevista no item 5, não um export preventivo.
 
 Nenhuma rota de Clientes pode ficar sem autenticação. Os guards globais `CsrfOriginGuard` e `LoggingThrottlerGuard` continuam aplicados automaticamente.
 
@@ -720,7 +721,7 @@ Casos mínimos:
 - `GET /clientes?search=` → resultado parcial, case-insensitive, sem soft-deleted;
 - `PATCH /clientes/:id` → campo omitido inalterado, `null` limpa opcional, `null` em obrigatório → `400`;
 - `DELETE /clientes/:id` → `204`; repetição → `204`; `GET` posterior → `404`;
-- `PATCH`/`POST` em cliente excluído → `404`;
+- `PATCH` em cliente excluído → `404`;
 - mutação sem `Origin` → `403` (CSRF global);
 - payload inválido → `400`.
 
@@ -821,19 +822,19 @@ Sim. `Quote` é Aggregate Root separado, referenciado por `customerId`; o histó
 Sim (D56). É `UPDATE` em `deleted_at`; a FK `Restrict` não é alterada; orçamentos e histórico permanecem. A restauração não é implementada (D57).
 
 **5. Prisma permaneceu detalhe de infraestrutura?**
-Sim (D64). A interface do repository usa tipos de domínio; `PrismaCustomerRepository`, `PrismaCustomerQueries` e `CustomerMapper` ficam em `infrastructure/`; nenhum tipo Prisma em `domain/`/`application/`.
+Sim (D64). A interface do repository usa tipos de domínio; `PrismaCustomerRepository`, `PrismaSearchCustomersQuery` e `CustomerMapper` ficam em `infrastructure/`; nenhum tipo Prisma em `domain/`/`application/`.
 
 **6. Foi criada alguma abstração especulativa?**
-Não. Não há `GenericRepository`, Unit of Work, Domain Events, Domain Service, VO compartilhado entre módulos nem métodos especulativos no repository. `GetCustomerQuery`/`SearchCustomersQuery` são projeções de leitura justificadas por `ARCHITECTURE.md` §7.3.
+Não. Não há `GenericRepository`, Unit of Work, Domain Events, Domain Service, VO compartilhado entre módulos nem métodos especulativos no repository. `GetCustomerUseCase` (reconstrução do aggregate, exigida pela CLIENTES-15) e `SearchCustomersQuery` (projeção de leitura) são justificados por `ARCHITECTURE.md` §7.1/§7.3.
 
 **7. Campos opcionais foram transformados em obrigatórios sem suporte do `PROJECT_SPEC`?**
-Não. Apenas `name` e `phone` são obrigatórios. E-mail, CPF/CNPJ, endereço e observações permanecem opcionais. A exigência condicional dos quatro campos centrais do endereço, **quando o endereço é informado**, é a decisão validada D54 e será aplicada na implementação.
+Não. Apenas `name` e `phone` são obrigatórios. E-mail, CPF/CNPJ, endereço e observações permanecem opcionais. A exigência condicional dos quatro campos centrais do endereço, **quando o endereço é informado**, é a decisão validada D54 e foi aplicada no DTO e no Value Object.
 
 **8. Foi adicionada alguma unicidade não prevista?**
 Não. A decisão validada D52-A **remove** a unicidade existente de `taxId`; nenhuma unicidade nova foi proposta. E-mail permanece sem `UNIQUE`.
 
 **9. As decisões são suficientes para decompor a implementação em tasks atômicas?**
-Sim. D52, D54, D67 e D68 foram validadas em 2026-10-19; as demais decisões estão vigentes. A fase foi decomposta em **CLIENTES-03 a CLIENTES-12** (§26), cobrindo normalização, VO, entidade, repository/mapper, queries, use cases, presentation, testes de integração, E2E e revisão final, sem decisões improvisadas.
+Sim. D52, D54, D67 e D68 foram validadas em 2026-10-19; as demais decisões estão vigentes. A fase foi decomposta em **CLIENTES-03 a CLIENTES-24** (§26), cobrindo normalização, VO, entidade, repository/mapper, queries, use cases, presentation, testes de integração, E2E, revisão semântica e fechamento, sem decisões improvisadas.
 
 ---
 
@@ -851,7 +852,7 @@ Sim. D52, D54, D67 e D68 foram validadas em 2026-10-19; as demais decisões est�
 | D59 | sem paginação |
 | D62 | PATCH parcial; `address` omitido mantém, `null` remove, objeto substitui integralmente |
 | D63 | histórico somente na Fase 9 |
-| D67 | exportar apenas `AuthGuard`; sem exports preventivos |
+| D67 | exportar `AuthGuard`; dependências diretas somente após falha concreta de DI (CLIENTES-22) |
 | D68 | `whitelist` + `transform`; sem `enableImplicitConversion`; regressão de Auth |
 | D73 | contrato HTTP em inglês |
 | D75 | last-write-wins |
@@ -893,10 +894,12 @@ D46, D47, D48, D50, D53, D55, D56, D57, D60, D61, D64, D65, D66, D69, D70, D71, 
 - CLIENTES-01 e CLIENTES-02 foram concluídas sem implementação de código.
 - As decisões de CLIENTES-02 foram validadas em 2026-10-19.
 - A fase foi decomposta em tasks atômicas (§26).
-- **CLIENTES-03 foi executada em 2026-10-19**: `@unique` removido de `Customer.taxId`, migration `20261019191211_remove_customer_tax_id_uniqueness` criada e aplicada (`DROP INDEX "customers_tax_id_key"`), documentação de arquitetura/registros atualizada. Nenhum código de aplicação do módulo Clientes foi criado.
-- As demais tasks (CLIENTES-04 em diante) permanecem não iniciadas.
+- **CLIENTES-03 a CLIENTES-22 foram executadas em 2026-10-19**, cobrindo a migration D52-A, normalização, Value Object de endereço, aggregate, repository/mapper, query service, use cases, DTOs, mapeamento de erros, controller, testes de integração e E2E.
+- **CLIENTES-23 (revisão semântica) aprovou a fase sem achados bloqueantes**, registrando ressalvas não bloqueantes.
+- **CLIENTES-24 reparou os achados**: PATCH vazio não reescreve a linha, curingas de `LIKE` são escapados na busca, cobertura E2E/integração complementada (PATCH nulo em campo obrigatório, PATCH em cliente excluído, CSRF, busca case-insensitive, FK `Restrict` e associação histórica). Esta spec e `IMPLEMENTATION_PLAN.md` foram atualizados.
+- **Fase 3 concluída em 2026-10-19.**
 
-**Próximo passo:** aguardar a autorização para iniciar **CLIENTES-04**. Nenhuma outra task de implementação deve começar antes disso.
+**Próximo passo:** iniciar a Fase 4 — Núcleo de Orçamento, após autorização.
 
 ---
 

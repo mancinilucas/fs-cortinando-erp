@@ -158,6 +158,14 @@ describe('Customers (e2e)', () => {
       { id, name, phone: '(11) 99999-9999', email: 'maria@example.com' },
     ]);
 
+    const caseInsensitiveSearch = await request(server())
+      .get('/clientes')
+      .query({ search: `mArIa ${token}` })
+      .set('Cookie', cookie)
+      .expect(200);
+
+    expect(caseInsensitiveSearch.body).toEqual(search.body);
+
     const patched = await request(server())
       .patch(`/clientes/${id}`)
       .set('Origin', ORIGIN)
@@ -196,6 +204,13 @@ describe('Customers (e2e)', () => {
       statusCode: 404,
       message: 'Customer not found',
     });
+
+    await request(server())
+      .patch(`/clientes/${id}`)
+      .set('Origin', ORIGIN)
+      .set('Cookie', cookie)
+      .send({ name: 'Maria Souza' })
+      .expect(404);
   });
 
   it('rejects unauthenticated access to every route', async () => {
@@ -291,5 +306,55 @@ describe('Customers (e2e)', () => {
         where: { id: { in: [first.body.id, second.body.id] } },
       }),
     ).resolves.toBe(2);
+  });
+
+  it('rejects null for required fields on update', async () => {
+    const token = randomUUID();
+    const created = await request(server())
+      .post('/clientes')
+      .set('Origin', ORIGIN)
+      .set('Cookie', cookie)
+      .send({ name: `Required ${token}`, phone: '11999999999' })
+      .expect(201);
+
+    createdIds.push(created.body.id);
+
+    await request(server())
+      .patch(`/clientes/${created.body.id}`)
+      .set('Origin', ORIGIN)
+      .set('Cookie', cookie)
+      .send({ name: null })
+      .expect(400);
+
+    await request(server())
+      .patch(`/clientes/${created.body.id}`)
+      .set('Origin', ORIGIN)
+      .set('Cookie', cookie)
+      .send({ phone: null })
+      .expect(400);
+
+    const unchanged = await request(server())
+      .get(`/clientes/${created.body.id}`)
+      .set('Cookie', cookie)
+      .expect(200);
+
+    expect(unchanged.body).toMatchObject({
+      name: `Required ${token}`,
+      phone: '11999999999',
+    });
+  });
+
+  it('rejects mutations without a valid origin', async () => {
+    const token = randomUUID();
+
+    await request(server())
+      .post('/clientes')
+      .set('Cookie', cookie)
+      .send({ name: `No Origin ${token}`, phone: '11999999999' })
+      .expect(403);
+
+    await expect(
+      prisma.customer.findFirst({ where: { name: { contains: token } } }),
+    ).resolves.toBeNull();
   });
 });

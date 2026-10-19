@@ -220,4 +220,46 @@ describe('Clientes module integration', () => {
       '12345678901',
     ]);
   });
+
+  it('keeps historical quotes after the customer is soft-deleted', async () => {
+    const customer = await create();
+    const quote = await prisma.quote.create({
+      data: {
+        quoteNumber: `Q-${randomUUID()}`,
+        customerId: customer.id,
+        status: 'DRAFT',
+      },
+      select: { id: true },
+    });
+
+    try {
+      await deleteCustomer.execute(customer.id);
+
+      await expect(
+        prisma.quote.findUnique({ where: { id: quote.id } }),
+      ).resolves.toMatchObject({ customerId: customer.id });
+    } finally {
+      await prisma.quote.delete({ where: { id: quote.id } });
+    }
+  });
+
+  it('blocks physical deletion of a customer with quotes', async () => {
+    const customer = await create();
+    const quote = await prisma.quote.create({
+      data: {
+        quoteNumber: `Q-${randomUUID()}`,
+        customerId: customer.id,
+        status: 'DRAFT',
+      },
+      select: { id: true },
+    });
+
+    try {
+      await expect(
+        prisma.customer.delete({ where: { id: customer.id } }),
+      ).rejects.toMatchObject({ code: 'P2003' });
+    } finally {
+      await prisma.quote.delete({ where: { id: quote.id } });
+    }
+  });
 });

@@ -183,6 +183,19 @@ describe('UpdateCustomerUseCase', () => {
     ]);
   });
 
+  it('does not rewrite the row for an empty patch', async () => {
+    const customer = await seed();
+    const before = await row(customer.id);
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await useCase.execute(customer.id, {});
+
+    const after = await row(customer.id);
+
+    expect(before).not.toBeNull();
+    expect(after!.updatedAt).toEqual(before!.updatedAt);
+  });
+
   it('rejects updates to a soft-deleted customer', async () => {
     const customer = await seed();
     const originalName = customer.name;

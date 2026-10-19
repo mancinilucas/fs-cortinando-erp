@@ -32,9 +32,7 @@
 
 ### Próxima etapa
 
-- [ ] Definir schema Prisma inicial e estratégia de migrations.
-
-A primeira spec operacional é `docs/development/01-prisma-foundation.md`.
+- [ ] Implementar a Fase 4 — Núcleo de Orçamento.
 
 ---
 
@@ -79,15 +77,15 @@ A primeira spec operacional é `docs/development/01-prisma-foundation.md`.
 
 **Objetivo:** implementar o aggregate `Cliente` e disponibilizar o primeiro fluxo de negócio completo.
 
-- [ ] Implementar entidade de domínio `Cliente`.
-- [ ] Implementar `ClienteRepository`.
-- [ ] Implementar mapper Domain ↔ Prisma.
-- [ ] Criar cliente.
-- [ ] Buscar cliente por ID.
-- [ ] Listar/buscar clientes por nome.
-- [ ] Atualizar cliente.
-- [ ] Implementar soft delete.
-- [ ] Garantir associação histórica dos orçamentos após soft delete.
+- [x] Implementar entidade de domínio `Cliente`.
+- [x] Implementar `ClienteRepository`.
+- [x] Implementar mapper Domain ↔ Prisma.
+- [x] Criar cliente.
+- [x] Buscar cliente por ID.
+- [x] Listar/buscar clientes por nome.
+- [x] Atualizar cliente.
+- [x] Implementar soft delete.
+- [x] Garantir associação histórica dos orçamentos após soft delete.
 
 **Spec:** `docs/development/03-clientes.md`
 
