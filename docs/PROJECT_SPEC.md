@@ -54,7 +54,7 @@ O MVP deve permitir:
 -   Multiusuários.
 -   Papéis e permissões (RBAC).
 -   Cadastro público de usuários.
--   Recuperação de senha.
+-   Recuperação e alteração de senha.
 -   Catálogo de tecidos ou materiais.
 -   Catálogo de preços.
 -   Campos customizados/dinâmicos.
@@ -1411,7 +1411,7 @@ Requisitos:
 -   não existe cadastro público;
 -   não existe gestão de usuários;
 -   não existe RBAC;
--   recuperação de senha fica fora do escopo inicial.
+-   recuperação e alteração de senha ficam fora do escopo inicial.
 
 A estratégia técnica de autenticação, sessão, tokens e cookies será
 definida na arquitetura.

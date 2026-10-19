@@ -35,12 +35,13 @@ Em caso de conflito, prevalece a ordem acima. Não inventar regra de negócio.
 - Requisições mutáveis têm proteção CSRF.
 - Login tem rate limiting/backoff e mensagens que não facilitam enumeração de conta.
 - Falhas de autenticação são registradas sem credenciais.
+- A seed administrativa é idempotente e não rotaciona a senha nem atualiza credenciais existentes silenciosamente; gestão e alteração de senha ficam fora do MVP (D45).
 
 ---
 
 ## 4. Fora do escopo desta spec
 
-- signup público, RBAC, gestão de usuários e recuperação de senha;
+- signup público, RBAC, gestão de usuários, recuperação e alteração de senha;
 - JWT access/refresh;
 - MFA/TOTP (melhoria recomendada, não requisito do MVP);
 - telas de login/logout no frontend (tratadas na etapa de frontend);
@@ -293,7 +294,8 @@ ADMIN_PASSWORD=
 - senha passa pelo mesmo `PasswordHasher` usado pela aplicação;
 - e-mail é normalizado antes da persistência;
 - execução repetida não cria usuários duplicados;
-- o seed não implementa gestão de usuários.
+- execução repetida não altera o hash existente, mesmo com `ADMIN_PASSWORD` diferente: não há rotação automática nem atualização silenciosa de credenciais;
+- o seed não implementa gestão de usuários; gestão e alteração de senha ficam fora do MVP.
 
 **Verification**
 - executar seed em banco de desenvolvimento;
@@ -305,6 +307,7 @@ ADMIN_PASSWORD=
 **Review**
 - nenhuma senha aparece em logs;
 - nenhuma credencial default é criada automaticamente;
+- credenciais existentes não são sobrescritas por reexecução;
 - operação é idempotente.
 
 **Commit sugerido**
