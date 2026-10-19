@@ -1,6 +1,6 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
-import { normalizeEmail } from '../src/modules/auth/application/normalize-email.js';
+import { normalizeEmail } from '../src/shared/text/normalize-email.js';
 import { Argon2PasswordHasher } from '../src/modules/auth/infrastructure/argon2-password-hasher.js';
 
 export interface SeedAdministrativeUserConfig {

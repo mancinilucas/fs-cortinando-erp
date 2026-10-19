@@ -1,5 +1,5 @@
 import { normalizeIp } from '@nestjs/throttler';
-import { normalizeEmail } from '../application/normalize-email.js';
+import { normalizeEmail } from '../../../shared/text/normalize-email.js';
 
 export function loginTracker(request: Record<string, unknown>): string {
   const ip = typeof request.ip === 'string' ? normalizeIp(request.ip) : '';
