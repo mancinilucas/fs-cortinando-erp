@@ -7,6 +7,10 @@ import {
   type QuoteSearchFilter,
   type QuoteSummaryView,
 } from '../../application/ports/quote-search-query.repository.js';
+import {
+  expiredQuoteCondition,
+  validSentQuoteCondition,
+} from './quote-expiration-sql.js';
 
 interface QuoteSummaryRow {
   id: string;
@@ -43,13 +47,9 @@ export class PrismaSearchQuotesQuery extends QuoteSearchQueryRepository {
 
     // D106: EXPIRED is virtual; SENT excludes the expired SENT rows.
     if (filter.status === 'EXPIRED') {
-      conditions.push(
-        Prisma.sql`(q.status::text = 'SENT' AND q.valid_until IS NOT NULL AND q.valid_until < ${now})`,
-      );
+      conditions.push(expiredQuoteCondition(now));
     } else if (filter.status === 'SENT') {
-      conditions.push(
-        Prisma.sql`(q.status::text = 'SENT' AND (q.valid_until IS NULL OR q.valid_until >= ${now}))`,
-      );
+      conditions.push(validSentQuoteCondition(now));
     } else if (filter.status !== undefined) {
       conditions.push(Prisma.sql`q.status::text = ${filter.status}`);
     }
@@ -114,7 +114,7 @@ export class PrismaSearchQuotesQuery extends QuoteSearchQueryRepository {
         q.customer_id AS "customerId",
         c.name AS "customerName",
         q.status::text AS "status",
-        (q.status::text = 'SENT' AND q.valid_until IS NOT NULL AND q.valid_until < ${now}) AS "expired",
+        ${expiredQuoteCondition(now)} AS "expired",
         (
           qt.subtotal
           - CASE q.discount_type::text
