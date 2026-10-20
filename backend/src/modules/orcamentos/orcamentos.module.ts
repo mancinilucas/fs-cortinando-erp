@@ -6,6 +6,7 @@ import { DadosDoNegocioModule } from '../dados-do-negocio/dados-do-negocio.modul
 import { Clock } from './application/ports/clock.port.js';
 import { CustomerEligibility } from './application/ports/customer-eligibility.port.js';
 import { QuoteHistoryQueryRepository } from './application/ports/quote-history-query.repository.js';
+import { QuoteHistoryWriter } from './application/ports/quote-history-writer.port.js';
 import { QuoteSearchQueryRepository } from './application/ports/quote-search-query.repository.js';
 import { GetQuoteQuery } from './application/queries/get-quote.query.js';
 import { ListCustomerQuotesQuery } from './application/queries/list-customer-quotes.query.js';
@@ -26,6 +27,7 @@ import { UpdateQuoteUseCase } from './application/use-cases/update-quote.use-cas
 import { QuoteRepository } from './domain/repositories/quote.repository.js';
 import { PrismaCustomerEligibility } from './infrastructure/persistence/prisma-customer-eligibility.js';
 import { PrismaQuoteHistoryQueryRepository } from './infrastructure/persistence/prisma-quote-history-query.repository.js';
+import { PrismaQuoteHistoryWriter } from './infrastructure/persistence/prisma-quote-history-writer.js';
 import { PrismaQuoteSequence } from './infrastructure/persistence/prisma-quote-sequence.js';
 import { PrismaQuoteRepository } from './infrastructure/persistence/prisma-quote.repository.js';
 import { PrismaSearchQuotesQuery } from './infrastructure/persistence/prisma-search-quotes.query.js';
@@ -43,6 +45,7 @@ import { OrcamentosController } from './presentation/orcamentos.controller.js';
       provide: QuoteHistoryQueryRepository,
       useClass: PrismaQuoteHistoryQueryRepository,
     },
+    { provide: QuoteHistoryWriter, useClass: PrismaQuoteHistoryWriter },
     {
       provide: QuoteSearchQueryRepository,
       useClass: PrismaSearchQuotesQuery,

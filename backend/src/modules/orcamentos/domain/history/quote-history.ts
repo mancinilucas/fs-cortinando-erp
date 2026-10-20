@@ -15,7 +15,9 @@ export type QuoteHistoryEventType =
   | 'INSTALLATION_SCHEDULED'
   | 'INSTALLATION_CHANGED'
   | 'INSTALLATION_REMOVED'
-  | 'SERVICE_COMPLETED';
+  | 'SERVICE_COMPLETED'
+  | 'COMMERCIAL_PDF_GENERATED'
+  | 'PRODUCTION_ORDER_GENERATED';
 
 export type JsonPrimitive = string | number | boolean | null;
 
@@ -84,6 +86,8 @@ export interface QuoteHistoryDetailsMap {
   INSTALLATION_CHANGED: InstallationChangedDetails;
   INSTALLATION_REMOVED: InstallationRemovedDetails;
   SERVICE_COMPLETED: undefined;
+  COMMERCIAL_PDF_GENERATED: undefined;
+  PRODUCTION_ORDER_GENERATED: undefined;
 }
 
 export type QuoteHistoryEventDraft = {
