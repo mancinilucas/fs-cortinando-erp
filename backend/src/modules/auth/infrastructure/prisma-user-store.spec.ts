@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../../shared/database/prisma.service.js';
-import { normalizeEmail } from '../application/normalize-email.js';
+import { normalizeEmail } from '../../../shared/text/normalize-email.js';
 import { Argon2PasswordHasher } from './argon2-password-hasher.js';
 import { PrismaUserStore } from './prisma-user-store.js';
 

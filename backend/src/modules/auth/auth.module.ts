@@ -24,5 +24,9 @@ import { AuthGuard } from './presentation/auth.guard.js';
     LogoutUseCase,
     AuthGuard,
   ],
+  // SessionStore, SessionTokenService and UserStore are exported because Nest
+  // resolves AuthGuard in the importing module's context (D67): the E2E run
+  // showed the guard cannot be constructed in ClientesModule without them.
+  exports: [AuthGuard, SessionStore, SessionTokenService, UserStore],
 })
 export class AuthModule {}

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import type { MockInstance } from 'vitest';
-import { normalizeEmail } from '../src/modules/auth/application/normalize-email.js';
+import { normalizeEmail } from '../src/shared/text/normalize-email.js';
 import { Argon2PasswordHasher } from '../src/modules/auth/infrastructure/argon2-password-hasher.js';
 import { PrismaService } from '../src/shared/database/prisma.service.js';
 import { seedAdministrativeUser } from './seed-administrative-user.js';

@@ -31,7 +31,9 @@ describe('Authentication (e2e)', () => {
 
     // Mirror the bootstrap configuration in main.ts.
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
 
     prisma = app.get(PrismaService);

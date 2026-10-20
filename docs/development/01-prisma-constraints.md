@@ -123,7 +123,7 @@ Sem campos nullable.
 | `nome` | NOT NULL | obrigatório (`PROJECT_SPEC` §2.1) |
 | `telefone` | NOT NULL | obrigatório (§2.1) |
 | `email` | NULL | opcional (§2.1) |
-| `cpf_cnpj` | NULL | opcional (§2.1); UNIQUE admite múltiplos `NULL` |
+| `cpf_cnpj` | NULL | opcional (§2.1); sem UNIQUE desde D52 |
 | `observacoes` | NULL | opcional (§2.1) |
 | `criado_em` / `atualizado_em` | NOT NULL | timestamps |
 | `deleted_at` | NULL | `NULL` = ativo (soft delete, ARCHITECTURE §9.4) |
@@ -224,12 +224,12 @@ Mesma malha de `componentes_financeiros`, com `orcamento_id` no lugar de `cortin
 | `UNIQUE numero_orcamento` | `orcamentos` | funcional | `PROJECT_SPEC` §4.3, §14.2; proteção adicional ao contador |
 | `UNIQUE email` | `usuarios` | funcional | login por e-mail |
 | `UNIQUE token_hash` | `sessoes` | técnica | lookup da sessão por hash |
-| `UNIQUE cpf_cnpj` | `clientes` | funcional | D19; valor normalizado (D23) |
+| ~~`UNIQUE cpf_cnpj`~~ | `clientes` | — | **Removida por D52 (2026-10-19)**; CPF/CNPJ duplicado é permitido |
 | `UNIQUE (orcamento_id, sequencia)` | `cortinas` | funcional | D11 — impede duas cortinas na mesma posição de apresentação |
 
 Notas:
 
-- `UNIQUE cpf_cnpj` em coluna nullable permite múltiplos `NULL` no PostgreSQL — comportamento desejado para clientes sem CPF/CNPJ.
+- `clientes.cpf_cnpj` é nullable e **não possui UNIQUE** desde D52 (2026-10-19); duplicidade e múltiplos `NULL` são permitidos.
 - `dados_do_negocio` **não** tem unicidade que force linha única (PK sentinela não impede um segundo `id`). A garantia de singleton é da aplicação (upsert em `"principal"`). Risco aceito e registrado.
 - `clientes.telefone` **não** é único — não há requisito; dois clientes podem compartilhar telefone.
 - `orcamentos.numero_orcamento` é imutável por domínio, não por constraint (ver 5).

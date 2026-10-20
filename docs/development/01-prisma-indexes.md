@@ -42,7 +42,7 @@ Esta task adiciona ao `schema.prisma` apenas índices sustentados por uma consul
 |---|---|---|
 | `@unique email` | `User` | login |
 | `@unique tokenHash` | `Session` | lookup da sessão |
-| `@unique taxId` | `Customer` | D19/D23 — impede duplicidade de CPF/CNPJ normalizado |
+| ~~`@unique taxId`~~ | `Customer` | **Removido por D52 (2026-10-19)** — CPF/CNPJ duplicado é permitido no MVP |
 | `@unique quoteNumber` | `Quote` | `PROJECT_SPEC` §4.3/§12.2 |
 | `@@unique([quoteId, sequence])` | `Curtain` | D11 — posição de apresentação única por orçamento |
 | PK `year` | `QuoteSequence` | contador anual (ARCHITECTURE §12) |

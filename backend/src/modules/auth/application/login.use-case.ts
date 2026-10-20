@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { normalizeEmail } from './normalize-email.js';
+import { normalizeEmail } from '../../../shared/text/normalize-email.js';
 import { PasswordHasher } from './password-hasher.js';
 import { SessionStore } from './session-store.js';
 import { SessionTokenService } from './session-token.service.js';
