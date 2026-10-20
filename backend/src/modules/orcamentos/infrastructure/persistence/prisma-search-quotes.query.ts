@@ -54,6 +54,31 @@ export class PrismaSearchQuotesQuery extends QuoteSearchQueryRepository {
       conditions.push(Prisma.sql`q.status::text = ${filter.status}`);
     }
 
+    return this.run(conditions, now);
+  }
+
+  async listByCustomerId(
+    customerId: string,
+    now: Date,
+  ): Promise<QuoteSummaryView[] | null> {
+    // Soft-deleted customers still satisfy this lookup: their quotes remain
+    // available as history. Only a missing row yields null.
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { id: true },
+    });
+
+    if (customer === null) {
+      return null;
+    }
+
+    return this.run([Prisma.sql`q.customer_id = ${customerId}`], now);
+  }
+
+  private async run(
+    conditions: Prisma.Sql[],
+    now: Date,
+  ): Promise<QuoteSummaryView[]> {
     const where =
       conditions.length === 0
         ? Prisma.empty
