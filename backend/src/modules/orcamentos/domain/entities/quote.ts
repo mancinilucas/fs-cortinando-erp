@@ -85,6 +85,13 @@ export interface QuoteSnapshot {
 
 export type InstallationAction = 'SCHEDULED' | 'CHANGED' | 'UNCHANGED';
 
+// Values removed by a reopening, handed to the Application so it can compose
+// QUOTE_REOPENED.details (D100). The aggregate keeps no history itself.
+export interface QuoteReopeningDetails {
+  previousConfirmedAt: Date | null;
+  previousScheduledInstallationAt: Date | null;
+}
+
 export class Quote {
   private constructor(
     readonly id: string,
@@ -371,9 +378,22 @@ export class Quote {
     this.confirmedAt = now;
   }
 
-  reopen(): void {
+  // D100: reopening clears the confirmation and the installation schedule,
+  // preserves firstSentAt/validUntil and does not renew the validity. The
+  // cleared values are returned for history composition.
+  reopen(): QuoteReopeningDetails {
     this.assertStatus(QuoteStatus.CONFIRMED);
+
+    const details: QuoteReopeningDetails = {
+      previousConfirmedAt: this.confirmedAt,
+      previousScheduledInstallationAt: this.scheduledInstallationAt,
+    };
+
     this._status = QuoteStatus.SENT;
+    this.confirmedAt = null;
+    this.scheduledInstallationAt = null;
+
+    return details;
   }
 
   renew(validUntil: Date, now: Date): void {
