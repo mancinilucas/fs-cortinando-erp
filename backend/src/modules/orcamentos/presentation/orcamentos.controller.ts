@@ -16,6 +16,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '../../auth/presentation/auth.guard.js';
+import { GetDashboardQuery } from '../application/queries/get-dashboard.query.js';
 import { GetQuoteQuery } from '../application/queries/get-quote.query.js';
 import { ListCustomerQuotesQuery } from '../application/queries/list-customer-quotes.query.js';
 import { ListQuoteHistoryQuery } from '../application/queries/list-quote-history.query.js';
@@ -40,12 +41,14 @@ import {
   ScheduleInstallationDto,
   SendQuoteDto,
 } from './dto/quote-action.dto.js';
+import type { DashboardResponseDto } from './dto/dashboard-response.dto.js';
 import type { QuoteDetailResponseDto } from './dto/quote-detail-response.dto.js';
 import type { QuoteHistoryResponseDto } from './dto/quote-history-response.dto.js';
 import type { QuoteSummaryResponseDto } from './dto/quote-summary-response.dto.js';
 import { CreateQuoteDto } from './dto/create-quote.dto.js';
 import { SearchQuotesQueryDto } from './dto/search-quotes-query.dto.js';
 import { UpdateQuoteDto } from './dto/update-quote.dto.js';
+import { DashboardResponseMapper } from './dashboard-response.mapper.js';
 import { mapQuoteError } from './quote-error-mapper.js';
 import { QuoteRequestMapper } from './quote-request.mapper.js';
 import { QuoteResponseMapper } from './quote-response.mapper.js';
@@ -61,6 +64,7 @@ export class OrcamentosController {
   constructor(
     private readonly createQuote: CreateQuoteFromCustomerUseCase,
     private readonly getQuote: GetQuoteQuery,
+    private readonly dashboardQuery: GetDashboardQuery,
     private readonly updateQuote: UpdateQuoteUseCase,
     private readonly deleteDraftQuote: DeleteDraftQuoteUseCase,
     private readonly markAsSent: MarkQuoteAsSentUseCase,
@@ -78,6 +82,15 @@ export class OrcamentosController {
     private readonly generateCommercialPdf: GenerateCommercialPdfUseCase,
     private readonly generateProductionOrder: GenerateProductionOrderUseCase,
   ) {}
+
+  // D239/D242: read-only projection with no query parameters, no CSRF and no
+  // history entry.
+  @Get('dashboard')
+  async dashboard(): Promise<DashboardResponseDto> {
+    const view = await this.handle(() => this.dashboardQuery.execute());
+
+    return DashboardResponseMapper.toResponse(view);
+  }
 
   @Post('clientes/:customerId/orcamentos')
   @HttpCode(HttpStatus.CREATED)

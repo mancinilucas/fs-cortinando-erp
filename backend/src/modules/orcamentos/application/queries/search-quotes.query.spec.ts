@@ -194,6 +194,13 @@ describe('SearchQuotesQuery integration', () => {
       validUntil: null,
     });
     await seedQuote({
+      key: 'validNow',
+      customerId: customerB,
+      status: 'SENT',
+      createdAt: new Date('2026-10-03T11:00:00.000Z'),
+      validUntil: now,
+    });
+    await seedQuote({
       key: 'confirmed',
       customerId: customerA,
       status: 'CONFIRMED',
@@ -310,7 +317,7 @@ describe('SearchQuotesQuery integration', () => {
 
   it.each([
     ['DRAFT', ['percent', 'rich']],
-    ['SENT', ['validNull', 'validFuture']],
+    ['SENT', ['validNow', 'validNull', 'validFuture']],
     ['CONFIRMED', ['fixed', 'confirmed']],
     ['IN_PRODUCTION', ['inProduction']],
     ['COMPLETED', ['completed']],
@@ -336,6 +343,7 @@ describe('SearchQuotesQuery integration', () => {
     const results = await search({ search: token, status: 'SENT' });
 
     expect(results.map((item) => item.id)).toEqual([
+      idOf('validNow'),
       idOf('validNull'),
       idOf('validFuture'),
     ]);
@@ -345,6 +353,15 @@ describe('SearchQuotesQuery integration', () => {
         (item) => item.validUntil === null || item.validUntil >= now,
       ),
     ).toBe(true);
+  });
+
+  it('treats validUntil equal to now as a valid SENT quote', async () => {
+    const sent = await search({ search: token, status: 'SENT' });
+    const expired = await search({ search: token, status: 'EXPIRED' });
+    const validNow = sent.find((item) => item.id === idOf('validNow'));
+
+    expect(validNow?.expired).toBe(false);
+    expect(expired.map((item) => item.id)).not.toContain(idOf('validNow'));
   });
 
   it('computes totalCents in SQL in parity with the domain', async () => {

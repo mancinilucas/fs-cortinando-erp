@@ -5,10 +5,12 @@ import { ClientesModule } from '../clientes/clientes.module.js';
 import { DadosDoNegocioModule } from '../dados-do-negocio/dados-do-negocio.module.js';
 import { Clock } from './application/ports/clock.port.js';
 import { CustomerEligibility } from './application/ports/customer-eligibility.port.js';
+import { DashboardQueryRepository } from './application/ports/dashboard-query.repository.js';
 import { QuoteDocumentRenderer } from './application/documents/quote-document-renderer.js';
 import { QuoteHistoryQueryRepository } from './application/ports/quote-history-query.repository.js';
 import { QuoteHistoryWriter } from './application/ports/quote-history-writer.port.js';
 import { QuoteSearchQueryRepository } from './application/ports/quote-search-query.repository.js';
+import { GetDashboardQuery } from './application/queries/get-dashboard.query.js';
 import { GetQuoteQuery } from './application/queries/get-quote.query.js';
 import { ListCustomerQuotesQuery } from './application/queries/list-customer-quotes.query.js';
 import { ListQuoteHistoryQuery } from './application/queries/list-quote-history.query.js';
@@ -31,6 +33,7 @@ import { QuoteRepository } from './domain/repositories/quote.repository.js';
 import { BusinessLogoLoader } from './infrastructure/documents/business-logo-loader.js';
 import { PdfLibQuoteDocumentRenderer } from './infrastructure/documents/pdf-lib-quote-document-renderer.js';
 import { PrismaCustomerEligibility } from './infrastructure/persistence/prisma-customer-eligibility.js';
+import { PrismaDashboardQuery } from './infrastructure/persistence/prisma-dashboard.query.js';
 import { PrismaQuoteHistoryQueryRepository } from './infrastructure/persistence/prisma-quote-history-query.repository.js';
 import { PrismaQuoteHistoryWriter } from './infrastructure/persistence/prisma-quote-history-writer.js';
 import { PrismaQuoteSequence } from './infrastructure/persistence/prisma-quote-sequence.js';
@@ -60,6 +63,10 @@ import { OrcamentosController } from './presentation/orcamentos.controller.js';
       provide: QuoteSearchQueryRepository,
       useClass: PrismaSearchQuotesQuery,
     },
+    {
+      provide: DashboardQueryRepository,
+      useClass: PrismaDashboardQuery,
+    },
     PrismaQuoteSequence,
     CreateQuoteFromCustomerUseCase,
     UpdateQuoteUseCase,
@@ -74,6 +81,7 @@ import { OrcamentosController } from './presentation/orcamentos.controller.js';
     ScheduleInstallationUseCase,
     RemoveInstallationUseCase,
     GetQuoteQuery,
+    GetDashboardQuery,
     SearchQuotesQuery,
     ListCustomerQuotesQuery,
     ListQuoteHistoryQuery,
