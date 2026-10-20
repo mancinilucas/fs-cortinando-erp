@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { InvalidQuoteTransitionError } from '../errors/quote-domain.errors.js';
 import { Curtain } from './curtain.js';
 import { FinancialItem } from './financial-item.js';
 import type { CreateQuoteInput } from './quote.js';
@@ -285,5 +286,18 @@ describe('Quote', () => {
     expect(() =>
       createQuote().updateEditableData({ commercialAdjustmentCents: 0.5 }),
     ).toThrow(RangeError);
+  });
+
+  it('allows physical deletion only while DRAFT', () => {
+    const draft = createQuote();
+
+    expect(() => draft.assertDraftForDeletion()).not.toThrow();
+
+    const sent = createQuote();
+    sent.cancel();
+
+    expect(() => sent.assertDraftForDeletion()).toThrow(
+      InvalidQuoteTransitionError,
+    );
   });
 });

@@ -528,6 +528,11 @@ export class Quote {
     this.completedAt = now;
   }
 
+  // D110: physical deletion is allowed only while the quote is a DRAFT.
+  assertDraftForDeletion(): void {
+    this.assertStatus(QuoteStatus.DRAFT);
+  }
+
   private assertStatus(...allowed: QuoteStatus[]): void {
     if (!allowed.includes(this._status)) {
       throw new InvalidQuoteTransitionError(

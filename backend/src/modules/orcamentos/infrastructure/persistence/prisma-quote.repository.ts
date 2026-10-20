@@ -208,7 +208,11 @@ export class PrismaQuoteRepository extends QuoteRepository {
     }
   }
 
-  async deleteDraft(): Promise<boolean> {
-    throw new Error('Draft deletion is not implemented yet');
+  async deleteDraft(id: string): Promise<boolean> {
+    const result = await this.prisma.quote.deleteMany({
+      where: { id, status: 'DRAFT' },
+    });
+
+    return result.count > 0;
   }
 }
