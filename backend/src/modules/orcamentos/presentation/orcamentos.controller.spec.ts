@@ -19,6 +19,11 @@ import { QuoteCustomerNotFoundError } from '../application/errors/quote-customer
 import { QuoteNotFoundError } from '../application/errors/quote-not-found.error.js';
 import type { QuoteHistoryEntry } from '../application/ports/quote-history-query.repository.js';
 import type { QuoteSummaryView } from '../application/ports/quote-search-query.repository.js';
+import type {
+  DashboardView,
+  InstallationListItem,
+} from '../application/queries/dashboard-read-model.js';
+import { GetDashboardQuery } from '../application/queries/get-dashboard.query.js';
 import { GetQuoteQuery } from '../application/queries/get-quote.query.js';
 import { ListCustomerQuotesQuery } from '../application/queries/list-customer-quotes.query.js';
 import { ListQuoteHistoryQuery } from '../application/queries/list-quote-history.query.js';
@@ -107,6 +112,7 @@ const mocks = {
   search: vi.fn<SearchQuotesQuery['execute']>(),
   listByCustomer: vi.fn<ListCustomerQuotesQuery['execute']>(),
   history: vi.fn<ListQuoteHistoryQuery['execute']>(),
+  dashboard: vi.fn<GetDashboardQuery['execute']>(),
   commercialPdf: vi.fn<GenerateCommercialPdfUseCase['execute']>(),
   productionOrder: vi.fn<GenerateProductionOrderUseCase['execute']>(),
 };
@@ -299,6 +305,39 @@ const SUMMARY_BODY = {
   scheduledInstallationAt: null,
 };
 
+function sampleInstallation(
+  overrides: Partial<InstallationListItem> = {},
+): InstallationListItem {
+  return {
+    quoteId: QUOTE_ID,
+    quoteNumber: 'ORÇ-2026-0001',
+    customerName: 'Maria Silva',
+    scheduledInstallationAt: new Date('2026-10-25T09:00:00.000Z'),
+    status: QuoteStatus.CONFIRMED,
+    ...overrides,
+  };
+}
+
+function sampleDashboard(): DashboardView {
+  return {
+    statusCounts: {
+      draft: 1,
+      sent: 2,
+      expired: 3,
+      confirmed: 4,
+      inProduction: 5,
+    },
+    upcomingInstallations: [sampleInstallation()],
+    weeklyInstallations: [
+      sampleInstallation({
+        quoteId: CURTAIN_ID,
+        status: QuoteStatus.IN_PRODUCTION,
+      }),
+    ],
+    overdueInstallations: [sampleInstallation({ quoteId: COMPONENT_ID })],
+  };
+}
+
 const SIMPLE_ACTIONS = [
   ['confirmar', 'confirm'],
   ['reabrir', 'reopen'],
@@ -324,6 +363,10 @@ describe('OrcamentosController (HTTP)', () => {
           useValue: { execute: mocks.create },
         },
         { provide: GetQuoteQuery, useValue: { execute: mocks.get } },
+        {
+          provide: GetDashboardQuery,
+          useValue: { execute: mocks.dashboard },
+        },
         { provide: UpdateQuoteUseCase, useValue: { execute: mocks.update } },
         {
           provide: DeleteDraftQuoteUseCase,
@@ -398,6 +441,7 @@ describe('OrcamentosController (HTTP)', () => {
       await request(server())
         .get(`/clientes/${CUSTOMER_ID}/orcamentos`)
         .expect(401);
+      await request(server()).get('/dashboard').expect(401);
       await request(server()).get('/orcamentos').expect(401);
       await request(server()).get(`/orcamentos/${QUOTE_ID}`).expect(401);
       await request(server())
@@ -614,6 +658,110 @@ describe('OrcamentosController (HTTP)', () => {
         .expect(400);
 
       expect(mocks.listByCustomer).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /dashboard', () => {
+    it('returns the exact dashboard contract as ISO 8601', async () => {
+      mocks.dashboard.mockResolvedValue(sampleDashboard());
+
+      const response = await request(server())
+        .get('/dashboard')
+        .set(COOKIE)
+        .expect(200);
+
+      expect(mocks.dashboard).toHaveBeenCalledTimes(1);
+      expect(mocks.dashboard).toHaveBeenCalledWith();
+      expect(response.body).toEqual({
+        statusCounts: {
+          draft: 1,
+          sent: 2,
+          expired: 3,
+          confirmed: 4,
+          inProduction: 5,
+        },
+        upcomingInstallations: [
+          {
+            quoteId: QUOTE_ID,
+            quoteNumber: 'ORÇ-2026-0001',
+            customerName: 'Maria Silva',
+            scheduledInstallationAt: '2026-10-25T09:00:00.000Z',
+            status: 'CONFIRMED',
+          },
+        ],
+        weeklyInstallations: [
+          {
+            quoteId: CURTAIN_ID,
+            quoteNumber: 'ORÇ-2026-0001',
+            customerName: 'Maria Silva',
+            scheduledInstallationAt: '2026-10-25T09:00:00.000Z',
+            status: 'IN_PRODUCTION',
+          },
+        ],
+        overdueInstallations: [
+          {
+            quoteId: COMPONENT_ID,
+            quoteNumber: 'ORÇ-2026-0001',
+            customerName: 'Maria Silva',
+            scheduledInstallationAt: '2026-10-25T09:00:00.000Z',
+            status: 'CONFIRMED',
+          },
+        ],
+      });
+      expect(response.body.statusCounts).not.toHaveProperty('completed');
+      expect(response.body.statusCounts).not.toHaveProperty('cancelled');
+      for (const list of [
+        response.body.upcomingInstallations,
+        response.body.weeklyInstallations,
+        response.body.overdueInstallations,
+      ]) {
+        expect(list[0]).not.toHaveProperty('phone');
+      }
+    });
+
+    it('ignores query parameters', async () => {
+      mocks.dashboard.mockResolvedValue(sampleDashboard());
+
+      await request(server())
+        .get('/dashboard')
+        .query({ status: 'DRAFT', limit: 1 })
+        .set(COOKIE)
+        .expect(200);
+
+      expect(mocks.dashboard).toHaveBeenCalledWith();
+    });
+
+    it('preserves zero counters and empty arrays', async () => {
+      mocks.dashboard.mockResolvedValue({
+        statusCounts: {
+          draft: 0,
+          sent: 0,
+          expired: 0,
+          confirmed: 0,
+          inProduction: 0,
+        },
+        upcomingInstallations: [],
+        weeklyInstallations: [],
+        overdueInstallations: [],
+      });
+
+      const response = await request(server())
+        .get('/dashboard')
+        .set(COOKIE)
+        .expect(200);
+
+      expect(response.body).toEqual({
+        statusCounts: {
+          draft: 0,
+          sent: 0,
+          expired: 0,
+          confirmed: 0,
+          inProduction: 0,
+        },
+        upcomingInstallations: [],
+        weeklyInstallations: [],
+        overdueInstallations: [],
+      });
     });
   });
 
