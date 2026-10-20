@@ -370,9 +370,22 @@ export class Quote {
     return violations;
   }
 
+  // D99: confirmation requires SENT and a validity that has not elapsed. A
+  // SENT quote without validUntil is an inconsistent state and is blocked as
+  // a transition conflict.
   confirm(now: Date): void {
     this.assertStatus(QuoteStatus.SENT);
     assertValidDate(now, 'Quote confirmation instant');
+
+    if (this.validUntil === null) {
+      throw new InvalidQuoteTransitionError(
+        'Quote cannot be confirmed without a validity',
+      );
+    }
+
+    if (now.getTime() > this.validUntil.getTime()) {
+      throw new InvalidQuoteTransitionError('Quote has expired');
+    }
 
     this._status = QuoteStatus.CONFIRMED;
     this.confirmedAt = now;

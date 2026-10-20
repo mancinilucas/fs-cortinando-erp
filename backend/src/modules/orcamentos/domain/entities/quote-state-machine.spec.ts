@@ -147,7 +147,9 @@ describe('Quote state machine', () => {
       const quote =
         transition.name === 'markAsSent' && from === QuoteStatus.DRAFT
           ? quoteWithValidData()
-          : quoteInStatus(from);
+          : transition.name === 'confirm' && from === QuoteStatus.SENT
+            ? quoteInStatus(from, { validUntil: future })
+            : quoteInStatus(from);
       const allowed = transition.allowedFrom.includes(from);
 
       if (allowed) {
@@ -162,11 +164,37 @@ describe('Quote state machine', () => {
   });
 
   it('records confirmedAt on confirmation', () => {
-    const quote = quoteInStatus(QuoteStatus.SENT);
+    const quote = quoteInStatus(QuoteStatus.SENT, { validUntil: future });
 
     quote.confirm(now);
 
     expect(quote.confirmedAt).toBe(now);
+  });
+
+  it('allows confirmation exactly on the validity limit', () => {
+    const quote = quoteInStatus(QuoteStatus.SENT, { validUntil: now });
+
+    quote.confirm(now);
+
+    expect(quote.status).toBe(QuoteStatus.CONFIRMED);
+  });
+
+  it('blocks confirmation after expiry', () => {
+    const quote = quoteInStatus(QuoteStatus.SENT, {
+      validUntil: new Date('2026-10-19T12:00:00.000Z'),
+    });
+
+    expect(() => quote.confirm(now)).toThrow(InvalidQuoteTransitionError);
+    expect(quote.status).toBe(QuoteStatus.SENT);
+    expect(quote.confirmedAt).toBeNull();
+  });
+
+  it('blocks confirmation when a SENT quote has no validity', () => {
+    const quote = quoteInStatus(QuoteStatus.SENT, { validUntil: null });
+
+    expect(() => quote.confirm(now)).toThrow(InvalidQuoteTransitionError);
+    expect(quote.status).toBe(QuoteStatus.SENT);
+    expect(quote.confirmedAt).toBeNull();
   });
 
   it('records productionStartedAt when production starts', () => {
