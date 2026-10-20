@@ -265,6 +265,44 @@ describe('PrismaDashboardQuery integration', () => {
     });
   });
 
+  it('orders upcoming installations by instant then quote number', async () => {
+    await withDashboardTransaction(async (query, tx) => {
+      const customer = await seedCustomer(tx);
+
+      const atNow = await seedQuote(tx, {
+        customerId: customer.id,
+        status: QuoteStatus.CONFIRMED,
+        scheduledInstallationAt: now,
+      });
+      const tieA = await seedQuote(tx, {
+        customerId: customer.id,
+        status: QuoteStatus.CONFIRMED,
+        scheduledInstallationAt: new Date(now.getTime() + 60_000),
+      });
+      const tieB = await seedQuote(tx, {
+        customerId: customer.id,
+        status: QuoteStatus.IN_PRODUCTION,
+        scheduledInstallationAt: new Date(now.getTime() + 60_000),
+      });
+
+      const result = await query.listUpcomingInstallations(now, 5);
+      const ours = result.filter((item) =>
+        [atNow.id, tieA.id, tieB.id].includes(item.quoteId),
+      );
+
+      expect(ours.map((item) => item.quoteId)).toEqual([
+        atNow.id,
+        tieA.id,
+        tieB.id,
+      ]);
+      expect(ours.map((item) => item.quoteNumber)).toEqual([
+        atNow.quoteNumber,
+        tieA.quoteNumber,
+        tieB.quoteNumber,
+      ]);
+    });
+  });
+
   it('lists the civil week with [start, end) boundaries and tie-break', async () => {
     await withDashboardTransaction(async (query, tx) => {
       const customer = await seedCustomer(tx);
@@ -367,6 +405,11 @@ describe('PrismaDashboardQuery integration', () => {
         customerId: customer.id,
         status: QuoteStatus.CONFIRMED,
       });
+      const future = await seedQuote(tx, {
+        customerId: customer.id,
+        status: QuoteStatus.CONFIRMED,
+        scheduledInstallationAt: new Date(now.getTime() + 60_000),
+      });
 
       const result = await query.listOverdueInstallations(now);
       const ourIds = new Set([older.id, newer.id]);
@@ -390,6 +433,7 @@ describe('PrismaDashboardQuery integration', () => {
       expect(ids).not.toContain(completed.id);
       expect(ids).not.toContain(cancelled.id);
       expect(ids).not.toContain(noSchedule.id);
+      expect(ids).not.toContain(future.id);
     });
   });
 
@@ -410,6 +454,58 @@ describe('PrismaDashboardQuery integration', () => {
       await expect(
         query.listOverdueInstallations(new Date('1900-01-01T00:00:00.000Z')),
       ).resolves.toEqual([]);
+    });
+  });
+
+  it('does not mutate quotes, customers, history or derived state', async () => {
+    await withDashboardTransaction(async (query, tx) => {
+      const customer = await seedCustomer(tx);
+      const expired = await seedQuote(tx, {
+        customerId: customer.id,
+        status: QuoteStatus.SENT,
+        validUntil: new Date(now.getTime() - 1),
+      });
+      const installation = await seedQuote(tx, {
+        customerId: customer.id,
+        status: QuoteStatus.CONFIRMED,
+        scheduledInstallationAt: new Date(now.getTime() - 60_000),
+      });
+
+      const quoteBefore = await tx.quote.findUniqueOrThrow({
+        where: { id: expired.id },
+      });
+      const installationBefore = await tx.quote.findUniqueOrThrow({
+        where: { id: installation.id },
+      });
+      const customerBefore = await tx.customer.findUniqueOrThrow({
+        where: { id: customer.id },
+      });
+      const historyBefore = await tx.quoteHistory.count();
+
+      await query.getStatusCounts(now);
+      await query.listUpcomingInstallations(now, 5);
+      await query.listWeeklyInstallations(weekStart, weekEnd);
+      await query.listOverdueInstallations(now);
+
+      expect(
+        await tx.quote.findUniqueOrThrow({ where: { id: expired.id } }),
+      ).toEqual(quoteBefore);
+      expect(
+        await tx.quote.findUniqueOrThrow({ where: { id: installation.id } }),
+      ).toEqual(installationBefore);
+      expect(
+        await tx.customer.findUniqueOrThrow({ where: { id: customer.id } }),
+      ).toEqual(customerBefore);
+      expect(await tx.quoteHistory.count()).toBe(historyBefore);
+
+      // EXPIRED is virtual: the persisted status and validity stay untouched.
+      expect(quoteBefore.status).toBe(QuoteStatus.SENT);
+      expect(
+        await tx.quote.findUniqueOrThrow({ where: { id: expired.id } }),
+      ).toMatchObject({
+        status: QuoteStatus.SENT,
+        validUntil: new Date(now.getTime() - 1),
+      });
     });
   });
 });
