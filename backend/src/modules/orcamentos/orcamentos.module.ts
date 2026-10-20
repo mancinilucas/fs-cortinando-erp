@@ -26,6 +26,7 @@ import { ScheduleInstallationUseCase } from './application/use-cases/schedule-in
 import { StartProductionUseCase } from './application/use-cases/start-production.use-case.js';
 import { UpdateQuoteUseCase } from './application/use-cases/update-quote.use-case.js';
 import { QuoteRepository } from './domain/repositories/quote.repository.js';
+import { BusinessLogoLoader } from './infrastructure/documents/business-logo-loader.js';
 import { PdfLibQuoteDocumentRenderer } from './infrastructure/documents/pdf-lib-quote-document-renderer.js';
 import { PrismaCustomerEligibility } from './infrastructure/persistence/prisma-customer-eligibility.js';
 import { PrismaQuoteHistoryQueryRepository } from './infrastructure/persistence/prisma-quote-history-query.repository.js';
@@ -52,6 +53,7 @@ import { OrcamentosController } from './presentation/orcamentos.controller.js';
       provide: QuoteDocumentRenderer,
       useClass: PdfLibQuoteDocumentRenderer,
     },
+    BusinessLogoLoader,
     {
       provide: QuoteSearchQueryRepository,
       useClass: PrismaSearchQuotesQuery,
