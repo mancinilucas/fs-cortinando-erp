@@ -89,7 +89,7 @@ const transitions: TransitionCase[] = [
     name: 'markAsSent',
     allowedFrom: [QuoteStatus.DRAFT],
     expectedStatus: () => QuoteStatus.SENT,
-    run: (quote) => quote.markAsSent(),
+    run: (quote) => quote.markAsSent(now),
   },
   {
     name: 'confirm',
@@ -107,7 +107,7 @@ const transitions: TransitionCase[] = [
     name: 'renew',
     allowedFrom: [QuoteStatus.SENT],
     expectedStatus: () => QuoteStatus.SENT,
-    run: (quote) => quote.renew(future),
+    run: (quote) => quote.renew(future, now),
   },
   {
     name: 'cancel',
@@ -192,7 +192,7 @@ describe('Quote state machine', () => {
       validUntil: previousValidUntil,
     });
 
-    quote.renew(future);
+    quote.renew(future, now);
 
     expect(quote.validUntil).toBe(future);
     expect(quote.firstSentAt).toBe(createdAt);
@@ -222,7 +222,7 @@ describe('Quote state machine', () => {
     const quote = quoteInStatus(QuoteStatus.SENT);
 
     expect(() => quote.confirm(new Date(Number.NaN))).toThrow(RangeError);
-    expect(() => quote.renew(new Date(Number.NaN))).toThrow(RangeError);
+    expect(() => quote.renew(new Date(Number.NaN), now)).toThrow(RangeError);
     expect(quote.status).toBe(QuoteStatus.SENT);
   });
 

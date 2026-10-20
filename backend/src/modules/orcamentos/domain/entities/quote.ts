@@ -22,6 +22,8 @@ import type { QuoteNumber } from '../value-objects/quote-number.js';
 // totals. History is deliberately not loaded with the aggregate; lifecycle
 // transitions belong to later domain tasks.
 
+const DEFAULT_VALIDITY_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
+
 export enum QuoteStatus {
   DRAFT = 'DRAFT',
   SENT = 'SENT',
@@ -214,18 +216,39 @@ export class Quote {
   }
 
   // State machine (D96). Transitions are only reachable through these
-  // methods; status is exposed read-only. Gates and temporal rules are added
-  // by the following domain tasks.
+  // methods; status is exposed read-only. The reference instant is always
+  // supplied by the caller so the domain performs no implicit clock reads.
 
-  markAsSent(): void {
+  markAsSent(now: Date, validUntil?: Date | null): void {
     this.assertStatus(QuoteStatus.DRAFT);
+    assertValidDate(now, 'Quote sending instant');
+
+    if (validUntil !== null && validUntil !== undefined) {
+      assertValidDate(validUntil, 'Quote valid until');
+    }
 
     const violations = this.validateForSend();
+
+    // D98: an explicitly informed validity must be strictly in the future;
+    // otherwise the default of now + 30 days is applied.
+    if (
+      validUntil !== null &&
+      validUntil !== undefined &&
+      validUntil.getTime() <= now.getTime()
+    ) {
+      violations.push({
+        code: 'VALID_UNTIL_NOT_FUTURE',
+        message: 'Quote valid until must be strictly in the future',
+      });
+    }
 
     if (violations.length > 0) {
       throw new QuoteValidationError(violations);
     }
 
+    this.firstSentAt = now;
+    this.validUntil =
+      validUntil ?? new Date(now.getTime() + DEFAULT_VALIDITY_MILLISECONDS);
     this._status = QuoteStatus.SENT;
   }
 
@@ -353,11 +376,44 @@ export class Quote {
     this._status = QuoteStatus.SENT;
   }
 
-  renew(validUntil: Date): void {
+  renew(validUntil: Date, now: Date): void {
     this.assertStatus(QuoteStatus.SENT);
     assertValidDate(validUntil, 'Quote valid until');
+    assertValidDate(now, 'Quote renewal instant');
+
+    if (validUntil.getTime() <= now.getTime()) {
+      throw new QuoteValidationError([
+        {
+          code: 'VALID_UNTIL_NOT_FUTURE',
+          message: 'Quote valid until must be strictly in the future',
+        },
+      ]);
+    }
 
     this.validUntil = validUntil;
+  }
+
+  // D106: expiration is derived and never persisted.
+  isExpired(now: Date): boolean {
+    assertValidDate(now, 'Quote expiration reference instant');
+
+    return (
+      this._status === QuoteStatus.SENT &&
+      this.validUntil !== null &&
+      now.getTime() > this.validUntil.getTime()
+    );
+  }
+
+  // D107: a late installation is derived and never becomes a status.
+  isLateInstallation(now: Date): boolean {
+    assertValidDate(now, 'Quote late installation reference instant');
+
+    return (
+      this.scheduledInstallationAt !== null &&
+      this.scheduledInstallationAt.getTime() < now.getTime() &&
+      (this._status === QuoteStatus.CONFIRMED ||
+        this._status === QuoteStatus.IN_PRODUCTION)
+    );
   }
 
   cancel(reason?: string | null): string | null {

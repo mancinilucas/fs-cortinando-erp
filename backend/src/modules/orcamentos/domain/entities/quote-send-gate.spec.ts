@@ -10,6 +10,7 @@ import type { CreateQuoteInput } from './quote.js';
 import { Quote, QuoteStatus } from './quote.js';
 
 const createdAt = new Date('2026-10-19T12:00:00.000Z');
+const now = new Date('2026-10-20T12:00:00.000Z');
 
 function validItem(): FinancialItem {
   return FinancialItem.create({
@@ -60,7 +61,7 @@ describe('Quote.validateForSend', () => {
 
     expect(quote.validateForSend()).toEqual([]);
 
-    quote.markAsSent();
+    quote.markAsSent(now);
 
     expect(quote.status).toBe(QuoteStatus.SENT);
   });
@@ -274,7 +275,7 @@ describe('Quote.validateForSend', () => {
     const quote = quoteWith({ installationAddress: null });
 
     try {
-      quote.markAsSent();
+      quote.markAsSent(now);
 
       throw new Error('markAsSent should have thrown');
     } catch (error) {
