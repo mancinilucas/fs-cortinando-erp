@@ -10,11 +10,13 @@ import {
 } from 'pdf-lib';
 import type {
   CommercialPdfProjection,
+  ProductionOrderCurtainProjection,
   ProductionOrderProjection,
 } from '../../application/documents/document-projections.js';
 import {
   formatCurrency,
   formatDate,
+  formatMeasure,
   formatTaxId,
 } from '../../application/documents/document-formatters.js';
 import { QuoteDocumentRenderer } from '../../application/documents/quote-document-renderer.js';
@@ -41,6 +43,20 @@ const MAX_LOGO_WIDTH = 140;
 const MAX_LOGO_HEIGHT = 56;
 const AFTER_LOGO_GAP = 12;
 const AFTER_BLOCK_GAP = 10;
+
+// Production order table (D169/D170). Column widths add up to CONTENT_WIDTH.
+const TABLE_COLUMNS = [
+  { label: 'Cortina', width: 45 },
+  { label: 'Ambiente', width: 80 },
+  { label: 'Descrição', width: 135 },
+  { label: 'Material', width: 100 },
+  { label: 'Largura final', width: 75 },
+  { label: 'Altura', width: 64.28 },
+] as const;
+const TABLE_FONT_SIZE = 9;
+const TABLE_LINE_HEIGHT = 11;
+const TABLE_PADDING = 4;
+const TABLE_HEADER_HEIGHT = TABLE_PADDING * 2 + TABLE_LINE_HEIGHT;
 
 interface TextOptions {
   bold?: boolean;
@@ -74,10 +90,22 @@ class DocumentWriter {
     return this.cursorY;
   }
 
+  get regularFont(): PDFFont {
+    return this.regular;
+  }
+
+  hasSpace(height: number): boolean {
+    return this.cursorY - height >= MARGIN;
+  }
+
+  pageBreak(): void {
+    this.page = this.addPage();
+    this.cursorY = A4_HEIGHT - MARGIN;
+  }
+
   ensureSpace(height: number): void {
-    if (this.cursorY - height < MARGIN) {
-      this.page = this.addPage();
-      this.cursorY = A4_HEIGHT - MARGIN;
+    if (!this.hasSpace(height)) {
+      this.pageBreak();
     }
   }
 
@@ -103,6 +131,30 @@ class DocumentWriter {
       });
       this.cursorY -= lineHeight;
     }
+  }
+
+  drawAt(
+    value: string,
+    x: number,
+    baseline: number,
+    options: { bold?: boolean; size?: number; color?: RGB } = {},
+  ): void {
+    this.page.drawText(value, {
+      x,
+      y: baseline,
+      size: options.size ?? BODY_SIZE,
+      font: options.bold === true ? this.bold : this.regular,
+      color: options.color ?? rgb(0, 0, 0),
+    });
+  }
+
+  drawRule(y: number): void {
+    this.page.drawLine({
+      start: { x: MARGIN, y },
+      end: { x: A4_WIDTH - MARGIN, y },
+      thickness: 0.5,
+      color: rgb(0.75, 0.75, 0.75),
+    });
   }
 
   drawFooters(): void {
@@ -161,7 +213,36 @@ export class PdfLibQuoteDocumentRenderer extends QuoteDocumentRenderer {
   async renderProductionOrder(
     projection: ProductionOrderProjection,
   ): Promise<Uint8Array> {
-    return this.renderPlaceholder(projection.quoteNumber);
+    try {
+      const document = await PDFDocument.create();
+      const regular = await document.embedFont(StandardFonts.Helvetica);
+      const bold = await document.embedFont(StandardFonts.HelveticaBold);
+      const writer = new DocumentWriter(document, regular, bold);
+
+      writer.drawLine('ORDEM DE PRODUÇÃO', {
+        bold: true,
+        size: TITLE_SIZE,
+        lineHeight: 20,
+      });
+      writer.drawLine(`Orçamento nº ${projection.quoteNumber}`, {
+        bold: true,
+        size: SECTION_SIZE,
+        lineHeight: 14,
+      });
+      writer.advance(AFTER_BLOCK_GAP);
+
+      this.drawProductionTableHeader(writer);
+
+      for (const curtain of projection.curtains) {
+        this.drawCurtainRow(writer, curtain);
+      }
+
+      writer.drawFooters();
+
+      return await document.save();
+    } catch (error) {
+      throw new DocumentRenderError(error);
+    }
   }
 
   // D150: the real logo is embedded when present. While the operational asset
@@ -343,23 +424,85 @@ export class PdfLibQuoteDocumentRenderer extends QuoteDocumentRenderer {
     );
   }
 
-  // Temporary production-order output (DOCUMENTOS-16 replaces it).
-  private async renderPlaceholder(quoteNumber: string): Promise<Uint8Array> {
-    try {
-      const document = await PDFDocument.create();
-      const font = await document.embedFont(StandardFonts.Helvetica);
-      const page = document.addPage([A4_WIDTH, A4_HEIGHT]);
+  // Repeats the table header whenever a new page starts (D152).
+  private drawProductionTableHeader(writer: DocumentWriter): void {
+    writer.ensureSpace(TABLE_HEADER_HEIGHT + TABLE_LINE_HEIGHT);
 
-      page.drawText(`Documento em validação — ${quoteNumber}`, {
-        x: MARGIN,
-        y: A4_HEIGHT - MARGIN,
-        size: 12,
-        font,
+    let x = MARGIN;
+
+    for (const column of TABLE_COLUMNS) {
+      writer.drawAt(
+        column.label,
+        x + TABLE_PADDING,
+        writer.y - TABLE_PADDING - TABLE_FONT_SIZE,
+        { bold: true, size: TABLE_FONT_SIZE },
+      );
+      x += column.width;
+    }
+
+    writer.advance(TABLE_HEADER_HEIGHT);
+    writer.drawRule(writer.y);
+  }
+
+  private drawCurtainRow(
+    writer: DocumentWriter,
+    curtain: ProductionOrderCurtainProjection,
+  ): void {
+    const values = [
+      String(curtain.sequence),
+      curtain.room,
+      curtain.description?.trim() ?? '',
+      curtain.material,
+      formatMeasure(curtain.finalWidth),
+      formatMeasure(curtain.height),
+    ];
+    const cells = values.map((value, index) =>
+      wrapText(
+        value,
+        writer.regularFont,
+        TABLE_FONT_SIZE,
+        TABLE_COLUMNS[index].width - TABLE_PADDING * 2,
+      ),
+    );
+    const lineCount = Math.max(1, ...cells.map((lines) => lines.length));
+
+    for (let lineIndex = 0; lineIndex < lineCount; lineIndex += 1) {
+      const isFirst = lineIndex === 0;
+      const isLast = lineIndex === lineCount - 1;
+      const required =
+        TABLE_LINE_HEIGHT +
+        (isFirst ? TABLE_PADDING : 0) +
+        (isLast ? TABLE_PADDING : 0);
+
+      if (!writer.hasSpace(required)) {
+        writer.pageBreak();
+        this.drawProductionTableHeader(writer);
+      }
+
+      if (isFirst) {
+        writer.advance(TABLE_PADDING);
+      }
+
+      let x = MARGIN;
+
+      cells.forEach((lines, columnIndex) => {
+        const line = lines[lineIndex];
+
+        if (line !== undefined) {
+          writer.drawAt(line, x + TABLE_PADDING, writer.y - TABLE_FONT_SIZE, {
+            size: TABLE_FONT_SIZE,
+          });
+        }
+
+        x += TABLE_COLUMNS[columnIndex].width;
       });
 
-      return await document.save();
-    } catch (error) {
-      throw new DocumentRenderError(error);
+      writer.advance(TABLE_LINE_HEIGHT);
+
+      if (isLast) {
+        writer.advance(TABLE_PADDING);
+        writer.drawRule(writer.y);
+      }
     }
   }
 }

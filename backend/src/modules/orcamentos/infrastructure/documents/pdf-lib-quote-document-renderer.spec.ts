@@ -4,7 +4,11 @@ import {
   PDFRawStream,
   decodePDFRawStream,
 } from 'pdf-lib';
-import type { CommercialPdfProjection } from '../../application/documents/document-projections.js';
+import type {
+  CommercialPdfProjection,
+  ProductionOrderCurtainProjection,
+  ProductionOrderProjection,
+} from '../../application/documents/document-projections.js';
 import {
   BusinessLogoLoader,
   LogoAssetMissingError,
@@ -277,15 +281,168 @@ describe('PdfLibQuoteDocumentRenderer — commercial PDF', () => {
 });
 
 describe('PdfLibQuoteDocumentRenderer — production order', () => {
-  it('keeps the placeholder output until DOCUMENTOS-16', async () => {
-    const bytes = await createRenderer().renderProductionOrder({
-      quoteNumber: 'ORÇ-2026-002',
-      curtains: [],
-    });
+  function curtain(
+    overrides: Partial<ProductionOrderCurtainProjection> = {},
+  ): ProductionOrderCurtainProjection {
+    return {
+      sequence: 1,
+      room: 'Sala',
+      description: 'Janela principal',
+      material: 'Linho',
+      finalWidth: 2.905,
+      height: 2.65,
+      ...overrides,
+    };
+  }
 
-    await expect(PDFDocument.load(bytes)).resolves.toBeDefined();
-    await expect(extractDrawnText(bytes)).resolves.toContain(
-      'Documento em validação',
+  function production(
+    curtains: ProductionOrderCurtainProjection[] = [
+      curtain(),
+      curtain({
+        sequence: 2,
+        room: 'Quarto',
+        description: undefined,
+        material: 'Voil',
+        finalWidth: 1.5,
+        height: 2.2,
+      }),
+    ],
+  ): ProductionOrderProjection {
+    return { quoteNumber: 'ORÇ-2026-016', curtains };
+  }
+
+  it('renders a valid A4 PDF without logo or business identity', async () => {
+    const bytes = await createRenderer().renderProductionOrder(production());
+    const document = await PDFDocument.load(bytes);
+    const pages = document.getPages();
+
+    expect(bytes).toBeInstanceOf(Uint8Array);
+    expect(Buffer.from(bytes.slice(0, 5)).toString('ascii')).toBe('%PDF-');
+    expect(pages).toHaveLength(1);
+    expect(pages[0].getWidth()).toBeCloseTo(595.28, 2);
+    expect(pages[0].getHeight()).toBeCloseTo(841.89, 2);
+    expect(countImageObjects(document)).toBe(0);
+  });
+
+  it('renders the title, quote number, table header and technical data', async () => {
+    const text = await extractDrawnText(
+      await createRenderer().renderProductionOrder(production()),
     );
+
+    expect(text).toContain('ORDEM DE PRODUÇÃO');
+    expect(text).toContain('Orçamento nº ORÇ-2026-016');
+
+    for (const header of [
+      'Cortina',
+      'Ambiente',
+      'Descrição',
+      'Material',
+      'Largura final',
+      'Altura',
+    ]) {
+      expect(text).toContain(header);
+    }
+
+    expect(text).toContain('Sala');
+    expect(text).toContain('Janela principal');
+    expect(text).toContain('Linho');
+    expect(text).toContain('2,905 m');
+    expect(text).toContain('2,65 m');
+    expect(text).toContain('Quarto');
+    expect(text).toContain('Voil');
+    expect(text).toContain('1,5 m');
+    expect(text).toContain('2,2 m');
+  });
+
+  it('keeps the projection order and omits an absent description', async () => {
+    const text = await extractDrawnText(
+      await createRenderer().renderProductionOrder(production()),
+    );
+
+    expect(text.indexOf('Sala')).toBeLessThan(text.indexOf('Quarto'));
+    expect(text).not.toContain('undefined');
+    expect(text).not.toContain('a definir');
+  });
+
+  it('renders accented technical text', async () => {
+    const text = await extractDrawnText(
+      await createRenderer().renderProductionOrder(
+        production([
+          curtain({
+            room: 'Cozinha',
+            description: 'Ação rápida',
+            material: 'Linho francês',
+          }),
+        ]),
+      ),
+    );
+
+    expect(text).toContain('Ação rápida');
+    expect(text).toContain('Linho francês');
+    expect(text).toContain('Página 1');
+  });
+
+  it('paginates and repeats the table header on every page', async () => {
+    const curtains = Array.from({ length: 50 }, (_, index) =>
+      curtain({
+        sequence: index + 1,
+        room: `Ambiente ${index + 1}`,
+        description: `Cortina ${index + 1}`,
+      }),
+    );
+    const bytes = await createRenderer().renderProductionOrder(
+      production(curtains),
+    );
+    const document = await PDFDocument.load(bytes);
+    const text = await extractDrawnText(bytes);
+    const pageCount = document.getPageCount();
+    const headerCount = text.split('Material').length - 1;
+
+    expect(pageCount).toBeGreaterThan(1);
+    expect(text).toContain('Ambiente 1');
+    expect(text).toContain('Ambiente 50');
+    expect(headerCount).toBe(pageCount);
+    expect(text).toContain(`Página ${pageCount}`);
+  });
+
+  it('wraps a long description inside its column and across pages', async () => {
+    const description = 'Descrição longa para teste de quebra '.repeat(300);
+    const bytes = await createRenderer().renderProductionOrder(
+      production([curtain({ description })]),
+    );
+    const document = await PDFDocument.load(bytes);
+    const text = await extractDrawnText(bytes);
+
+    expect(document.getPageCount()).toBeGreaterThan(1);
+    expect(text).toContain('Descrição longa para teste');
+    expect(text).toContain('quebra');
+  });
+
+  it('never renders customer, financial, identity or internal data', async () => {
+    const text = await extractDrawnText(
+      await createRenderer().renderProductionOrder(production()),
+    );
+
+    for (const forbidden of [
+      'Cliente',
+      'Telefone',
+      'Maria Silva',
+      '(11) 98888-7777',
+      'Rua das Flores',
+      'Cortinando',
+      'R$',
+      'Subtotal',
+      'Desconto',
+      'Ajuste',
+      'Frete',
+      'Mão de obra',
+      'Quantidade de tecido',
+      'Fator',
+      'Borda',
+      'Trilho',
+      'Entretela',
+    ]) {
+      expect(text).not.toContain(forbidden);
+    }
   });
 });
