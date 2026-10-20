@@ -409,10 +409,19 @@ export class Quote {
     return details;
   }
 
-  renew(validUntil: Date, now: Date): void {
+  // D99/D106: a SENT quote may be renewed while valid or after expiry. The
+  // previous validity is returned for history composition. A SENT quote
+  // without a validity is an inconsistent state and is blocked.
+  renew(validUntil: Date, now: Date): Date {
     this.assertStatus(QuoteStatus.SENT);
     assertValidDate(validUntil, 'Quote valid until');
     assertValidDate(now, 'Quote renewal instant');
+
+    if (this.validUntil === null) {
+      throw new InvalidQuoteTransitionError(
+        'Quote cannot be renewed without a validity',
+      );
+    }
 
     if (validUntil.getTime() <= now.getTime()) {
       throw new QuoteValidationError([
@@ -423,7 +432,11 @@ export class Quote {
       ]);
     }
 
+    const previousValidUntil = this.validUntil;
+
     this.validUntil = validUntil;
+
+    return previousValidUntil;
   }
 
   // D106: expiration is derived and never persisted.

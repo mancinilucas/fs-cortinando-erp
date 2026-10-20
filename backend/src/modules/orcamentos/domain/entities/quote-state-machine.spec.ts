@@ -147,7 +147,8 @@ describe('Quote state machine', () => {
       const quote =
         transition.name === 'markAsSent' && from === QuoteStatus.DRAFT
           ? quoteWithValidData()
-          : transition.name === 'confirm' && from === QuoteStatus.SENT
+          : (transition.name === 'confirm' || transition.name === 'renew') &&
+              from === QuoteStatus.SENT
             ? quoteInStatus(from, { validUntil: future })
             : quoteInStatus(from);
       const allowed = transition.allowedFrom.includes(from);
@@ -220,11 +221,17 @@ describe('Quote state machine', () => {
       validUntil: previousValidUntil,
     });
 
-    quote.renew(future, now);
-
+    expect(quote.renew(future, now)).toBe(previousValidUntil);
     expect(quote.validUntil).toBe(future);
     expect(quote.firstSentAt).toBe(createdAt);
     expect(quote.status).toBe(QuoteStatus.SENT);
+  });
+
+  it('blocks renewal when a SENT quote has no validity', () => {
+    const quote = quoteInStatus(QuoteStatus.SENT, { validUntil: null });
+
+    expect(() => quote.renew(future, now)).toThrow(InvalidQuoteTransitionError);
+    expect(quote.validUntil).toBeNull();
   });
 
   it('normalizes the cancellation reason and returns it for history', () => {
