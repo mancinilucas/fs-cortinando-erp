@@ -48,9 +48,9 @@ A numeração histórica das fases é preservada; a ordem de execução recomend
 - [ ] Fase 11 — Frontend.
 - [ ] Fase 12 — Hardening e entrega.
 
-**Próxima task esperada:** `DADOS-DO-NEGOCIO-01 — Auditoria do estado atual`.
+**Próxima task esperada:** `DADOS-DO-NEGOCIO-03 — Criar scaffold do módulo`.
 
-A task ainda não foi criada nem iniciada; a spec `10-dados-negocio.md` também ainda não existe.
+A auditoria `DADOS-DO-NEGOCIO-01` e a spec `DADOS-DO-NEGOCIO-02` foram produzidas em 2026-10-20. A spec foi validada em 2026-10-20 e as decisões materiais foram aprovadas; nenhuma implementação foi iniciada.
 
 ### 2.3 Classificação das fases
 
@@ -93,7 +93,7 @@ A task ainda não foi criada nem iniciada; a spec `10-dados-negocio.md` também 
 
 | Próxima fase | Depende de | Já disponível? | Bloqueio |
 |---|---|---|---|
-| Dados do Negócio (Fase 10) | Fase 1 (Prisma), `AuthGuard`, model/tabela `BusinessData` | Parcialmente: schema e tabela existem; não há módulo, use case, endpoint, seed ou teste. | Spec `10-dados-negocio.md` inexistente; decisões de contrato da configuração (identificador e validação) precisam ser fechadas na auditoria `DADOS-DO-NEGOCIO-01`. |
+| Dados do Negócio (Fase 10) | Fase 1 (Prisma), `AuthGuard`, model/tabela `BusinessData` | Parcialmente: schema e tabela existem; auditoria e spec produzidas e validadas; não há módulo, use case, endpoint, seed ou teste. | Decisões materiais aprovadas em `10-dados-negocio.md` em 2026-10-20; implementação não iniciada. |
 | PDF comercial (Fase 8) | Fase 10 (identidade do negócio), aggregate e queries de Orçamento, enum de histórico | Parcialmente: Orçamento e `COMMERCIAL_PDF_GENERATED` existem; não há API de dados do negócio nem geração de PDF. | Conclusão da Fase 10; spec `08-documentos.md`; escolha da biblioteca de PDF (decisão adiada em `ARCHITECTURE.md` §22). |
 | Ordem de produção (Fase 8) | Aggregate de Orçamento, status `CONFIRMED`/`IN_PRODUCTION`/`COMPLETED`, dados técnicos da cortina, enum de histórico | Sim para os dados e transições; não há `ProductionOrder` por decisão de arquitetura. | Spec `08-documentos.md`; definição do formato de entrega do documento. Não depende de Dados do Negócio. |
 | Dashboard (Fase 9 restante) | `QuoteStatus`, condições derivadas `EXPIRED`/instalação atrasada, `scheduledInstallationAt`, queries de leitura | Sim para os dados e para as projeções de D113; não existe `DashboardQuery`. | Spec `09-queries-dashboard.md`; definição dos contadores e listas operacionais. Sem bloqueio estrutural. |
@@ -326,7 +326,7 @@ Esta ordem não conflita com `PROJECT_SPEC` nem com `ARCHITECTURE`: as fontes n�
 
 ### Fase 10 — Dados do negócio
 
-**Estado:** PENDENTE — apenas schema/tabela existem.
+**Estado:** PENDENTE — schema/tabela e documentação existem; implementação não iniciada.
 
 **Objetivo:** disponibilizar a configuração comercial usada na apresentação e nos documentos, sem upload ou gerenciamento de logo.
 
@@ -334,11 +334,11 @@ Esta ordem não conflita com `PROJECT_SPEC` nem com `ARCHITECTURE`: as fontes n�
 - [ ] Atualizar dados do negócio.
 - [ ] Manter logo como asset fixo.
 
-**Evidência do estado atual:** existem apenas o model `BusinessData` em `backend/prisma/schema.prisma` e a tabela `business_data` na migration inicial; não há módulo NestJS, use case, endpoint, seed ou teste de dados do negócio.
+**Evidência do estado atual:** existem apenas o model `BusinessData` em `backend/prisma/schema.prisma` e a tabela `business_data` na migration inicial; não há módulo NestJS, use case, endpoint, seed ou teste de dados do negócio. A auditoria `10-dados-negocio-audit.md` e a spec `10-dados-negocio.md` foram produzidas em 2026-10-20, mas a implementação não foi iniciada.
 
 **Reorganização:** o item “Integrar dados ao PDF comercial” foi transferido para a Fase 8, pois a integração pertence à geração do documento e criaria dependência circular se permanecesse aqui.
 
-**Spec:** `docs/development/10-dados-negocio.md` (a criar na abertura da fase).
+**Spec:** `docs/development/10-dados-negocio.md` (criada em 2026-10-20 e validada na mesma data; tasks 03–12 planejadas; implementação não iniciada).
 
 ---
 
