@@ -1,9 +1,5 @@
-import {
-  PDFDocument,
-  PDFName,
-  PDFRawStream,
-  decodePDFRawStream,
-} from 'pdf-lib';
+import { PDFDocument, PDFName, PDFRawStream } from 'pdf-lib';
+import { extractPdfText } from '../../../../../test/helpers/pdf-text.js';
 import type {
   CommercialPdfProjection,
   ProductionOrderCurtainProjection,
@@ -64,25 +60,10 @@ function projection(
   };
 }
 
-// pdf-lib writes drawn strings as WinAnsi-encoded hex operands.
+// D200: content is extracted from the generated file with a real PDF parser,
+// so a renderer that draws forbidden fields is caught.
 async function extractDrawnText(bytes: Uint8Array): Promise<string> {
-  const document = await PDFDocument.load(bytes);
-  const decoder = new TextDecoder('windows-1252');
-  const lines: string[] = [];
-
-  for (const [, object] of document.context.enumerateIndirectObjects()) {
-    if (!(object instanceof PDFRawStream)) {
-      continue;
-    }
-
-    const contents = decoder.decode(decodePDFRawStream(object).decode());
-
-    for (const match of contents.matchAll(/<([0-9A-Fa-f]+)>\s*Tj/g)) {
-      lines.push(decoder.decode(Buffer.from(match[1], 'hex')));
-    }
-  }
-
-  return lines.join('\n');
+  return (await extractPdfText(bytes)).text;
 }
 
 function countImageObjects(document: PDFDocument): number {
