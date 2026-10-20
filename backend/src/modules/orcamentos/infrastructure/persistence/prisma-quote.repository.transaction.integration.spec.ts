@@ -196,6 +196,70 @@ describe('PrismaQuoteRepository integration — transactions', () => {
     });
   });
 
+  it('mutates the aggregate loaded inside the transaction', async () => {
+    const quote = await repository.create(2301, buildQuote);
+
+    const mutated = await repository.mutate(quote.id, (quote) => {
+      quote.applyPatch({ notes: 'Mutado' });
+
+      return editedEvent();
+    });
+
+    expect(mutated).not.toBeNull();
+    expect(mutated?.notes).toBe('Mutado');
+
+    const stored = await prisma.quote.findUniqueOrThrow({
+      where: { id: quote.id },
+    });
+
+    expect(stored.notes).toBe('Mutado');
+    expect(await historyOf(quote.id)).toHaveLength(2);
+  });
+
+  it('returns null when the quote does not exist', async () => {
+    await expect(
+      repository.mutate(randomUUID(), () => null),
+    ).resolves.toBeNull();
+  });
+
+  it('does not persist when the operation reports no change', async () => {
+    const quote = await repository.create(2301, buildQuote);
+
+    const mutated = await repository.mutate(quote.id, (quote) => {
+      quote.applyPatch({ notes: 'Não deve persistir' });
+
+      return null;
+    });
+
+    expect(mutated?.notes).toBe('Não deve persistir');
+
+    const stored = await prisma.quote.findUniqueOrThrow({
+      where: { id: quote.id },
+    });
+
+    expect(stored.notes).toBe('Criado pelo teste');
+    expect(await historyOf(quote.id)).toHaveLength(1);
+  });
+
+  it('rolls back state and history when the operation throws', async () => {
+    const quote = await repository.create(2301, buildQuote);
+
+    await expect(
+      repository.mutate(quote.id, (quote) => {
+        quote.applyPatch({ notes: 'Não deve persistir' });
+
+        throw new Error('operation failed');
+      }),
+    ).rejects.toThrow('operation failed');
+
+    const stored = await prisma.quote.findUniqueOrThrow({
+      where: { id: quote.id },
+    });
+
+    expect(stored.notes).toBe('Criado pelo teste');
+    expect(await historyOf(quote.id)).toHaveLength(1);
+  });
+
   it('does not change state or history when the history insert fails', async () => {
     const quote = await repository.create(2301, buildQuote);
 

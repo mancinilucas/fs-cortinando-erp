@@ -23,21 +23,24 @@ export class RenewQuoteUseCase {
   ) {}
 
   async execute(input: RenewQuoteInput): Promise<Quote> {
-    const quote = await this.quotes.findById(input.id);
+    const quote = await this.quotes.mutate(input.id, (quote) => {
+      const previousValidUntil = quote.renew(
+        input.validUntil,
+        this.clock.now(),
+      );
+
+      return {
+        type: 'QUOTE_RENEWED',
+        details: QuoteHistoryDetails.renewed(
+          previousValidUntil,
+          input.validUntil,
+        ),
+      };
+    });
 
     if (quote === null) {
       throw new QuoteNotFoundError();
     }
-
-    const previousValidUntil = quote.renew(input.validUntil, this.clock.now());
-
-    await this.quotes.save(quote, {
-      type: 'QUOTE_RENEWED',
-      details: QuoteHistoryDetails.renewed(
-        previousValidUntil,
-        input.validUntil,
-      ),
-    });
 
     return quote;
   }

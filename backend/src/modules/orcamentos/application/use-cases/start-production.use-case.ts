@@ -21,15 +21,15 @@ export class StartProductionUseCase {
   ) {}
 
   async execute(input: StartProductionInput): Promise<Quote> {
-    const quote = await this.quotes.findById(input.id);
+    const quote = await this.quotes.mutate(input.id, (quote) => {
+      quote.startProduction(this.clock.now());
+
+      return { type: 'PRODUCTION_STARTED' };
+    });
 
     if (quote === null) {
       throw new QuoteNotFoundError();
     }
-
-    quote.startProduction(this.clock.now());
-
-    await this.quotes.save(quote, { type: 'PRODUCTION_STARTED' });
 
     return quote;
   }

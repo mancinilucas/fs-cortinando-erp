@@ -613,6 +613,40 @@ describe('Quotes (e2e)', () => {
     expect(persisted.status).toBe('DRAFT');
   });
 
+  it('rejects a creation whose derived total overflows the monetary range', async () => {
+    const customerId = await createCustomer();
+
+    const response = await request(server())
+      .post(`/clientes/${customerId}/orcamentos`)
+      .set('Origin', ORIGIN)
+      .set('Cookie', cookie)
+      .send({
+        installationAddress: COMPLETE_ADDRESS,
+        curtains: [
+          {
+            room: 'Sala',
+            material: 'Linho',
+            openingWidth: 2,
+            borderValue: 0,
+            height: 2.2,
+            fabricFactor: 2,
+            components: [
+              {
+                name: 'Tecido',
+                quantity: 999_999,
+                unit: 'm',
+                unitPriceCents: 2_147_483_647,
+              },
+            ],
+          },
+        ],
+      })
+      .expect(422);
+
+    expect(errorCodes(response)).toEqual(['TOTAL_OUT_OF_RANGE']);
+    expect(await prisma.quote.count({ where: { customerId } })).toBe(0);
+  });
+
   it('rejects sending a quote with an incomplete installation address', async () => {
     const customerId = await createCustomer();
     const quote = await createQuote(customerId, {

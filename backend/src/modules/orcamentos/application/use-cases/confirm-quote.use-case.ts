@@ -21,15 +21,15 @@ export class ConfirmQuoteUseCase {
   ) {}
 
   async execute(input: ConfirmQuoteInput): Promise<Quote> {
-    const quote = await this.quotes.findById(input.id);
+    const quote = await this.quotes.mutate(input.id, (quote) => {
+      quote.confirm(this.clock.now());
+
+      return { type: 'QUOTE_CONFIRMED' };
+    });
 
     if (quote === null) {
       throw new QuoteNotFoundError();
     }
-
-    quote.confirm(this.clock.now());
-
-    await this.quotes.save(quote, { type: 'QUOTE_CONFIRMED' });
 
     return quote;
   }

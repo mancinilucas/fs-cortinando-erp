@@ -556,6 +556,37 @@ describe('Quotes alternate lifecycle (e2e)', () => {
     );
   });
 
+  it('rejects a SENT edit that would break the sending requirements', async () => {
+    const draft = await createEditableQuote();
+    const sent = await act(draft.id, 'enviar', { validUntil: futureIso(10) });
+
+    const invalidPatches = [
+      { installationAddress: null, code: 'INSTALLATION_ADDRESS_INCOMPLETE' },
+      { curtains: [], code: 'NO_CURTAINS' },
+    ];
+
+    for (const { code, ...patch } of invalidPatches) {
+      const response = await request(server())
+        .patch(`/orcamentos/${draft.id}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .send(patch)
+        .expect(422);
+
+      expect(response.body.errors).toEqual(
+        expect.arrayContaining([expect.objectContaining({ code })]),
+      );
+    }
+
+    // Rejected edits never reach persistence or history.
+    expect(await getQuote(draft.id)).toEqual(sent);
+    expect(
+      (await history(draft.id)).filter(
+        (entry) => entry.eventType === 'QUOTE_EDITED',
+      ),
+    ).toHaveLength(0);
+  });
+
   it('reopens a confirmed quote clearing confirmation and installation', async () => {
     const draft = await createEditableQuote();
     const validUntil = futureIso(10);

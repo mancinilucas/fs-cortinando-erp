@@ -48,8 +48,27 @@ function quoteWith(overrides: Partial<QuoteSnapshot> = {}): Quote {
     quoteNumber: QuoteNumber.create(2026, 42),
     customerId: '6f2b9f2c-3b8c-4e4a-9f2e-1a2b3c4d5e6f',
     status: QuoteStatus.SENT,
-    installationAddress: null,
-    curtains: [],
+    installationAddress: InstallationAddress.create({
+      street: 'Rua das Flores',
+      number: '123',
+      neighborhood: 'Centro',
+      city: 'São Paulo',
+    }),
+    curtains: [
+      Curtain.create({
+        room: 'Sala',
+        material: 'Linho',
+        openingWidth: 2,
+        height: 2.7,
+        components: [
+          FinancialItem.create({
+            name: 'Tecido',
+            quantity: 2,
+            unitPriceCents: 3_000,
+          }),
+        ],
+      }),
+    ],
     generalAddOns: [],
     discount: Discount.noDiscount(),
     commercialAdjustmentCents: null,

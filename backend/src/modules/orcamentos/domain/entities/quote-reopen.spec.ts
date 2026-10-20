@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { InvalidQuoteTransitionError } from '../errors/quote-domain.errors.js';
 import { Discount } from '../value-objects/discount.js';
+import { InstallationAddress } from '../value-objects/installation-address.js';
 import { QuoteNumber } from '../value-objects/quote-number.js';
+import { Curtain } from './curtain.js';
+import { FinancialItem } from './financial-item.js';
 import { Quote, QuoteStatus, type QuoteSnapshot } from './quote.js';
 
 const createdAt = new Date('2026-10-19T12:00:00.000Z');
@@ -17,8 +20,27 @@ function quoteWith(overrides: Partial<QuoteSnapshot> = {}): Quote {
     quoteNumber: QuoteNumber.create(2026, 42),
     customerId: '6f2b9f2c-3b8c-4e4a-9f2e-1a2b3c4d5e6f',
     status: QuoteStatus.CONFIRMED,
-    installationAddress: null,
-    curtains: [],
+    installationAddress: InstallationAddress.create({
+      street: 'Rua das Flores',
+      number: '123',
+      neighborhood: 'Centro',
+      city: 'São Paulo',
+    }),
+    curtains: [
+      Curtain.create({
+        room: 'Sala',
+        material: 'Linho',
+        openingWidth: 2,
+        height: 2.7,
+        components: [
+          FinancialItem.create({
+            name: 'Tecido',
+            quantity: 2,
+            unitPriceCents: 3_000,
+          }),
+        ],
+      }),
+    ],
     generalAddOns: [],
     discount: Discount.noDiscount(),
     commercialAdjustmentCents: null,

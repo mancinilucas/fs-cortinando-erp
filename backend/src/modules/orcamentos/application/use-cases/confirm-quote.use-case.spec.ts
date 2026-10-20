@@ -4,6 +4,7 @@ import { PrismaService } from '../../../../shared/database/prisma.service.js';
 import { Quote, QuoteStatus } from '../../domain/entities/quote.js';
 import { InvalidQuoteTransitionError } from '../../domain/errors/quote-domain.errors.js';
 import type { QuoteHistoryEventDraft } from '../../domain/history/quote-history.js';
+import type { QuoteMutation } from '../../domain/repositories/quote.repository.js';
 import { PrismaQuoteRepository } from '../../infrastructure/persistence/prisma-quote.repository.js';
 import { PrismaQuoteSequence } from '../../infrastructure/persistence/prisma-quote-sequence.js';
 import { QuoteNotFoundError } from '../errors/quote-not-found.error.js';
@@ -11,17 +12,25 @@ import { ConfirmQuoteUseCase } from './confirm-quote.use-case.js';
 
 // Forced persistence failure so the transaction rolls back.
 class CircularHistoryRepository extends PrismaQuoteRepository {
-  override async save(
-    quote: Quote,
-    event: QuoteHistoryEventDraft,
-  ): Promise<void> {
-    const circular: Record<string, unknown> = {};
-    circular.self = circular;
+  override async mutate(
+    id: string,
+    operation: QuoteMutation,
+  ): Promise<Quote | null> {
+    return super.mutate(id, (quote) => {
+      const event = operation(quote);
 
-    await super.save(quote, {
-      ...event,
-      details: circular,
-    } as unknown as QuoteHistoryEventDraft);
+      if (event === null) {
+        return null;
+      }
+
+      const circular: Record<string, unknown> = {};
+      circular.self = circular;
+
+      return {
+        ...event,
+        details: circular,
+      } as unknown as QuoteHistoryEventDraft;
+    });
   }
 }
 
@@ -189,6 +198,32 @@ describe('ConfirmQuoteUseCase integration', () => {
     await expect(useCase.execute({ id: seeded.id })).rejects.toBeInstanceOf(
       InvalidQuoteTransitionError,
     );
+  });
+
+  it('lets only one of two concurrent confirmations win', async () => {
+    const seeded = await seedQuote({
+      validUntil: new Date('2026-11-18T12:00:00.000Z'),
+    });
+
+    const results = await Promise.allSettled([
+      useCase.execute({ id: seeded.id }),
+      useCase.execute({ id: seeded.id }),
+    ]);
+    const fulfilled = results.filter((result) => result.status === 'fulfilled');
+    const rejected = results.filter((result) => result.status === 'rejected');
+
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(
+      InvalidQuoteTransitionError,
+    );
+
+    const stored = await prisma.quote.findUniqueOrThrow({
+      where: { id: seeded.id },
+    });
+
+    expect(stored.status).toBe('CONFIRMED');
+    expect(await historyOf(seeded.id)).toHaveLength(1);
   });
 
   it('rolls the confirmation back when persistence fails', async () => {

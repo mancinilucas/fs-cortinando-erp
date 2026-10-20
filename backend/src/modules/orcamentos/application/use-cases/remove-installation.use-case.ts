@@ -18,22 +18,22 @@ export class RemoveInstallationUseCase {
   constructor(private readonly quotes: QuoteRepository) {}
 
   async execute(input: RemoveInstallationInput): Promise<Quote> {
-    const quote = await this.quotes.findById(input.id);
+    const quote = await this.quotes.mutate(input.id, (quote) => {
+      const previous = quote.removeScheduledInstallation();
+
+      if (previous === null) {
+        return null;
+      }
+
+      return {
+        type: 'INSTALLATION_REMOVED',
+        details: QuoteHistoryDetails.installationRemoved(previous),
+      };
+    });
 
     if (quote === null) {
       throw new QuoteNotFoundError();
     }
-
-    const previous = quote.removeScheduledInstallation();
-
-    if (previous === null) {
-      return quote;
-    }
-
-    await this.quotes.save(quote, {
-      type: 'INSTALLATION_REMOVED',
-      details: QuoteHistoryDetails.installationRemoved(previous),
-    });
 
     return quote;
   }

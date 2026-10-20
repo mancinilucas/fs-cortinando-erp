@@ -5,9 +5,11 @@ import type { QuotePatch } from './quote.js';
 import { Quote, QuoteStatus } from './quote.js';
 import {
   QuoteNotEditableError,
+  QuoteValidationError,
   UnknownQuoteItemError,
 } from '../errors/quote-domain.errors.js';
 import { Discount } from '../value-objects/discount.js';
+import { InstallationAddress } from '../value-objects/installation-address.js';
 import { QuoteNumber } from '../value-objects/quote-number.js';
 
 const createdAt = new Date('2026-10-19T12:00:00.000Z');
@@ -39,15 +41,30 @@ function quoteWith(
 }
 
 function quoteWithStatus(status: QuoteStatus): Quote {
-  const base = quoteWith();
+  const base = quoteWith({
+    curtains: [
+      curtain({
+        room: 'Sala',
+        material: 'Linho',
+        openingWidth: 2.6,
+        height: 2.7,
+        components: [item('Tecido', 1, 1_000)],
+      }),
+    ],
+  });
 
   return Quote.rehydrate({
     id: base.id,
     quoteNumber: base.quoteNumber,
     customerId: base.customerId,
     status,
-    installationAddress: null,
-    curtains: [],
+    installationAddress: InstallationAddress.create({
+      street: 'Avenida Paulista',
+      number: '1000',
+      neighborhood: 'Bela Vista',
+      city: 'São Paulo',
+    }),
+    curtains: base.curtains,
     generalAddOns: [],
     discount: Discount.noDiscount(),
     commercialAdjustmentCents: null,
@@ -383,5 +400,138 @@ describe('Quote.applyPatch', () => {
       );
       expect(quote.notes).toBeNull();
     }
+  });
+});
+
+describe('Quote.applyPatch on SENT', () => {
+  it('rejects clearing the installation address', () => {
+    const quote = quoteWithStatus(QuoteStatus.SENT);
+
+    expect(() => quote.applyPatch({ installationAddress: null })).toThrow(
+      QuoteValidationError,
+    );
+  });
+
+  it('rejects emptying the curtains', () => {
+    const quote = quoteWithStatus(QuoteStatus.SENT);
+
+    expect(() => quote.applyPatch({ curtains: [] })).toThrow(
+      QuoteValidationError,
+    );
+  });
+
+  it('rejects making an existing component incomplete', () => {
+    const quote = quoteWithStatus(QuoteStatus.SENT);
+    const original = quote.curtains[0];
+
+    expect(() =>
+      quote.applyPatch({
+        curtains: [
+          {
+            id: original.id,
+            components: [{ id: original.components[0].id, quantity: null }],
+          },
+        ],
+      }),
+    ).toThrow(QuoteValidationError);
+  });
+
+  it('keeps a complete SENT quote editable', () => {
+    const quote = quoteWithStatus(QuoteStatus.SENT);
+
+    quote.applyPatch({ notes: 'Ajuste comercial' });
+
+    expect(quote.notes).toBe('Ajuste comercial');
+  });
+});
+
+describe('Quote monetary range', () => {
+  it('rejects a creation whose total overflows the range', () => {
+    expect(() =>
+      quoteWith({
+        curtains: [
+          curtain({
+            room: 'Sala',
+            material: 'Linho',
+            openingWidth: 2,
+            height: 2.7,
+            components: [item('Tecido', 999_999, 2_147_483_647)],
+          }),
+        ],
+      }),
+    ).toThrow(QuoteValidationError);
+  });
+
+  it('reports TOTAL_OUT_OF_RANGE when the item total overflows', () => {
+    const component = item('Tecido', 1, 1_000);
+    const original = curtain({
+      room: 'Sala',
+      material: 'Linho',
+      openingWidth: 2,
+      height: 2.7,
+      components: [component],
+    });
+    const quote = quoteWith({ curtains: [original] });
+
+    let thrown: unknown;
+
+    try {
+      quote.applyPatch({
+        curtains: [
+          {
+            id: original.id,
+            components: [
+              {
+                id: component.id,
+                quantity: 999_999,
+                unitPriceCents: 2_147_483_647,
+              },
+            ],
+          },
+        ],
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(QuoteValidationError);
+    expect((thrown as QuoteValidationError).violations).toEqual([
+      {
+        code: 'TOTAL_OUT_OF_RANGE',
+        message: 'Quote totals must fit the supported monetary range',
+      },
+    ]);
+  });
+
+  it('rejects a DRAFT patch whose subtotal overflows the range', () => {
+    const first = item('Tecido', 1, 1_000_000_000);
+    const second = item('Tecido', 1, 1_000_000_000);
+    const firstCurtain = curtain({
+      room: 'Sala',
+      material: 'Linho',
+      openingWidth: 2,
+      height: 2.7,
+      components: [first],
+    });
+    const secondCurtain = curtain({
+      room: 'Quarto',
+      material: 'Linho',
+      openingWidth: 2,
+      height: 2.7,
+      components: [second],
+    });
+    const quote = quoteWith({ curtains: [firstCurtain, secondCurtain] });
+
+    expect(() =>
+      quote.applyPatch({
+        curtains: [
+          { id: firstCurtain.id },
+          {
+            id: secondCurtain.id,
+            components: [{ id: second.id, unitPriceCents: 2_000_000_000 }],
+          },
+        ],
+      }),
+    ).toThrow(QuoteValidationError);
   });
 });

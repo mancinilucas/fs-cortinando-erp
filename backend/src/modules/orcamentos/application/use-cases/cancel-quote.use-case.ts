@@ -19,18 +19,18 @@ export class CancelQuoteUseCase {
   constructor(private readonly quotes: QuoteRepository) {}
 
   async execute(input: CancelQuoteInput): Promise<Quote> {
-    const quote = await this.quotes.findById(input.id);
+    const quote = await this.quotes.mutate(input.id, (quote) => {
+      const reason = quote.cancel(input.reason);
+
+      return {
+        type: 'QUOTE_CANCELLED',
+        details: QuoteHistoryDetails.cancelled(reason),
+      };
+    });
 
     if (quote === null) {
       throw new QuoteNotFoundError();
     }
-
-    const reason = quote.cancel(input.reason);
-
-    await this.quotes.save(quote, {
-      type: 'QUOTE_CANCELLED',
-      details: QuoteHistoryDetails.cancelled(reason),
-    });
 
     return quote;
   }

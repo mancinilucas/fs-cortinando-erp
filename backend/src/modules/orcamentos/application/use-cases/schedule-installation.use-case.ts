@@ -19,43 +19,41 @@ export class ScheduleInstallationUseCase {
   constructor(private readonly quotes: QuoteRepository) {}
 
   async execute(input: ScheduleInstallationInput): Promise<Quote> {
-    const quote = await this.quotes.findById(input.id);
+    const quote = await this.quotes.mutate(input.id, (quote) => {
+      const previous = quote.scheduledInstallationAt;
+      const action = quote.setScheduledInstallation(
+        input.scheduledInstallationAt,
+      );
+
+      if (action === 'UNCHANGED') {
+        return null;
+      }
+
+      if (action === 'SCHEDULED') {
+        return {
+          type: 'INSTALLATION_SCHEDULED',
+          details: QuoteHistoryDetails.installationScheduled(
+            input.scheduledInstallationAt,
+          ),
+        };
+      }
+
+      if (previous === null) {
+        throw new Error('Changed installation must have a previous value');
+      }
+
+      return {
+        type: 'INSTALLATION_CHANGED',
+        details: QuoteHistoryDetails.installationChanged(
+          previous,
+          input.scheduledInstallationAt,
+        ),
+      };
+    });
 
     if (quote === null) {
       throw new QuoteNotFoundError();
     }
-
-    const previous = quote.scheduledInstallationAt;
-    const action = quote.setScheduledInstallation(
-      input.scheduledInstallationAt,
-    );
-
-    if (action === 'UNCHANGED') {
-      return quote;
-    }
-
-    if (action === 'SCHEDULED') {
-      await this.quotes.save(quote, {
-        type: 'INSTALLATION_SCHEDULED',
-        details: QuoteHistoryDetails.installationScheduled(
-          input.scheduledInstallationAt,
-        ),
-      });
-
-      return quote;
-    }
-
-    if (previous === null) {
-      throw new Error('Changed installation must have a previous value');
-    }
-
-    await this.quotes.save(quote, {
-      type: 'INSTALLATION_CHANGED',
-      details: QuoteHistoryDetails.installationChanged(
-        previous,
-        input.scheduledInstallationAt,
-      ),
-    });
 
     return quote;
   }

@@ -12,6 +12,13 @@ export interface QuoteCreation {
   event: QuoteHistoryEventDraft;
 }
 
+/**
+ * Operation applied to an aggregate loaded inside the write transaction.
+ * Returning null means the operation produced no state change, so nothing is
+ * persisted and no history is written (e.g. an unchanging installation date).
+ */
+export type QuoteMutation = (quote: Quote) => QuoteHistoryEventDraft | null;
+
 export abstract class QuoteRepository {
   /** Loads the complete aggregate, including terminal statuses. */
   abstract findById(id: string): Promise<Quote | null>;
@@ -32,6 +39,16 @@ export abstract class QuoteRepository {
    * event produced by the mutation in one transaction.
    */
   abstract save(quote: Quote, event: QuoteHistoryEventDraft): Promise<void>;
+
+  /**
+   * Loads the aggregate inside a transaction, hands it to `operation`, and
+   * persists the resulting state, its children and the event atomically
+   * (D119). The write is conditional on the status observed on load, so a
+   * concurrent action cannot be overwritten (D120); a status change makes the
+   * mutation fail with a transition conflict instead of persisting stale
+   * state. Returns null when the quote no longer exists.
+   */
+  abstract mutate(id: string, operation: QuoteMutation): Promise<Quote | null>;
 
   /** Deletes a DRAFT physically. Returns false when it no longer exists. */
   abstract deleteDraft(id: string): Promise<boolean>;

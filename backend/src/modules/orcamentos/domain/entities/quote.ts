@@ -143,6 +143,7 @@ export class Quote {
     );
 
     quote.normalizeCurtainSequences();
+    quote.assertTotalsInRange();
 
     return quote;
   }
@@ -220,6 +221,20 @@ export class Quote {
         patch.generalAddOns,
       );
     }
+
+    // D86 applies to every saved state, including drafts, so an edit cannot
+    // persist totals that the read model cannot derive. D87/D95 additionally
+    // require a non-draft save to keep the address and every item complete;
+    // reusing the send gate keeps the quote valid for a later confirmation.
+    if (this.status === QuoteStatus.DRAFT) {
+      this.assertTotalsInRange();
+    } else {
+      const violations = this.validateForSend();
+
+      if (violations.length > 0) {
+        throw new QuoteValidationError(violations);
+      }
+    }
   }
 
   // State machine (D96). Transitions are only reachable through these
@@ -263,6 +278,12 @@ export class Quote {
   // layer because Customer is a separate aggregate. Validity is added by the
   // temporal-rules task.
   validateForSend(): QuoteValidationViolation[] {
+    const rangeViolation = this.totalRangeViolation();
+
+    if (rangeViolation !== null) {
+      return [rangeViolation];
+    }
+
     const violations: QuoteValidationViolation[] = [];
 
     if (
@@ -538,6 +559,34 @@ export class Quote {
       throw new InvalidQuoteTransitionError(
         `Transition is not allowed from ${this._status}`,
       );
+    }
+  }
+
+  private assertTotalsInRange(): void {
+    const violation = this.totalRangeViolation();
+
+    if (violation !== null) {
+      throw new QuoteValidationError([violation]);
+    }
+  }
+
+  // D86: derived totals must fit the persisted Int32 range. The money value
+  // objects throw RangeError when an operation leaves that range; it becomes
+  // a business validation instead of an unmapped 500.
+  private totalRangeViolation(): QuoteValidationViolation | null {
+    try {
+      void this.totalCents;
+
+      return null;
+    } catch (error) {
+      if (error instanceof RangeError) {
+        return {
+          code: 'TOTAL_OUT_OF_RANGE',
+          message: 'Quote totals must fit the supported monetary range',
+        };
+      }
+
+      throw error;
     }
   }
 

@@ -27,13 +27,13 @@ export class MarkQuoteAsSentUseCase {
   ) {}
 
   async execute(input: MarkQuoteAsSentInput): Promise<Quote> {
-    const quote = await this.quotes.findById(input.id);
+    const current = await this.quotes.findById(input.id);
 
-    if (quote === null) {
+    if (current === null) {
       throw new QuoteNotFoundError();
     }
 
-    if (!(await this.customers.existsAndIsActive(quote.customerId))) {
+    if (!(await this.customers.existsAndIsActive(current.customerId))) {
       throw new QuoteValidationError([
         {
           code: 'CUSTOMER_NOT_ACTIVE',
@@ -42,18 +42,24 @@ export class MarkQuoteAsSentUseCase {
       ]);
     }
 
-    quote.markAsSent(this.clock.now(), input.validUntil ?? null);
+    const quote = await this.quotes.mutate(input.id, (quote) => {
+      quote.markAsSent(this.clock.now(), input.validUntil ?? null);
 
-    const appliedValidUntil = quote.validUntil;
+      const appliedValidUntil = quote.validUntil;
 
-    if (appliedValidUntil === null) {
-      throw new Error('Quote must have a validity after being sent');
-    }
+      if (appliedValidUntil === null) {
+        throw new Error('Quote must have a validity after being sent');
+      }
 
-    await this.quotes.save(quote, {
-      type: 'QUOTE_SENT',
-      details: QuoteHistoryDetails.sent(appliedValidUntil),
+      return {
+        type: 'QUOTE_SENT',
+        details: QuoteHistoryDetails.sent(appliedValidUntil),
+      };
     });
+
+    if (quote === null) {
+      throw new QuoteNotFoundError();
+    }
 
     return quote;
   }

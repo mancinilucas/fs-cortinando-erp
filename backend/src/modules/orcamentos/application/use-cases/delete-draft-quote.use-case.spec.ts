@@ -8,6 +8,7 @@ import { PrismaQuoteSequence } from '../../infrastructure/persistence/prisma-quo
 import { QuoteNotFoundError } from '../errors/quote-not-found.error.js';
 import { CreateQuoteFromCustomerUseCase } from './create-quote-from-customer.use-case.js';
 import { DeleteDraftQuoteUseCase } from './delete-draft-quote.use-case.js';
+import { MarkQuoteAsSentUseCase } from './mark-quote-as-sent.use-case.js';
 
 type SeedStatus =
   'DRAFT' | 'SENT' | 'CONFIRMED' | 'IN_PRODUCTION' | 'COMPLETED' | 'CANCELLED';
@@ -19,6 +20,7 @@ describe('DeleteDraftQuoteUseCase integration', () => {
   let prisma: PrismaService;
   let repository: PrismaQuoteRepository;
   let useCase: DeleteDraftQuoteUseCase;
+  let sendUseCase: MarkQuoteAsSentUseCase;
   let createUseCase: CreateQuoteFromCustomerUseCase;
   let quoteCounter = 0;
 
@@ -37,11 +39,22 @@ describe('DeleteDraftQuoteUseCase integration', () => {
         quoteNumber: nextQuoteNumber(),
         customerId,
         status,
+        installationAddressPostalCode: '01310100',
+        installationAddressStreet: 'Avenida Paulista',
+        installationAddressNumber: '1000',
+        installationAddressNeighborhood: 'Bela Vista',
+        installationAddressCity: 'São Paulo',
+        installationAddressState: 'SP',
         curtains: {
           create: [
             {
               sequence: 1,
               room: 'Sala',
+              material: 'Linho',
+              openingWidth: 2,
+              borderValue: 0.15,
+              height: 2.2,
+              fabricFactor: 2,
               components: {
                 create: [
                   {
@@ -81,6 +94,11 @@ describe('DeleteDraftQuoteUseCase integration', () => {
       new PrismaQuoteSequence(prisma),
     );
     useCase = new DeleteDraftQuoteUseCase(repository);
+    sendUseCase = new MarkQuoteAsSentUseCase(
+      repository,
+      new PrismaCustomerEligibility(prisma),
+      { now: () => new Date('2026-10-19T12:00:00.000Z') },
+    );
     createUseCase = new CreateQuoteFromCustomerUseCase(
       repository,
       new PrismaCustomerEligibility(prisma),
@@ -149,6 +167,45 @@ describe('DeleteDraftQuoteUseCase integration', () => {
 
     expect(second.quoteNumber.sequence).toBe(first.quoteNumber.sequence + 1);
     expect(second.quoteNumber.value).not.toBe(first.quoteNumber.value);
+  });
+
+  it('resolves a concurrent send and delete without an unmapped error', async () => {
+    const seeded = await seedQuote('DRAFT');
+
+    const results = await Promise.allSettled([
+      useCase.execute({ id: seeded.id }),
+      sendUseCase.execute({
+        id: seeded.id,
+        validUntil: new Date('2026-12-01T12:00:00.000Z'),
+      }),
+    ]);
+    const rejected = results.filter((result) => result.status === 'rejected');
+
+    expect(rejected.length).toBeLessThanOrEqual(1);
+
+    for (const result of rejected) {
+      const reason = (result as PromiseRejectedResult).reason;
+
+      expect(
+        reason instanceof QuoteNotFoundError ||
+          reason instanceof InvalidQuoteTransitionError,
+      ).toBe(true);
+    }
+
+    const stored = await prisma.quote.findUnique({
+      where: { id: seeded.id },
+    });
+
+    if (stored === null) {
+      expect(
+        await prisma.quoteHistory.count({ where: { quoteId: seeded.id } }),
+      ).toBe(0);
+    } else {
+      expect(stored.status).toBe('SENT');
+      expect(
+        await prisma.quoteHistory.count({ where: { quoteId: seeded.id } }),
+      ).toBe(1);
+    }
   });
 
   it.each([

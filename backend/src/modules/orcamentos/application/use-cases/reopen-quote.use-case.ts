@@ -18,21 +18,21 @@ export class ReopenQuoteUseCase {
   constructor(private readonly quotes: QuoteRepository) {}
 
   async execute(input: ReopenQuoteInput): Promise<Quote> {
-    const quote = await this.quotes.findById(input.id);
+    const quote = await this.quotes.mutate(input.id, (quote) => {
+      const previous = quote.reopen();
+
+      return {
+        type: 'QUOTE_REOPENED',
+        details: QuoteHistoryDetails.reopened(
+          previous.previousConfirmedAt,
+          previous.previousScheduledInstallationAt,
+        ),
+      };
+    });
 
     if (quote === null) {
       throw new QuoteNotFoundError();
     }
-
-    const previous = quote.reopen();
-
-    await this.quotes.save(quote, {
-      type: 'QUOTE_REOPENED',
-      details: QuoteHistoryDetails.reopened(
-        previous.previousConfirmedAt,
-        previous.previousScheduledInstallationAt,
-      ),
-    });
 
     return quote;
   }

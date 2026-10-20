@@ -41,26 +41,26 @@ export class UpdateQuoteUseCase {
   constructor(private readonly quotes: QuoteRepository) {}
 
   async execute(input: UpdateQuoteInput): Promise<Quote> {
-    const quote = await this.quotes.findById(input.id);
+    const quote = await this.quotes.mutate(input.id, (quote) => {
+      const before = captureEditableState(quote);
+
+      quote.applyPatch(toQuotePatch(input));
+
+      const changes = diffEditableState(before, captureEditableState(quote));
+
+      if (changes.length === 0) {
+        return null;
+      }
+
+      return {
+        type: 'QUOTE_EDITED',
+        details: QuoteHistoryDetails.edited(changes),
+      };
+    });
 
     if (quote === null) {
       throw new QuoteNotFoundError();
     }
-
-    const before = captureEditableState(quote);
-
-    quote.applyPatch(toQuotePatch(input));
-
-    const changes = diffEditableState(before, captureEditableState(quote));
-
-    if (changes.length === 0) {
-      return quote;
-    }
-
-    await this.quotes.save(quote, {
-      type: 'QUOTE_EDITED',
-      details: QuoteHistoryDetails.edited(changes),
-    });
 
     return quote;
   }

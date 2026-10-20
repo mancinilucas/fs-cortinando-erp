@@ -3,10 +3,12 @@ import { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../shared/database/prisma.service.js';
 import type { Curtain } from '../../domain/entities/curtain.js';
 import type { Quote } from '../../domain/entities/quote.js';
+import { InvalidQuoteTransitionError } from '../../domain/errors/quote-domain.errors.js';
 import type { QuoteHistoryEventDraft } from '../../domain/history/quote-history.js';
 import {
   QuoteRepository,
   type QuoteCreation,
+  type QuoteMutation,
 } from '../../domain/repositories/quote.repository.js';
 import { QuoteNumber } from '../../domain/value-objects/quote-number.js';
 import { PrismaQuoteSequence } from './prisma-quote-sequence.js';
@@ -29,7 +31,14 @@ export class PrismaQuoteRepository extends QuoteRepository {
   }
 
   async findById(id: string): Promise<Quote | null> {
-    const record = await this.prisma.quote.findUnique({
+    return this.load(this.prisma, id);
+  }
+
+  private async load(
+    client: Prisma.TransactionClient,
+    id: string,
+  ): Promise<Quote | null> {
+    const record = await client.quote.findUnique({
       where: { id },
       include: {
         curtains: {
@@ -92,6 +101,56 @@ export class PrismaQuoteRepository extends QuoteRepository {
       await this.reconcileCurtains(tx, quote);
       await this.reconcileGeneralAddOns(tx, quote);
       await this.insertHistory(tx, quote.id, event);
+    });
+  }
+
+  async mutate(id: string, operation: QuoteMutation): Promise<Quote | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const quote = await this.load(tx, id);
+
+      if (quote === null) {
+        return null;
+      }
+
+      const expectedStatus = quote.status;
+      const event = operation(quote);
+
+      if (event === null) {
+        return quote;
+      }
+
+      // The guarded update makes the write conditional on the status read
+      // inside this transaction. An edit racing another edit still wins by
+      // last write (D120), but a status change performed in between is never
+      // overwritten (D119/D120).
+      const written = await tx.quote.updateMany({
+        where: { id, status: expectedStatus },
+        data: {
+          ...QuoteMapper.toPersistence(quote),
+          updatedAt: new Date(),
+        },
+      });
+
+      if (written.count === 0) {
+        const current = await tx.quote.findUnique({
+          where: { id },
+          select: { status: true },
+        });
+
+        if (current === null) {
+          return null;
+        }
+
+        throw new InvalidQuoteTransitionError(
+          `Quote status changed from ${expectedStatus} to ${current.status}`,
+        );
+      }
+
+      await this.reconcileCurtains(tx, quote);
+      await this.reconcileGeneralAddOns(tx, quote);
+      await this.insertHistory(tx, quote.id, event);
+
+      return quote;
     });
   }
 

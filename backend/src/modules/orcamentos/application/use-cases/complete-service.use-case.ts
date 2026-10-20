@@ -20,15 +20,15 @@ export class CompleteServiceUseCase {
   ) {}
 
   async execute(input: CompleteServiceInput): Promise<Quote> {
-    const quote = await this.quotes.findById(input.id);
+    const quote = await this.quotes.mutate(input.id, (quote) => {
+      quote.complete(this.clock.now());
+
+      return { type: 'SERVICE_COMPLETED' };
+    });
 
     if (quote === null) {
       throw new QuoteNotFoundError();
     }
-
-    quote.complete(this.clock.now());
-
-    await this.quotes.save(quote, { type: 'SERVICE_COMPLETED' });
 
     return quote;
   }

@@ -215,7 +215,7 @@ As decisões aplicáveis são explícitas:
 
 ## 4. Observações sem reparo necessário
 
-1. **Specs da Application importam a implementação Prisma.** `confirm-quote.use-case.spec.ts:7,13` e `mark-quote-as-sent.use-case.spec.ts:10,73` estendem `PrismaQuoteRepository` para simular falha na gravação do histórico. O código de produção respeita a fronteira; a dependência existe apenas em teste. Se a ORCAMENTO-46 substituir o mecanismo de transação, esses testes precisarão ser ajustados. Não é um achado de arquitetura de produção.
+1. **Specs da Application importam a implementação Prisma.** `confirm-quote.use-case.spec.ts` e `mark-quote-as-sent.use-case.spec.ts` estendem `PrismaQuoteRepository` para simular falha na gravação do histórico. O código de produção respeita a fronteira; a dependência existe apenas em teste. Após a ORCAMENTO-46, os testes substituem `mutate` em vez de `save`, acompanhando o novo ponto transacional.
 
 2. **Leitura do histórico em duas instruções.** `PrismaQuoteHistoryQueryRepository.listByQuoteId` verifica a existência do orçamento e depois lista os eventos. Uma exclusão de rascunho concorrente entre as duas consultas pode produzir `200 []` em vez de `404`. D119 determina que consultas não abrem transação, então o comportamento é aceitável; se a ORCAMENTO-46 alterar a exclusão, vale reavaliar.
 
@@ -235,3 +235,35 @@ Há dois achados de severidade **alta** que precisam de reparo antes do fechamen
 O achado **A3** (média) deve ser corrigido na ORCAMENTO-46 porque a entrada é aceita pelo contrato atual e o resultado é um estado persistido e ilegível; se não for corrigido, precisa de justificativa explícita e registro de risco.
 
 Nenhum código foi alterado nesta task. A correção e a re-verificação pertencem à ORCAMENTO-46.
+
+---
+
+## 6. Resultado do reparo (ORCAMENTO-46)
+
+Status em 2026-10-20: A1, A2 e A3 corrigidos; observações 2 e 3 permanecem sem alteração.
+
+### A1 — Corrigido
+
+- `Quote.applyPatch` reaplica o gate de envio (D87/D95, sem a checagem de cliente) quando o estado não é `DRAFT`; a edição de um orçamento `SENT` que deixaria endereço, cortina ou componente incompletos falha com `QuoteValidationError` (`422`). Rascunhos continuam aceitando itens incompletos e validam apenas a faixa monetária (D86).
+- Testes: `domain/entities/quote-patch.spec.ts` (quatro casos de `SENT`) e `test/orcamentos-alternate-lifecycle.e2e-spec.ts` (endereço limpo e coleção vazia → `422`, estado e histórico inalterados).
+
+### A2 — Corrigido
+
+- `QuoteRepository.mutate(id, operation)` carrega o aggregate dentro da transação, executa o comportamento de domínio e persiste estado, filhos e único evento com `updateMany` condicionado ao status observado. Resultado zero é traduzido para `QuoteNotFoundError` (`404`) ou `InvalidQuoteTransitionError` (`409`), nunca `500`.
+- Todos os use cases de transição e `UpdateQuoteUseCase` passaram a usar `mutate`; `DeleteDraftQuoteUseCase` manteve a exclusão condicional já existente.
+- Testes: concorrência em `confirm-quote.use-case.spec.ts`, `mark-quote-as-sent.use-case.spec.ts` e `delete-draft-quote.use-case.spec.ts` (um vencedor, um conflito, um único evento) e contrato de `mutate` em `prisma-quote.repository.transaction.integration.spec.ts`.
+
+### A3 — Corrigido
+
+- `Quote.create`, `applyPatch` em `DRAFT` e `validateForSend` convertem o `RangeError` de faixa monetária em violação `TOTAL_OUT_OF_RANGE` de `QuoteValidationError`; a validação ocorre antes de qualquer `save`, de modo que nada é persistido quando o total não cabe em `Int32`.
+- Testes: `quote-patch.spec.ts` (criação, total do item e subtotal) e `test/orcamentos.e2e-spec.ts` (criação → `422`, nenhuma linha persistida).
+
+### Verificação final
+
+- `pnpm build`: exit 0.
+- `pnpm lint`: exit 0.
+- `pnpm test`: 71 arquivos, 885 testes aprovados.
+- `pnpm test:e2e`: 5 arquivos, 33 testes aprovados.
+- `pnpm exec prisma validate`: exit 0.
+- `pnpm exec prisma migrate status`: banco atualizado.
+
