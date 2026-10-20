@@ -303,6 +303,40 @@ describe('PrismaDashboardQuery integration', () => {
     });
   });
 
+  it('applies strict one-millisecond boundaries around now', async () => {
+    await withDashboardTransaction(async (query, tx) => {
+      const customer = await seedCustomer(tx);
+      const boundaryNow = new Date('2085-01-01T00:00:00.000Z');
+      const before = await seedQuote(tx, {
+        customerId: customer.id,
+        status: QuoteStatus.CONFIRMED,
+        scheduledInstallationAt: new Date(boundaryNow.getTime() - 1),
+      });
+      const exactly = await seedQuote(tx, {
+        customerId: customer.id,
+        status: QuoteStatus.CONFIRMED,
+        scheduledInstallationAt: boundaryNow,
+      });
+      const after = await seedQuote(tx, {
+        customerId: customer.id,
+        status: QuoteStatus.CONFIRMED,
+        scheduledInstallationAt: new Date(boundaryNow.getTime() + 1),
+      });
+
+      const overdue = await query.listOverdueInstallations(boundaryNow);
+      const upcoming = await query.listUpcomingInstallations(boundaryNow, 100);
+      const overdueIds = overdue.map((item) => item.quoteId);
+      const upcomingIds = upcoming.map((item) => item.quoteId);
+
+      expect(overdueIds).toContain(before.id);
+      expect(overdueIds).not.toContain(exactly.id);
+      expect(overdueIds).not.toContain(after.id);
+      expect(upcomingIds).not.toContain(before.id);
+      expect(upcomingIds).toContain(exactly.id);
+      expect(upcomingIds).toContain(after.id);
+    });
+  });
+
   it('lists the civil week with [start, end) boundaries and tie-break', async () => {
     await withDashboardTransaction(async (query, tx) => {
       const customer = await seedCustomer(tx);

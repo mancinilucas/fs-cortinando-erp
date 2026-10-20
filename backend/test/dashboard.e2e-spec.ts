@@ -381,6 +381,20 @@ describe('Dashboard (e2e)', () => {
       scheduledInstallationAt: new Date(NOW.getTime() - HOUR),
     });
 
+    const quotesBefore = await prisma.quote.findMany({
+      where: { customerId: { in: customerIds } },
+      orderBy: { id: 'asc' },
+    });
+    const customersBefore = await prisma.customer.findMany({
+      where: { id: { in: customerIds } },
+      orderBy: { id: 'asc' },
+    });
+    const historyBefore = await prisma.quoteHistory.count({
+      where: { quote: { customerId: { in: customerIds } } },
+    });
+
+    expect(historyBefore).toBe(0);
+
     const response = await request(server())
       .get('/dashboard')
       .set('Cookie', cookie)
@@ -482,5 +496,24 @@ describe('Dashboard (e2e)', () => {
 
     expect(installationIds).not.toContain(completed.id);
     expect(installationIds).not.toContain(cancelled.id);
+
+    // D252/D258: the read endpoint never mutates the read model's sources.
+    expect(
+      await prisma.quote.findMany({
+        where: { customerId: { in: customerIds } },
+        orderBy: { id: 'asc' },
+      }),
+    ).toEqual(quotesBefore);
+    expect(
+      await prisma.customer.findMany({
+        where: { id: { in: customerIds } },
+        orderBy: { id: 'asc' },
+      }),
+    ).toEqual(customersBefore);
+    expect(
+      await prisma.quoteHistory.count({
+        where: { quote: { customerId: { in: customerIds } } },
+      }),
+    ).toBe(historyBefore);
   });
 });

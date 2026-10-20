@@ -5,8 +5,9 @@ parte pendente da Fase 9
 **Decomposição:** DASHBOARD-03 a DASHBOARD-11
 **Data:** 2026-10-20
 **Auditoria:** `docs/development/09-queries-dashboard-audit.md`
-**Natureza:** decisões de contrato e implementação; nenhum código foi
-alterado nesta rodada.
+**Natureza:** decisões de contrato e implementação.
+**Estado:** CONCLUÍDA em 2026-10-20 (DASHBOARD-03 a DASHBOARD-11;
+fechamento na seção 19).
 
 Esta spec cobre **somente** a parte pendente da Fase 9:
 
@@ -636,6 +637,13 @@ fase; a duplicação remanescente continua documentada como dívida de D113.
 
 **Impacto:** o helper deve ser coberto por teste de integração que compare
 `EXPIRED` e `SENT` válido com a regra do domínio nos limites de `validUntil`.
+
+**Nota de implementação (DASHBOARD-11):** DASHBOARD-05 aplicou o helper também
+a `PrismaSearchQuotesQuery` (alternativa C), porque a task exigia uma única
+fórmula de `EXPIRED` para busca e dashboard. O comportamento da busca foi
+preservado e coberto pela suíte existente; a refatoração eliminou a duplicação
+registrada como dívida de D113. O texto original permanece como histórico da
+decisão de abertura.
 
 ### D247 — Índices existentes são suficientes `[F]`
 
@@ -1477,10 +1485,11 @@ Não usar commit para esconder alteração fora do escopo.
 
 ## 17. Condição de parada e fora de escopo
 
-A decomposição acima é a sequência definitiva. A rodada atual executa
-somente **DASHBOARD-03** e termina antes de DASHBOARD-04.
+A decomposição acima é a sequência definitiva. A rodada de abertura executou
+somente **DASHBOARD-03**; as rodadas seguintes executaram DASHBOARD-04 a
+DASHBOARD-11, e a Fase 9 foi encerrada em 2026-10-20 (seção 19).
 
-Não fazem parte de DASHBOARD-03:
+Não fizeram parte de DASHBOARD-03 (escopo das tasks seguintes):
 
 - implementar fronteiras temporais (DASHBOARD-04);
 - alterar `PrismaSearchQuotesQuery` ou criar helper de `EXPIRED`
@@ -1517,3 +1526,55 @@ Com as decisões aprovadas:
 - nenhuma lista expõe telefone ou dados financeiros;
 - a leitura é determinística via `Clock`, sem cache, materialização ou
   persistência de condições derivadas.
+
+---
+
+## 19. Fechamento da Fase 9
+
+**Estado:** CONCLUÍDA em 2026-10-20.
+
+DASHBOARD-03 a DASHBOARD-11 foram executadas na ordem especificada. O
+dashboard está disponível em `GET /dashboard`, protegido por `AuthGuard`, com
+cinco contadores e três listas operacionais, sem parâmetros de consulta.
+
+**Entregas:**
+
+- read model, port e `GetDashboardQuery` na camada Application;
+- fronteiras da semana civil de `America/Sao_Paulo` como helper puro;
+- helper SQL único de expiração, compartilhado por `PrismaDashboardQuery` e
+  `PrismaSearchQuotesQuery` (nota em D246);
+- `PrismaDashboardQuery` com projeções estreitas, sem filtro de cliente
+  excluído, ordem determinística e limite 5 em “próximas”;
+- DTO, mapper e rota no `OrcamentosController`, com wiring no módulo;
+- testes unitários, de integração com PostgreSQL e E2E com `Clock` fixo.
+
+**Gate 1 — execução final (2026-10-20, a partir de `backend/`):**
+
+| Comando | Resultado |
+|---|---|
+| `pnpm lint` | passou, sem avisos |
+| `pnpm test` | 96 arquivos, 1091 testes, todos passando |
+| `pnpm test:e2e` | 9 arquivos, 83 testes, todos passando |
+| `pnpm build` | passou; permanece apenas o aviso já conhecido do PNG ausente (D150) |
+| `npx prisma validate` | schema válido |
+| `npx prisma migrate status` | 2 migrations, banco atualizado |
+| `git diff --check` | sem problemas |
+
+**Gate 2 — revisão semântica final:** D210–D259 conferidas contra
+`PROJECT_SPEC` §12.1, `ARCHITECTURE` §7.3 e os critérios de aceite. Nenhum
+finding bloqueante permaneceu.
+
+**Findings reparados em DASHBOARD-11:**
+
+1. colisão entre o método da rota e a dependência injetada no controller,
+   corrigida renomeando a propriedade para `dashboardQuery`;
+2. ausência de asserção de somente leitura no E2E, adicionada comparando
+   `Quote`, `Customer` e a contagem de histórico antes e depois da requisição;
+3. ausência de teste explícito dos limites estritos de 1 ms em torno de `now`
+   para “atrasadas” e “próximas”, adicionado à suíte de integração;
+4. divergência entre D246 e a implementação de DASHBOARD-05, registrada em
+   nota na própria decisão.
+
+**Fora do escopo:** nenhuma alteração de schema, migration, índice ou
+dependência; nenhuma tabela, view, cache ou job; frontend não iniciado. A
+pendência visual do PNG da logo (D150) continua pertencendo à Fase 8.

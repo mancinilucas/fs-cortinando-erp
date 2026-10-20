@@ -64,7 +64,7 @@ export class OrcamentosController {
   constructor(
     private readonly createQuote: CreateQuoteFromCustomerUseCase,
     private readonly getQuote: GetQuoteQuery,
-    private readonly getDashboard: GetDashboardQuery,
+    private readonly dashboardQuery: GetDashboardQuery,
     private readonly updateQuote: UpdateQuoteUseCase,
     private readonly deleteDraftQuote: DeleteDraftQuoteUseCase,
     private readonly markAsSent: MarkQuoteAsSentUseCase,
@@ -87,7 +87,7 @@ export class OrcamentosController {
   // history entry.
   @Get('dashboard')
   async dashboard(): Promise<DashboardResponseDto> {
-    const view = await this.handle(() => this.getDashboard.execute());
+    const view = await this.handle(() => this.dashboardQuery.execute());
 
     return DashboardResponseMapper.toResponse(view);
   }

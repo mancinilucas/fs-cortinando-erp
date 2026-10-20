@@ -44,13 +44,13 @@ A numeração histórica das fases é preservada; a ordem de execução recomend
 
 - [x] Fase 10 — Dados do Negócio.
 - [x] Fase 8 — Documentos.
-- [ ] Fase 9 — Dashboard e consultas operacionais restantes.
+- [x] Fase 9 — Dashboard e consultas operacionais restantes.
 - [ ] Fase 11 — Frontend.
 - [ ] Fase 12 — Hardening e entrega.
 
-**Próxima task esperada:** abrir a parte restante da Fase 9 (Dashboard e consultas operacionais) — criar `docs/development/09-queries-dashboard.md`.
+**Próxima task esperada:** abrir a Fase 11 (Frontend) — criar `docs/development/11-frontend.md`.
 
-A Fase 8 foi concluída em 2026-10-20: `docs/development/08-documentos.md` registra DOCUMENTOS-03 a DOCUMENTOS-21, os gates finais e a única pendência remanescente, exclusivamente visual (PNG da logo, D150). A próxima frente recomendada é a parte restante da Fase 9.
+A Fase 9 foi concluída em 2026-10-20: `docs/development/09-queries-dashboard.md` registra DASHBOARD-03 a DASHBOARD-11, os gates finais e o fechamento na seção 19. A próxima frente recomendada é a Fase 11.
 
 ### 2.3 Classificação das fases
 
@@ -64,10 +64,10 @@ A Fase 8 foi concluída em 2026-10-20: `docs/development/08-documentos.md` regis
 | 6 — Ciclo de vida e histórico | Todos os itens `[x]` | **ABSORVIDA POR OUTRA FASE** (trabalho concluído) | `04-orcamentos.md` (D96–D109, D119); 12 use cases de escrita, máquina de estados e histórico transacional cobertos por testes. |
 | 7 — Instalação | Todos os itens `[x]` | **ABSORVIDA POR OUTRA FASE** (trabalho concluído) | `04-orcamentos.md` (D104–D107); agendamento, alteração, remoção, bloqueio de conclusão e instalação atrasada implementados. |
 | 8 — Documentos | Todos os itens `[x]` | **CONCLUÍDA** | `08-documentos.md` (D143–D209; DOCUMENTOS-03 a -21); projeções fechadas, use cases, renderers `pdf-lib` restritos à Infrastructure, rotas `GET /orcamentos/:id/pdf` e `GET /orcamentos/:id/ordem-producao`, histórico append-only, testes unitários, de conteúdo, integração e E2E. Gates finais: build, lint, 1066 testes unitários, 80 E2E, `prisma validate` e `migrate status`. Pendência exclusivamente visual do PNG da logo (D150). |
-| 9 — Consultas e dashboard | Cinco itens `[x]`, quatro `[ ]` | **REORGANIZADA** (parte concluída, parte pendente) | Consultas básicas implementadas em `04-orcamentos.md` (D113) e expostas nas rotas de orçamento; não existe `DashboardQuery` nem endpoints de dashboard/instalações operacionais. |
+| 9 — Consultas e dashboard | Todos os itens `[x]` | **CONCLUÍDA** | `09-queries-dashboard.md` (D210–D259; DASHBOARD-03 a DASHBOARD-11) concluída em 2026-10-20. Consultas básicas herdadas de `04-orcamentos.md` (D113) e `GET /dashboard` com cinco contadores e três listas operacionais; read model, query, repositório Prisma, DTO, mapper, rota e testes unitários, de integração e E2E. Gates finais: build, lint, 1091 testes unitários, 83 E2E, `prisma validate` e `migrate status`. |
 | 10 — Dados do negócio | Todos os itens `[x]` | **CONCLUÍDA** | `10-dados-negocio.md` (D125–D142); módulo `backend/src/modules/dados-do-negocio/` com store Prisma, query, use case, DTOs, controller `GET`/`PUT /dados-do-negocio`, testes unitários, integração e E2E (DADOS-DO-NEGOCIO-03 a -12). |
 | 11 — Frontend | Todos os itens `[ ]` | **PENDENTE** | `frontend/src` contém apenas `App.jsx`, `main.jsx`, CSS e assets do template Vite; nenhuma feature de Auth, Clientes, Orçamento, Documentos, Dashboard ou Dados do Negócio. |
-| 12 — Hardening e entrega | Todos os itens `[ ]` | **PENDENTE** | Existe baseline de Auth (CSRF, rate limiting, cookie) e 6 arquivos E2E cobrindo Auth/Clientes/Orçamentos/Dados do Negócio; revisão final, produção, `trust proxy`, HTTPS, deploy, backup e smoke tests continuam pendentes. |
+| 12 — Hardening e entrega | Todos os itens `[ ]` | **PENDENTE** | Existe baseline de Auth (CSRF, rate limiting, cookie) e 9 arquivos E2E cobrindo Auth/Clientes/Orçamentos/Documentos/Dashboard/Dados do Negócio; revisão final, produção, `trust proxy`, HTTPS, deploy, backup e smoke tests continuam pendentes. |
 
 ### 2.4 Rastreabilidade das fases absorvidas
 
@@ -77,14 +77,14 @@ A Fase 8 foi concluída em 2026-10-20: `docs/development/08-documentos.md` regis
 | Fase 5 — Rascunho, numeração e edição | Permitir a criação real do orçamento e sua edição enquanto permitido. | CONCLUÍDA | `04-orcamentos.md` (D79–D95, D110–D117, D119) | `CreateQuoteFromCustomerUseCase`, `UpdateQuoteUseCase`, `DeleteDraftQuoteUseCase`, `PrismaQuoteSequence`; 16 rotas no `OrcamentosController`; testes de integração e E2E. | Nenhuma nesta fase. Paginação e optimistic locking estão fora do MVP (D113, D120). |
 | Fase 6 — Ciclo de vida e histórico | Implementar as transições de negócio com consistência transacional. | CONCLUÍDA | `04-orcamentos.md` (D96–D109, D119) | Use cases de envio, confirmação, reabertura, renovação, cancelamento, produção e conclusão; `quote-state-machine.spec.ts`; testes de transação e rollback de histórico. | Eventos de PDF/ordem de produção não eram emitidos na Fase 6; a emissão foi implementada na Fase 8, concluída em 2026-10-20. |
 | Fase 7 — Instalação | Completar o fluxo operacional após confirmação. | CONCLUÍDA | `04-orcamentos.md` (D104–D107) | `ScheduleInstallationUseCase`, `RemoveInstallationUseCase`, `CompleteServiceUseCase`; testes de instalação e de conclusão bloqueada por instalação futura. | Listas operacionais de instalação pertencem à Fase 9. |
-| Fase 9 — Consultas e dashboard (parte de consultas) | Implementar leitura eficiente sem reconstruir aggregates desnecessariamente. | PARCIALMENTE CONCLUÍDA | `04-orcamentos.md` (D113) | `SearchQuotesQuery`, `GetQuoteQuery`, `ListCustomerQuotesQuery`, `ListQuoteHistoryQuery`; `GET /orcamentos?search=&status=`; filtro virtual `EXPIRED` e separação de enviados válidos. | Dashboard por status; próximas instalações; instalações da semana; instalações atrasadas. |
+| Fase 9 — Consultas e dashboard | Implementar leitura eficiente sem reconstruir aggregates desnecessariamente. | CONCLUÍDA | `04-orcamentos.md` (D113); `09-queries-dashboard.md` (D210–D259) | `SearchQuotesQuery`, `GetQuoteQuery`, `ListCustomerQuotesQuery`, `ListQuoteHistoryQuery`; `GET /orcamentos?search=&status=`; filtro virtual `EXPIRED` e separação de enviados válidos; `GET /dashboard` com contadores e listas operacionais. | Nenhuma. |
 
 ### 2.5 Itens realmente pendentes
 
 | Fase | Itens pendentes |
 |---|---|
 | 8 — Documentos | Nenhum item funcional pendente. Permanece apenas a pendência visual do PNG real da logo (D150); o PDF é gerado sem logo e sem imagem substituta. |
-| 9 — Dashboard e consultas operacionais | Dashboard por status (com `EXPIRED` separado de `SENT` válido); próximas instalações; instalações da semana; instalações atrasadas. |
+| 9 — Dashboard e consultas operacionais | Nenhum item funcional pendente. Fase concluída em 2026-10-20. |
 | 11 — Frontend | Login e sessão; clientes; detalhes do cliente e histórico; formulário de orçamento mobile-first; cortinas e composição financeira; ciclo de estados; instalação; prévia/geração de documentos; dashboard; dados do negócio; tratamento uniforme de loading, sucesso e erro. |
 | 12 — Hardening e entrega | E2E dos fluxos críticos; revisão de autorização/autenticação; revisão CSRF/XSS/logging; validação de dados sensíveis na ordem de produção; revisão de índices e queries; backup; configuração de produção; `trust proxy` com hops confiáveis; HTTPS; deploy; smoke tests pós-deploy. |
 
@@ -95,9 +95,9 @@ A Fase 8 foi concluída em 2026-10-20: `docs/development/08-documentos.md` regis
 | Dados do Negócio (Fase 10) | Fase 1 (Prisma), `AuthGuard`, model/tabela `BusinessData` | Sim: módulo, store, query, use case, DTOs, `GET`/`PUT /dados-do-negocio` e testes implementados. | Nenhum. Fase concluída em 2026-10-20. |
 | PDF comercial (Fase 8) | Fase 10 (identidade do negócio), aggregate e queries de Orçamento, enum de histórico | Sim: projeção, consulta de contato, use case, renderer e rota implementados e testados. Fase 8 concluída em 2026-10-20. | Nenhum bloqueio funcional. Pendência visual do PNG da logo (D150). |
 | Ordem de produção (Fase 8) | Aggregate de Orçamento, status `CONFIRMED`/`IN_PRODUCTION`/`COMPLETED`, dados técnicos da cortina, enum de histórico | Sim: projeção, use case, renderer e rota implementados e testados, sem `ProductionOrder` por decisão de arquitetura. Fase 8 concluída em 2026-10-20. | Nenhum. |
-| Dashboard (Fase 9 restante) | `QuoteStatus`, condições derivadas `EXPIRED`/instalação atrasada, `scheduledInstallationAt`, queries de leitura | Sim para os dados e para as projeções de D113; não existe `DashboardQuery`. | Spec `09-queries-dashboard.md`; definição dos contadores e listas operacionais. Sem bloqueio estrutural. |
-| Frontend (Fase 11) | Contratos HTTP de Auth, Clientes, Orçamento, Documentos, Dashboard e Dados do Negócio | Parcialmente: Auth, Clientes, Orçamento, Documentos e Dados do Negócio estão disponíveis; Dashboard não. | Conclusão da Fase 9; spec `11-frontend.md`. |
-| Hardening e entrega (Fase 12) | Escopo funcional completo (Fases 8–11), topologia de produção, decisões de backup e hosting | Parcialmente: Auth, CSRF, rate limiting, cookie, migrations e 6 arquivos E2E existem. | Conclusão das Fases 8–11; definição de hosting/topologia/backup (`ARCHITECTURE.md` §20 e §22); número de hops confiáveis para `trust proxy`. |
+| Dashboard (Fase 9) | `QuoteStatus`, condições derivadas `EXPIRED`/instalação atrasada, `scheduledInstallationAt`, queries de leitura | Sim: read model, query, repositório Prisma, DTO, mapper e `GET /dashboard` implementados e testados. Fase concluída em 2026-10-20. | Nenhum. |
+| Frontend (Fase 11) | Contratos HTTP de Auth, Clientes, Orçamento, Documentos, Dashboard e Dados do Negócio | Sim: todos os contratos backend necessários estão disponíveis, incluindo `GET /dashboard`. | Spec `11-frontend.md`. |
+| Hardening e entrega (Fase 12) | Escopo funcional completo (Fases 8–11), topologia de produção, decisões de backup e hosting | Parcialmente: Auth, CSRF, rate limiting, cookie, migrations e 9 arquivos E2E existem. | Conclusão das Fases 8–11; definição de hosting/topologia/backup (`ARCHITECTURE.md` §20 e §22); número de hops confiáveis para `trust proxy`. |
 
 ### 2.7 Ordem de execução recomendada
 
@@ -105,7 +105,7 @@ A Fase 8 foi concluída em 2026-10-20: `docs/development/08-documentos.md` regis
 |---|---|---|
 | 1 | Fase 10 — Dados do Negócio | O PDF comercial exige a identidade do negócio (`PROJECT_SPEC` §10.2). O schema/tabela já existem; é a menor dependência pendente e não depende de documentos. **Concluída em 2026-10-20.** |
 | 2 | Fase 8 — Documentos | O PDF comercial consome os dados da Fase 10; a ordem de produção depende apenas do núcleo de Orçamento. Ambos são gerados sob demanda e não persistidos (`ARCHITECTURE.md` §16). **Concluída em 2026-10-20.** |
-| 3 | Fase 9 — Dashboard e consultas restantes | Lê dados já produzidos pelo núcleo de Orçamento e não depende de documentos. A posição após a Fase 8 segue a ordem de entrega definida neste plano; não há dependência técnica. |
+| 3 | Fase 9 — Dashboard e consultas restantes | Lê dados já produzidos pelo núcleo de Orçamento e não depende de documentos. A posição após a Fase 8 segue a ordem de entrega definida neste plano; não há dependência técnica. **Concluída em 2026-10-20.** |
 | 4 | Fase 11 — Frontend | Deve ser construído sobre contratos backend estáveis, incluindo documentos, dashboard e dados do negócio. |
 | 5 | Fase 12 — Hardening e entrega | Revisão final, configuração de produção, backup, deploy e smoke tests exigem o escopo funcional e o frontend concluídos. |
 
@@ -123,7 +123,7 @@ Esta ordem não conflita com `PROJECT_SPEC` nem com `ARCHITECTURE`: as fontes n�
 **Inconsistências documentais encontradas nesta reconciliação:**
 
 - `docs/development/03-clientes.md` está atualizado com o fechamento da Fase 3 (CLIENTES-01 a CLIENTES-24 concluídas).
-- As specs `08-documentos.md`, `09-queries-dashboard.md`, `11-frontend.md` e `12-hardening-deploy.md` ainda não existem. As referências nas fases foram marcadas como “a criar na abertura da fase”. A spec `10-dados-negocio.md` foi criada e concluída em 2026-10-20.
+- As specs `08-documentos.md`, `09-queries-dashboard.md` e `10-dados-negocio.md` foram criadas e concluídas em 2026-10-20. As specs `11-frontend.md` e `12-hardening-deploy.md` ainda não existem; as referências nas fases permanecem marcadas como “a criar na abertura da fase”.
 - O plano anterior previa specs de `04-orcamento-domain.md` a `09-queries-dashboard.md`; a implementação consolidou as Fases 4–7 em `04-orcamentos.md`, e as referências correspondentes já foram ajustadas em ORCAMENTO-48.
 
 ---
@@ -303,7 +303,7 @@ Esta ordem não conflita com `PROJECT_SPEC` nem com `ARCHITECTURE`: as fontes n�
 
 ### Fase 9 — Consultas e dashboard
 
-**Estado:** REORGANIZADA — parte concluída, parte pendente.
+**Estado:** CONCLUÍDA em 2026-10-20.
 
 **Objetivo:** implementar leitura eficiente sem reconstruir aggregates desnecessariamente.
 
@@ -311,17 +311,17 @@ Esta ordem não conflita com `PROJECT_SPEC` nem com `ARCHITECTURE`: as fontes n�
 - [x] Busca por número de orçamento.
 - [x] Busca por nome do cliente.
 - [x] Filtros de situação.
-- [ ] Dashboard por status.
+- [x] Dashboard por status.
 - [x] Separar expirados de enviados válidos.
-- [ ] Próximas instalações.
-- [ ] Instalações da semana.
-- [ ] Instalações atrasadas.
+- [x] Próximas instalações.
+- [x] Instalações da semana.
+- [x] Instalações atrasadas.
 
-**Observação:** os itens marcados foram implementados no módulo Orçamento (`04-orcamentos.md`, D113: `SearchQuotesQuery`, `ListCustomerQuotesQuery`, `GetQuoteQuery` e `ListQuoteHistoryQuery`) e não devem ser reabertos como trabalho da Fase 9. Permanecem apenas o dashboard e as listas operacionais de instalação.
+**Observação:** as consultas básicas foram implementadas no módulo Orçamento (`04-orcamentos.md`, D113) e herdadas sem regressão. O dashboard e as três listas operacionais foram implementados por DASHBOARD-03 a DASHBOARD-11, com `Clock` como fonte de tempo, semana civil de `America/Sao_Paulo` e condições derivadas não persistidas.
 
-**Evidência do estado atual:** não existe `DashboardQuery` nem endpoint de dashboard/instalações; as rotas existentes cobrem busca/listagem, detalhe, histórico do orçamento e histórico por cliente.
+**Evidência:** `GET /dashboard` protegido por `AuthGuard`, com cinco contadores (`draft`, `sent`, `expired`, `confirmed`, `inProduction`) e as listas `upcomingInstallations`, `weeklyInstallations` e `overdueInstallations`; read model, port, `GetDashboardQuery`, `PrismaDashboardQuery`, DTO, mapper e wiring no módulo; testes unitários, de integração com PostgreSQL e E2E com tempo determinístico.
 
-**Spec:** `docs/development/09-queries-dashboard.md` (a criar na abertura da parte pendente).
+**Spec:** `docs/development/09-queries-dashboard.md` (D210–D259, DASHBOARD-03 a DASHBOARD-11; fechamento na seção 19).
 
 ---
 
