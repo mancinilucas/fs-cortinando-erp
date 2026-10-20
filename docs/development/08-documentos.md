@@ -1,10 +1,10 @@
 # 08 — Documentos (Fase 8)
 
-**Status:** DOCUMENTOS-02 concluída em 2026-10-20. Validação humana registrada em 2026-10-20: 30 decisões `[F]`, 37 `[A]`, 0 `[P]`, 0 `[V]`. Decomposição definitiva `DOCUMENTOS-03…21` registrada; implementação autorizada.
+**Status:** Fase 8 concluída em 2026-10-20 após DOCUMENTOS-03…21. Validação humana registrada em 2026-10-20: 30 decisões `[F]`, 37 `[A]`, 0 `[P]`, 0 `[V]`; nenhuma decisão aberta.
 **Decisões:** D143–D209.
-**Implementação:** não iniciada nesta rodada. Nenhum código, schema, migration, rota ou dependência foi alterado.
+**Implementação:** concluída em 2026-10-20; evidências e gates em “Fechamento da fase (DOCUMENTOS-21)” ao final.
 **Auditoria de origem:** `docs/development/08-documentos-audit.md` (DOCUMENTOS-01).
-**Pendência operacional:** asset PNG da logo (D150) antes da finalização visual do renderer. Não há bloqueio funcional para iniciar `DOCUMENTOS-03`.
+**Pendência operacional:** o PNG real da logo (D150) continua ausente. O renderer está implementado e gera o PDF sem logo enquanto o asset não existe; a pendência é exclusivamente visual e não bloqueia a conclusão funcional da fase.
 
 > Esta spec fecha as decisões técnicas, funcionais e de contrato da Fase 8. Todas as decisões propostas ou que exigiam validação humana foram **aprovadas em 2026-10-20**. A implementação está autorizada e segue a decomposição definitiva `DOCUMENTOS-03…21` (seção 13); a única pendência é o asset PNG da logo para a finalização visual.
 
@@ -1691,3 +1691,84 @@ DOCUMENTOS-02 termina com:
 - nenhum commit de implementação.
 
 A implementação está autorizada. Cada task `DOCUMENTOS-03…21` só é concluída após o Gate 1 e o Gate 2 aplicáveis. A Fase 8 só é encerrada em `DOCUMENTOS-21`, com todos os gates verdes e a pendência do PNG da logo (D150) registrada como exclusivamente visual, se ainda existir.
+
+---
+
+# Fechamento da fase (DOCUMENTOS-21)
+
+**Data:** 2026-10-20
+
+## Tasks concluídas
+
+- DOCUMENTOS-03 a DOCUMENTOS-20 — contratos, projeções, consultas de identidade
+  e contato, erros e disponibilidade, use cases, histórico append-only,
+  `pdf-lib`, asset da logo, renderers, rotas HTTP, testes de conteúdo e de
+  integração, E2E completo;
+- DOCUMENTOS-21 — auditoria semântica independente, reparos e fechamento.
+
+## Auditoria — resultado
+
+A revisão da implementação contra `PROJECT_SPEC.md` §10–§11,
+`ARCHITECTURE.md` §5–§17 e D143–D209 não encontrou finding bloqueante ou alto:
+
+- **Arquitetura:** não existe aggregate, repository, status ou número de
+  documento; nenhum PDF é persistido; `pdf-lib` aparece somente em
+  `infrastructure/documents/`; a Application não importa a biblioteca; não há
+  chamada HTTP interna; Orçamentos não acessa Prisma de `business_data` — a
+  identidade vem de `GetBusinessDataQuery` e o contato do cliente, da consulta
+  estreita de Clientes.
+- **Segurança e privacidade:** o PDF comercial recebe somente número,
+  identidade do negócio, nome/telefone do cliente, linhas de serviço, total e
+  validade. A ordem de produção recebe somente número e dados técnicos. Os
+  testes de conteúdo usam valores-sentinela e extração real de texto (D200,
+  D204).
+- **Lifecycle:** D174 e D175 estão integralmente aplicadas, inclusive `EXPIRED`
+  como condição de `SENT`; `CANCELLED` responde `409` nas duas rotas; `DRAFT`
+  gera prévia sem evento.
+- **Histórico:** um evento por geração real; nenhum evento em prévia ou falha;
+  a escrita append-only não altera o orçamento; falha do histórico impede a
+  entrega dos bytes.
+- **Técnico:** geração em memória, sem Chromium e sem arquivos temporários;
+  locale `pt-BR` e timezone `America/Sao_Paulo` explícitos; testes de conteúdo
+  passam por parser real; `pdf-lib` fixada em `1.17.1` e `unpdf` em `1.9.1`
+  (devDependency).
+
+## Finding e reparo
+
+- **Cobertura de D205 (médio):** faltavam provas explícitas de que a reemissão
+  reflete o nome atual do cliente e de que a alteração de um componente altera
+  o total consolidado do PDF. Reparos aplicados:
+  - `test/documentos-integration.e2e-spec.ts` — gera o PDF, atualiza o nome do
+    cliente pela API e comprova que a reemissão contém o novo nome e não o
+    anterior;
+  - `infrastructure/documents/pdf-content.spec.ts` — renderiza dois PDFs que
+    diferem apenas no preço do componente e comprova que cada arquivo contém o
+    total derivado pelo domínio.
+
+Nenhum finding remanescente.
+
+## Gates finais
+
+| Check | Resultado |
+|---|---|
+| `pnpm build` | aprovado |
+| `pnpm lint` | aprovado |
+| `pnpm test` | 92 arquivos, 1066 testes aprovados |
+| `pnpm test:e2e` | 8 arquivos, 80 testes aprovados |
+| `npx prisma validate` | schema válido |
+| `npx prisma migrate status` | banco atualizado |
+| `git diff --check` | sem erros |
+
+## Pendência operacional
+
+O PNG real da logo (D150) não foi fornecido. O suporte ao asset está
+implementado e testado com um PNG efêmero de teste; em produção o documento é
+renderizado sem logo, sem imagem substituta. A pendência é exclusivamente
+visual e não impede a conclusão funcional da Fase 8.
+
+## Contrato entregue à Fase 11
+
+`GET /orcamentos/:id/pdf` e `GET /orcamentos/:id/ordem-producao` devolvem
+`application/pdf` com `Content-Disposition: inline`, `Cache-Control: no-store`
+e o nome de arquivo de D192. Erros seguem o formato Nest existente e os status
+de D193. Não há URL persistente, lista de documentos ou metadado JSON (D208).

@@ -413,6 +413,29 @@ describe('Documents integration (e2e-style Application + PostgreSQL)', () => {
       expect(await historyRows(quote.id)).toHaveLength(knownIds.size);
     });
 
+    it('reflects the current customer registration on reissue (D205)', async () => {
+      const { quote, customerName } = await createSentQuote();
+      const first = await extractPdfText(
+        await commercialPdf.execute({ id: quote.id }),
+      );
+      const updatedName = `Cliente Atualizado ${randomUUID()}`;
+
+      await request(server())
+        .patch(`/clientes/${quote.customerId}`)
+        .set('Origin', ORIGIN)
+        .set('Cookie', cookie)
+        .send({ name: updatedName })
+        .expect(200);
+
+      const second = await extractPdfText(
+        await commercialPdf.execute({ id: quote.id }),
+      );
+
+      expect(first.text).toContain(customerName);
+      expect(second.text).not.toContain(customerName);
+      expect(second.text).toContain(updatedName);
+    });
+
     it('reissues the document after the customer is soft-deleted', async () => {
       const { quote, customerName } = await createSentQuote();
       await prisma.customer.update({

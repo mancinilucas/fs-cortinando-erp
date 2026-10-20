@@ -56,7 +56,10 @@ const INSTALLATION_ADDRESS = InstallationAddress.create({
   state: 'SP',
 });
 
-function sentinelCurtain(material = 'SENTINELA-MATERIAL'): Curtain {
+function sentinelCurtain(
+  material = 'SENTINELA-MATERIAL',
+  componentUnitPriceCents = COMPONENT_UNIT_PRICE_CENTS,
+): Curtain {
   return Curtain.create({
     room: 'Sala',
     description: 'Janela principal',
@@ -71,7 +74,7 @@ function sentinelCurtain(material = 'SENTINELA-MATERIAL'): Curtain {
         name: 'SENTINELA-COMPONENTE',
         quantity: 2.5,
         unit: 'm',
-        unitPriceCents: COMPONENT_UNIT_PRICE_CENTS,
+        unitPriceCents: componentUnitPriceCents,
       }),
     ],
   });
@@ -160,6 +163,31 @@ describe('generated PDF content — commercial quote', () => {
     ]) {
       expect(text).toContain(expected);
     }
+  });
+
+  it('reflects component changes in the consolidated total', async () => {
+    async function renderWithComponentPrice(unitPriceCents: number) {
+      const quote = sentinelQuote({
+        curtains: [sentinelCurtain('SENTINELA-MATERIAL', unitPriceCents)],
+      });
+      const bytes = await renderer().renderCommercialPdf(
+        toCommercialPdfProjection({
+          quote,
+          businessIdentity: BUSINESS_IDENTITY,
+          customer: CUSTOMER,
+        }),
+      );
+
+      return { quote, ...(await extractPdfText(bytes)) };
+    }
+
+    const first = await renderWithComponentPrice(1_000_000);
+    const second = await renderWithComponentPrice(2_000_000);
+
+    expect(first.quote.totalCents).not.toBe(second.quote.totalCents);
+    expect(first.text).toContain(formatCurrency(first.quote.totalCents));
+    expect(second.text).toContain(formatCurrency(second.quote.totalCents));
+    expect(first.text).not.toContain(formatCurrency(second.quote.totalCents));
   });
 
   it('never contains the forbidden customer fiscal data or addresses', async () => {
