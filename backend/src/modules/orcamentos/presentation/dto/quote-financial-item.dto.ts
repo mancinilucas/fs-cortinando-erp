@@ -41,14 +41,17 @@ export class QuoteFinancialItemInputDto {
 
 // Edit payload (D117). A sent item without `id` is created; with a known id
 // it is updated. Omitted scalars keep their value and null clears them, except
-// `name`, which is required whenever it is sent.
+// `name`, which is required for a new item and, when sent, for a known one.
 export class QuoteFinancialItemUpdateDto {
   @IsOptional()
   @IsUUID()
   id?: string | null;
 
   @Transform(({ value }) => trimOptionalText(value))
-  @ValidateIf((_object, value) => value !== undefined)
+  @ValidateIf(
+    (object: QuoteFinancialItemUpdateDto, value) =>
+      object.id == null || value !== undefined,
+  )
   @IsString()
   @IsNotEmpty()
   name?: string;

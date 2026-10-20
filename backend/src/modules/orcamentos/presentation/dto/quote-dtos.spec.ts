@@ -299,6 +299,24 @@ describe('UpdateQuoteDto', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('requires a name for new items but not for known ids', async () => {
+    await expect(
+      transform({ generalAddOns: [{ quantity: 1 }] }, UpdateQuoteDto),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      transform(
+        { curtains: [{ components: [{ quantity: 1 }] }] },
+        UpdateQuoteDto,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      transform(
+        { generalAddOns: [{ id: randomUUID(), quantity: 1 }] },
+        UpdateQuoteDto,
+      ),
+    ).resolves.toBeInstanceOf(UpdateQuoteDto);
+  });
+
   it('discards customerId, quoteNumber and status', async () => {
     const dto = await transform(
       { customerId, quoteNumber: 'ORÇ-2026-001', status: 'SENT' },
