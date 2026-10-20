@@ -16,3 +16,12 @@ export class UnknownQuoteItemError extends Error {
     this.name = 'UnknownQuoteItemError';
   }
 }
+
+export class InvalidQuoteTransitionError extends Error {
+  constructor(
+    message = 'Quote transition is not allowed in the current status',
+  ) {
+    super(message);
+    this.name = 'InvalidQuoteTransitionError';
+  }
+}

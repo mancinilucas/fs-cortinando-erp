@@ -38,6 +38,31 @@ function quoteWith(
   });
 }
 
+function quoteWithStatus(status: QuoteStatus): Quote {
+  const base = quoteWith();
+
+  return Quote.rehydrate({
+    id: base.id,
+    quoteNumber: base.quoteNumber,
+    customerId: base.customerId,
+    status,
+    installationAddress: null,
+    curtains: [],
+    generalAddOns: [],
+    discount: Discount.noDiscount(),
+    commercialAdjustmentCents: null,
+    notes: null,
+    createdAt,
+    updatedAt: createdAt,
+    firstSentAt: null,
+    validUntil: null,
+    confirmedAt: null,
+    productionStartedAt: null,
+    scheduledInstallationAt: null,
+    completedAt: null,
+  });
+}
+
 describe('Quote.applyPatch', () => {
   it('changes only notes when the patch contains only notes', () => {
     const curtains = [curtain({ room: 'Sala' }), curtain({ room: 'Quarto' })];
@@ -342,8 +367,7 @@ describe('Quote.applyPatch', () => {
     const draft = quoteWith();
     draft.applyPatch({ notes: 'draft' });
 
-    const sent = quoteWith();
-    sent.status = QuoteStatus.SENT;
+    const sent = quoteWithStatus(QuoteStatus.SENT);
     sent.applyPatch({ notes: 'sent' });
 
     for (const status of [
@@ -352,8 +376,7 @@ describe('Quote.applyPatch', () => {
       QuoteStatus.COMPLETED,
       QuoteStatus.CANCELLED,
     ]) {
-      const quote = quoteWith();
-      quote.status = status;
+      const quote = quoteWithStatus(status);
 
       expect(() => quote.applyPatch({ notes: 'blocked' })).toThrow(
         QuoteNotEditableError,

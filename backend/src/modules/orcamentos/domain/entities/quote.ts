@@ -7,6 +7,7 @@ import {
   type FinancialItemPatch,
 } from './financial-item.js';
 import {
+  InvalidQuoteTransitionError,
   QuoteNotEditableError,
   UnknownQuoteItemError,
 } from '../errors/quote-domain.errors.js';
@@ -78,12 +79,14 @@ export interface QuoteSnapshot {
   completedAt: Date | null;
 }
 
+export type InstallationAction = 'SCHEDULED' | 'CHANGED' | 'UNCHANGED';
+
 export class Quote {
   private constructor(
     readonly id: string,
     readonly quoteNumber: QuoteNumber,
     readonly customerId: string,
-    public status: QuoteStatus,
+    private _status: QuoteStatus,
     public installationAddress: InstallationAddress | null,
     public curtains: Curtain[],
     public generalAddOns: FinancialItem[],
@@ -99,6 +102,10 @@ export class Quote {
     public scheduledInstallationAt: Date | null,
     public completedAt: Date | null,
   ) {}
+
+  get status(): QuoteStatus {
+    return this._status;
+  }
 
   static create(input: CreateQuoteInput): Quote {
     assertValidDate(input.createdAt, 'Quote createdAt');
@@ -200,6 +207,99 @@ export class Quote {
       this.generalAddOns = reconcileFinancialItems(
         this.generalAddOns,
         patch.generalAddOns,
+      );
+    }
+  }
+
+  // State machine (D96). Transitions are only reachable through these
+  // methods; status is exposed read-only. Gates and temporal rules are added
+  // by the following domain tasks.
+
+  markAsSent(): void {
+    this.assertStatus(QuoteStatus.DRAFT);
+    this._status = QuoteStatus.SENT;
+  }
+
+  confirm(now: Date): void {
+    this.assertStatus(QuoteStatus.SENT);
+    assertValidDate(now, 'Quote confirmation instant');
+
+    this._status = QuoteStatus.CONFIRMED;
+    this.confirmedAt = now;
+  }
+
+  reopen(): void {
+    this.assertStatus(QuoteStatus.CONFIRMED);
+    this._status = QuoteStatus.SENT;
+  }
+
+  renew(validUntil: Date): void {
+    this.assertStatus(QuoteStatus.SENT);
+    assertValidDate(validUntil, 'Quote valid until');
+
+    this.validUntil = validUntil;
+  }
+
+  cancel(reason?: string | null): string | null {
+    this.assertStatus(
+      QuoteStatus.DRAFT,
+      QuoteStatus.SENT,
+      QuoteStatus.CONFIRMED,
+    );
+
+    const normalizedReason = normalizeCancellationReason(reason);
+
+    this._status = QuoteStatus.CANCELLED;
+
+    return normalizedReason;
+  }
+
+  startProduction(now: Date): void {
+    this.assertStatus(QuoteStatus.CONFIRMED);
+    assertValidDate(now, 'Quote production start instant');
+
+    this._status = QuoteStatus.IN_PRODUCTION;
+    this.productionStartedAt = now;
+  }
+
+  setScheduledInstallation(instant: Date): InstallationAction {
+    this.assertStatus(QuoteStatus.CONFIRMED, QuoteStatus.IN_PRODUCTION);
+    assertValidDate(instant, 'Quote scheduled installation instant');
+
+    if (this.scheduledInstallationAt?.getTime() === instant.getTime()) {
+      return 'UNCHANGED';
+    }
+
+    const action =
+      this.scheduledInstallationAt === null ? 'SCHEDULED' : 'CHANGED';
+
+    this.scheduledInstallationAt = instant;
+
+    return action;
+  }
+
+  removeScheduledInstallation(): Date | null {
+    this.assertStatus(QuoteStatus.CONFIRMED, QuoteStatus.IN_PRODUCTION);
+
+    const previous = this.scheduledInstallationAt;
+
+    this.scheduledInstallationAt = null;
+
+    return previous;
+  }
+
+  complete(now: Date): void {
+    this.assertStatus(QuoteStatus.IN_PRODUCTION);
+    assertValidDate(now, 'Quote completion instant');
+
+    this._status = QuoteStatus.COMPLETED;
+    this.completedAt = now;
+  }
+
+  private assertStatus(...allowed: QuoteStatus[]): void {
+    if (!allowed.includes(this._status)) {
+      throw new InvalidQuoteTransitionError(
+        `Transition is not allowed from ${this._status}`,
       );
     }
   }
@@ -361,6 +461,20 @@ function normalizeText(value: string | null | undefined): string | null {
   const normalized = value.trim();
 
   return normalized === '' ? null : normalized;
+}
+
+function normalizeCancellationReason(
+  reason: string | null | undefined,
+): string | null {
+  const normalized = normalizeText(reason);
+
+  if (normalized !== null && normalized.length > 500) {
+    throw new RangeError(
+      'Cancellation reason must have at most 500 characters',
+    );
+  }
+
+  return normalized;
 }
 
 function assertValidDate(value: Date, label: string): void {
