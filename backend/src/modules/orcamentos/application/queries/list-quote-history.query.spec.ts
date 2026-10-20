@@ -6,7 +6,8 @@ import { QuoteNotFoundError } from '../errors/quote-not-found.error.js';
 import { ListQuoteHistoryQuery } from './list-quote-history.query.js';
 
 describe('ListQuoteHistoryQuery integration', () => {
-  const year = randomInt(8_000, 8_999);
+  // Reserved year band; parallel integration specs use disjoint ranges.
+  const year = randomInt(1_300, 1_399);
   const customerId = randomUUID();
   let prisma: PrismaService;
   let query: ListQuoteHistoryQuery;

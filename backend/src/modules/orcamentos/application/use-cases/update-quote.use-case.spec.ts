@@ -19,7 +19,8 @@ interface SeededQuote {
 
 // Exercises the update use case against the real PostgreSQL database.
 describe('UpdateQuoteUseCase integration', () => {
-  const year = randomInt(3_000, 3_999);
+  // Reserved year band; parallel integration specs use disjoint ranges.
+  const year = randomInt(2_100, 2_199);
   const customerId = randomUUID();
   let prisma: PrismaService;
   let useCase: UpdateQuoteUseCase;

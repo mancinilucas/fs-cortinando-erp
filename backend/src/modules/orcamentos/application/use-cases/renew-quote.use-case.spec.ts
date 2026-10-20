@@ -12,7 +12,8 @@ import { QuoteNotFoundError } from '../errors/quote-not-found.error.js';
 import { RenewQuoteUseCase } from './renew-quote.use-case.js';
 
 describe('RenewQuoteUseCase integration', () => {
-  const year = randomInt(7_000, 7_999);
+  // Reserved year band; parallel integration specs use disjoint ranges.
+  const year = randomInt(2_800, 2_899);
   const now = new Date('2026-10-19T12:00:00.000Z');
   const newValidUntil = new Date('2026-12-01T12:00:00.000Z');
   const customerId = randomUUID();

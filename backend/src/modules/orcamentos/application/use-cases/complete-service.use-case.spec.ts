@@ -14,7 +14,8 @@ type SeedStatus =
   'DRAFT' | 'SENT' | 'CONFIRMED' | 'IN_PRODUCTION' | 'COMPLETED' | 'CANCELLED';
 
 describe('CompleteServiceUseCase integration', () => {
-  const year = randomInt(3_000, 3_999);
+  // Reserved year band; parallel integration specs use disjoint ranges.
+  const year = randomInt(2_200, 2_299);
   const now = new Date('2026-10-19T12:00:00.000Z');
   const customerId = randomUUID();
   let prisma: PrismaService;

@@ -14,8 +14,9 @@ type SeedStatus =
   'DRAFT' | 'SENT' | 'CONFIRMED' | 'IN_PRODUCTION' | 'COMPLETED' | 'CANCELLED';
 
 describe('DeleteDraftQuoteUseCase integration', () => {
-  const seedYear = randomInt(5_000, 5_999);
-  const numberYear = randomInt(6_000, 6_999);
+  // Reserved year bands; parallel integration specs use disjoint ranges.
+  const seedYear = randomInt(2_400, 2_499);
+  const numberYear = randomInt(2_500, 2_599);
   const customerId = randomUUID();
   let prisma: PrismaService;
   let repository: PrismaQuoteRepository;

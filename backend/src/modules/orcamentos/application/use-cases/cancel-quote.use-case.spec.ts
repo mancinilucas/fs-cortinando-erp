@@ -9,7 +9,8 @@ import { QuoteNotFoundError } from '../errors/quote-not-found.error.js';
 import { CancelQuoteUseCase } from './cancel-quote.use-case.js';
 
 describe('CancelQuoteUseCase integration', () => {
-  const year = randomInt(8_000, 8_999);
+  // Reserved year band; parallel integration specs use disjoint ranges.
+  const year = randomInt(2_900, 2_999);
   const customerId = randomUUID();
   let prisma: PrismaService;
   let useCase: CancelQuoteUseCase;

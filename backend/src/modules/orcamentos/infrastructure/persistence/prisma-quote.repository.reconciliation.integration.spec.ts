@@ -28,7 +28,8 @@ describe('PrismaQuoteRepository integration — persistence', () => {
   let repository: PrismaQuoteRepository;
 
   function nextQuoteNumber(): string {
-    return `ORÇ-2200-${randomInt(100_000_000, 1_000_000_000)}`;
+    // Reserved year; parallel integration specs use disjoint ranges.
+    return `ORÇ-2003-${randomInt(100_000_000, 1_000_000_000)}`;
   }
 
   function editedEvent(): QuoteHistoryEventDraft {

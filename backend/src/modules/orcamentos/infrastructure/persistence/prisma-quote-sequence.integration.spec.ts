@@ -5,9 +5,9 @@ import { PrismaService } from '../../../../shared/database/prisma.service.js';
 import { PrismaQuoteSequence } from './prisma-quote-sequence.js';
 
 // Exercises the annual counter against the real PostgreSQL database. Each run
-// works in a random year so it does not interfere with other reservations.
+// works in a reserved year band so it does not interfere with other specs.
 describe('PrismaQuoteSequence integration', () => {
-  const year = randomInt(5_000, 9_999);
+  const year = randomInt(3_100, 3_199);
   let prisma: PrismaService;
   let sequence: PrismaQuoteSequence;
 

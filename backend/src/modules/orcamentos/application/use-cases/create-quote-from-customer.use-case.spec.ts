@@ -11,9 +11,10 @@ import { CreateQuoteFromCustomerUseCase } from './create-quote-from-customer.use
 
 // Exercises the creation use case against the real PostgreSQL database.
 describe('CreateQuoteFromCustomerUseCase integration', () => {
-  const mainYear = randomInt(2_400, 2_699);
-  const otherYear = randomInt(2_700, 2_899);
-  const rollbackYear = randomInt(2_900, 2_999);
+  // Reserved year bands; parallel integration specs use disjoint ranges.
+  const mainYear = randomInt(1_700, 1_799);
+  const otherYear = randomInt(1_800, 1_899);
+  const rollbackYear = randomInt(1_900, 1_999);
   const years = [mainYear, otherYear, rollbackYear];
   const activeCustomerId = randomUUID();
   const deletedCustomerId = randomUUID();

@@ -95,7 +95,8 @@ class CircularHistoryRepository extends PrismaQuoteRepository {
 }
 
 describe('MarkQuoteAsSentUseCase integration', () => {
-  const year = randomInt(4_000, 4_999);
+  // Reserved year band; parallel integration specs use disjoint ranges.
+  const year = randomInt(2_300, 2_399);
   const now = new Date('2026-10-19T12:00:00.000Z');
   const defaultValidUntil = new Date('2026-11-18T12:00:00.000Z');
   const activeCustomerId = randomUUID();

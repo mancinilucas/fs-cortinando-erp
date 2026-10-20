@@ -7,9 +7,9 @@ import { QuoteCustomerNotFoundError } from '../errors/quote-customer-not-found.e
 import { ListCustomerQuotesQuery } from './list-customer-quotes.query.js';
 
 describe('ListCustomerQuotesQuery integration', () => {
-  // Years 10..99 are reserved for this spec; the quote-number VO pads them to
-  // four digits, keeping every fixture unique across the suite.
-  const year = randomInt(10, 99);
+  // Reserved year band; parallel integration specs use disjoint ranges so
+  // fixtures never share a quote number.
+  const year = randomInt(1_100, 1_199);
   const now = new Date('2026-10-19T12:00:00.000Z');
   const activeCustomer = randomUUID();
   const otherCustomer = randomUUID();

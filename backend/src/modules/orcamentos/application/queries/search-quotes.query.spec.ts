@@ -12,9 +12,9 @@ type PersistedStatus =
   'DRAFT' | 'SENT' | 'CONFIRMED' | 'IN_PRODUCTION' | 'COMPLETED' | 'CANCELLED';
 
 describe('SearchQuotesQuery integration', () => {
-  // Years 100..999 are reserved for this spec; the quote-number VO pads them
-  // to four digits, keeping every fixture unique across the suite.
-  const year = randomInt(100, 999);
+  // Reserved year band; parallel integration specs use disjoint ranges so
+  // fixtures never share a quote number.
+  const year = randomInt(1_000, 1_099);
   const token = randomUUID();
   const now = new Date('2026-10-19T12:00:00.000Z');
   const customerA = randomUUID();

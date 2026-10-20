@@ -17,7 +17,8 @@ import { PrismaQuoteSequence } from './prisma-quote-sequence.js';
 // PostgreSQL database (D108/D119).
 describe('PrismaQuoteRepository integration — transactions', () => {
   const customerId = randomUUID();
-  const years = [2301, 2302, 2303];
+  // Reserved years; parallel integration specs use disjoint ranges.
+  const years = [1601, 1602, 1603];
   const createdAt = new Date('2026-10-19T12:00:00.000Z');
   let prisma: PrismaService;
   let repository: PrismaQuoteRepository;
@@ -109,7 +110,7 @@ describe('PrismaQuoteRepository integration — transactions', () => {
   });
 
   it('creates the aggregate, its children and exactly one event atomically', async () => {
-    const quote = await repository.create(2301, buildQuote);
+    const quote = await repository.create(1601, buildQuote);
 
     const stored = await prisma.quote.findUnique({
       where: { id: quote.id },
@@ -120,10 +121,10 @@ describe('PrismaQuoteRepository integration — transactions', () => {
       },
     });
     const sequence = await prisma.quoteSequence.findUnique({
-      where: { year: 2301 },
+      where: { year: 1601 },
     });
 
-    expect(stored?.quoteNumber).toBe('ORÇ-2301-001');
+    expect(stored?.quoteNumber).toBe('ORÇ-1601-001');
     expect(stored?.status).toBe('DRAFT');
     expect(stored?.curtains).toHaveLength(1);
     expect(stored?.curtains[0].components).toHaveLength(1);
@@ -131,31 +132,31 @@ describe('PrismaQuoteRepository integration — transactions', () => {
     expect(stored?.history).toHaveLength(1);
     expect(stored?.history[0].eventType).toBe('QUOTE_CREATED');
     expect(stored?.history[0].details).toEqual({
-      quoteNumber: 'ORÇ-2301-001',
+      quoteNumber: 'ORÇ-1601-001',
     });
     expect(sequence?.lastNumber).toBe(1);
   });
 
   it('rolls the reserved number back when the builder throws', async () => {
     await expect(
-      repository.create(2302, () => {
+      repository.create(1602, () => {
         throw new Error('build failed');
       }),
     ).rejects.toThrow('build failed');
 
     expect(
-      await prisma.quoteSequence.findUnique({ where: { year: 2302 } }),
+      await prisma.quoteSequence.findUnique({ where: { year: 1602 } }),
     ).toBeNull();
     expect(
       await prisma.quote.count({
-        where: { quoteNumber: { startsWith: 'ORÇ-2302-' } },
+        where: { quoteNumber: { startsWith: 'ORÇ-1602-' } },
       }),
     ).toBe(0);
   });
 
   it('rolls the reserved number back when the aggregate insert fails', async () => {
     await expect(
-      repository.create(2303, (quoteNumber) => {
+      repository.create(1603, (quoteNumber) => {
         const creation = buildQuote(quoteNumber);
         // Duplicated id violates the child primary key during the insert.
         creation.quote.curtains.push(creation.quote.curtains[0]);
@@ -165,22 +166,22 @@ describe('PrismaQuoteRepository integration — transactions', () => {
     ).rejects.toBeDefined();
 
     expect(
-      await prisma.quoteSequence.findUnique({ where: { year: 2303 } }),
+      await prisma.quoteSequence.findUnique({ where: { year: 1603 } }),
     ).toBeNull();
     expect(
       await prisma.quote.count({
-        where: { quoteNumber: { startsWith: 'ORÇ-2303-' } },
+        where: { quoteNumber: { startsWith: 'ORÇ-1603-' } },
       }),
     ).toBe(0);
     expect(
       await prisma.quoteHistory.count({
-        where: { quote: { quoteNumber: { startsWith: 'ORÇ-2303-' } } },
+        where: { quote: { quoteNumber: { startsWith: 'ORÇ-1603-' } } },
       }),
     ).toBe(0);
   });
 
   it('appends exactly one event when saving a mutation', async () => {
-    const quote = await repository.create(2301, buildQuote);
+    const quote = await repository.create(1601, buildQuote);
 
     quote.applyPatch({ notes: 'Editado' });
     await repository.save(quote, editedEvent());
@@ -197,7 +198,7 @@ describe('PrismaQuoteRepository integration — transactions', () => {
   });
 
   it('mutates the aggregate loaded inside the transaction', async () => {
-    const quote = await repository.create(2301, buildQuote);
+    const quote = await repository.create(1601, buildQuote);
 
     const mutated = await repository.mutate(quote.id, (quote) => {
       quote.applyPatch({ notes: 'Mutado' });
@@ -223,7 +224,7 @@ describe('PrismaQuoteRepository integration — transactions', () => {
   });
 
   it('does not persist when the operation reports no change', async () => {
-    const quote = await repository.create(2301, buildQuote);
+    const quote = await repository.create(1601, buildQuote);
 
     const mutated = await repository.mutate(quote.id, (quote) => {
       quote.applyPatch({ notes: 'Não deve persistir' });
@@ -242,7 +243,7 @@ describe('PrismaQuoteRepository integration — transactions', () => {
   });
 
   it('rolls back state and history when the operation throws', async () => {
-    const quote = await repository.create(2301, buildQuote);
+    const quote = await repository.create(1601, buildQuote);
 
     await expect(
       repository.mutate(quote.id, (quote) => {
@@ -261,7 +262,7 @@ describe('PrismaQuoteRepository integration — transactions', () => {
   });
 
   it('does not change state or history when the history insert fails', async () => {
-    const quote = await repository.create(2301, buildQuote);
+    const quote = await repository.create(1601, buildQuote);
 
     quote.applyPatch({ notes: 'Não deve persistir' });
 
@@ -285,8 +286,8 @@ describe('PrismaQuoteRepository integration — transactions', () => {
   });
 
   it('does not write history when the aggregate update fails', async () => {
-    const quote = await repository.create(2301, buildQuote);
-    const other = await repository.create(2301, buildQuote);
+    const quote = await repository.create(1601, buildQuote);
+    const other = await repository.create(1601, buildQuote);
 
     quote.applyPatch({ notes: 'Não deve persistir' });
     quote.curtains[0].components.push(

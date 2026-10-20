@@ -8,7 +8,8 @@ import { QuoteNotFoundError } from '../errors/quote-not-found.error.js';
 import { GetQuoteQuery } from './get-quote.query.js';
 
 describe('GetQuoteQuery integration', () => {
-  const year = randomInt(7_000, 7_999);
+  // Reserved year band; parallel integration specs use disjoint ranges.
+  const year = randomInt(1_200, 1_299);
   const now = new Date('2026-10-19T12:00:00.000Z');
   const customerId = randomUUID();
   let prisma: PrismaService;

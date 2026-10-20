@@ -9,7 +9,8 @@ import { QuoteNotFoundError } from '../errors/quote-not-found.error.js';
 import { ReopenQuoteUseCase } from './reopen-quote.use-case.js';
 
 describe('ReopenQuoteUseCase integration', () => {
-  const year = randomInt(6_000, 6_999);
+  // Reserved year band; parallel integration specs use disjoint ranges.
+  const year = randomInt(2_700, 2_799);
   const now = new Date('2026-10-19T12:00:00.000Z');
   const customerId = randomUUID();
   let prisma: PrismaService;

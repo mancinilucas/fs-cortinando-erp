@@ -19,7 +19,8 @@ describe('PrismaQuoteRepository integration — loading', () => {
   function nextQuoteNumber(): string {
     quoteCounter += 1;
 
-    return `ORÇ-2100-${String(quoteCounter).padStart(3, '0')}`;
+    // Reserved year; parallel integration specs use disjoint ranges.
+    return `ORÇ-2001-${String(quoteCounter).padStart(3, '0')}`;
   }
 
   function quoteData(
@@ -235,7 +236,7 @@ describe('PrismaQuoteRepository integration — loading', () => {
           create: [
             {
               eventType: 'QUOTE_CREATED',
-              details: { quoteNumber: 'ORÇ-2100-001' },
+              details: { quoteNumber: 'ORÇ-2001-001' },
             },
           ],
         },

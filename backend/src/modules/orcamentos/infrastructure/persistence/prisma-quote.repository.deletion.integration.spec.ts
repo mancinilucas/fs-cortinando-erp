@@ -35,7 +35,8 @@ describe('PrismaQuoteRepository integration — deletion guard', () => {
     await prisma.quote.create({
       data: {
         id: seeded.quoteId,
-        quoteNumber: `ORÇ-2399-${randomInt(100_000, 1_000_000_000)}`,
+        // Reserved year; parallel integration specs use disjoint ranges.
+        quoteNumber: `ORÇ-2002-${randomInt(100_000, 1_000_000_000)}`,
         customerId,
         status: 'SENT',
         curtains: {
