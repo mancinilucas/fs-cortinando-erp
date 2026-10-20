@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../../../shared/database/prisma.service.js';
 import { Discount } from '../../domain/value-objects/discount.js';
 import { PrismaQuoteRepository } from './prisma-quote.repository.js';
+import { PrismaQuoteSequence } from './prisma-quote-sequence.js';
 
 // Exercises aggregate loading against the real PostgreSQL database.
 describe('PrismaQuoteRepository integration — loading', () => {
@@ -36,7 +37,10 @@ describe('PrismaQuoteRepository integration — loading', () => {
   beforeAll(async () => {
     prisma = new PrismaService();
     await prisma.$connect();
-    repository = new PrismaQuoteRepository(prisma);
+    repository = new PrismaQuoteRepository(
+      prisma,
+      new PrismaQuoteSequence(prisma),
+    );
 
     await prisma.customer.create({
       data: {

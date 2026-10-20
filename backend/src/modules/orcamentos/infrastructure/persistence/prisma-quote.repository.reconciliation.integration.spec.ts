@@ -9,6 +9,7 @@ import {
   type QuoteHistoryEventDraft,
 } from '../../domain/history/quote-history.js';
 import { PrismaQuoteRepository } from './prisma-quote.repository.js';
+import { PrismaQuoteSequence } from './prisma-quote-sequence.js';
 
 interface SeededIds {
   quoteId: string;
@@ -126,7 +127,10 @@ describe('PrismaQuoteRepository integration — persistence', () => {
   beforeAll(async () => {
     prisma = new PrismaService();
     await prisma.$connect();
-    repository = new PrismaQuoteRepository(prisma);
+    repository = new PrismaQuoteRepository(
+      prisma,
+      new PrismaQuoteSequence(prisma),
+    );
 
     await prisma.customer.create({
       data: {

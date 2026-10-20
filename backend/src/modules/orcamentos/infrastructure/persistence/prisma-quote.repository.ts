@@ -4,7 +4,12 @@ import { PrismaService } from '../../../../shared/database/prisma.service.js';
 import type { Curtain } from '../../domain/entities/curtain.js';
 import type { Quote } from '../../domain/entities/quote.js';
 import type { QuoteHistoryEventDraft } from '../../domain/history/quote-history.js';
-import { QuoteRepository } from '../../domain/repositories/quote.repository.js';
+import {
+  QuoteRepository,
+  type QuoteCreation,
+} from '../../domain/repositories/quote.repository.js';
+import { QuoteNumber } from '../../domain/value-objects/quote-number.js';
+import { PrismaQuoteSequence } from './prisma-quote-sequence.js';
 import { QuoteMapper } from './quote.mapper.js';
 
 // Moving the surviving curtains out of the 1..N range before writing their
@@ -12,10 +17,14 @@ import { QuoteMapper } from './quote.mapper.js';
 const SEQUENCE_OFFSET = 1_000_000;
 
 // Prisma adapter for the Quote aggregate (D112). findById loads the complete
-// aggregate; history is never loaded with it (D108).
+// aggregate; history is never loaded with it (D108). Every write runs in one
+// interactive transaction so state and history never diverge (D119).
 @Injectable()
 export class PrismaQuoteRepository extends QuoteRepository {
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly sequence: PrismaQuoteSequence,
+  ) {
     super();
   }
 
@@ -34,12 +43,43 @@ export class PrismaQuoteRepository extends QuoteRepository {
     return record === null ? null : QuoteMapper.toDomain(record);
   }
 
-  // Implemented by ORCAMENTO-22/23.
-  async create(): Promise<Quote> {
-    throw new Error('Quote creation is not implemented yet');
+  async create(
+    year: number,
+    build: (quoteNumber: QuoteNumber) => QuoteCreation,
+  ): Promise<Quote> {
+    return this.prisma.$transaction(async (tx) => {
+      const reserved = await this.sequence.reserveInTransaction(tx, year);
+      const { quote, event } = build(QuoteNumber.create(year, reserved));
+
+      await tx.quote.create({
+        data: {
+          id: quote.id,
+          ...QuoteMapper.toPersistence(quote),
+          curtains: {
+            create: quote.curtains.map((curtain) => ({
+              ...QuoteMapper.curtainToPersistence(curtain),
+              components: {
+                create: curtain.components.map((component) =>
+                  QuoteMapper.financialItemToPersistence(component),
+                ),
+              },
+            })),
+          },
+          generalAddOns: {
+            create: quote.generalAddOns.map((addOn) =>
+              QuoteMapper.financialItemToPersistence(addOn),
+            ),
+          },
+        },
+      });
+
+      await this.insertHistory(tx, quote.id, event);
+
+      return quote;
+    });
   }
 
-  async save(quote: Quote, _event: QuoteHistoryEventDraft): Promise<void> {
+  async save(quote: Quote, event: QuoteHistoryEventDraft): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       await tx.quote.update({
         where: { id: quote.id },
@@ -51,6 +91,24 @@ export class PrismaQuoteRepository extends QuoteRepository {
 
       await this.reconcileCurtains(tx, quote);
       await this.reconcileGeneralAddOns(tx, quote);
+      await this.insertHistory(tx, quote.id, event);
+    });
+  }
+
+  private async insertHistory(
+    tx: Prisma.TransactionClient,
+    quoteId: string,
+    event: QuoteHistoryEventDraft,
+  ): Promise<void> {
+    await tx.quoteHistory.create({
+      data: {
+        quoteId,
+        eventType: event.type,
+        details:
+          event.details === undefined
+            ? Prisma.DbNull
+            : (event.details as Prisma.InputJsonValue),
+      },
     });
   }
 
