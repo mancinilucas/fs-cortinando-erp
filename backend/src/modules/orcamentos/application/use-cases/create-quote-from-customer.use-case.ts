@@ -12,13 +12,13 @@ import {
 import { Quote } from '../../domain/entities/quote.js';
 import { QuoteHistoryDetails } from '../../domain/history/quote-history.js';
 import { QuoteRepository } from '../../domain/repositories/quote.repository.js';
-import { Discount, DiscountType } from '../../domain/value-objects/discount.js';
 import {
   InstallationAddress,
   type InstallationAddressInput,
 } from '../../domain/value-objects/installation-address.js';
 import { commercialYearFrom } from '../../domain/value-objects/quote-number.js';
 import { QuoteCustomerNotFoundError } from '../errors/quote-customer-not-found.error.js';
+import { toDiscount, type QuoteDiscountInput } from './quote-discount-input.js';
 
 // Creation input: the editable data of a first save (D79/D116). Ids and
 // sequence are not accepted; the aggregate generates them.
@@ -28,23 +28,6 @@ export type CreatableCurtainInput = Omit<
 > & {
   components?: FinancialItemInput[];
 };
-
-export type QuoteDiscountInput =
-  | {
-      type: DiscountType.NO_DISCOUNT;
-      percentage?: null;
-      fixedAmountCents?: null;
-    }
-  | {
-      type: DiscountType.PERCENTAGE;
-      percentage: number;
-      fixedAmountCents?: null;
-    }
-  | {
-      type: DiscountType.FIXED_AMOUNT;
-      percentage?: null;
-      fixedAmountCents: number;
-    };
 
 export interface CreateQuoteFromCustomerInput {
   customerId: string;
@@ -115,19 +98,4 @@ function toCurtain(input: CreatableCurtainInput): Curtain {
       FinancialItem.create(item),
     ),
   });
-}
-
-function toDiscount(input: QuoteDiscountInput | null | undefined): Discount {
-  if (input === null || input === undefined) {
-    return Discount.noDiscount();
-  }
-
-  switch (input.type) {
-    case DiscountType.NO_DISCOUNT:
-      return Discount.noDiscount();
-    case DiscountType.PERCENTAGE:
-      return Discount.percentage(input.percentage);
-    case DiscountType.FIXED_AMOUNT:
-      return Discount.fixedAmount(input.fixedAmountCents);
-  }
 }
