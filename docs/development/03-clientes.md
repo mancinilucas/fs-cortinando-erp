@@ -1,6 +1,6 @@
 # DEVELOPMENT SPEC 03 — Clientes
 
-**Status:** CLIENTES-01 concluída; CLIENTES-02 concluída — decisões validadas em 2026-10-19; CLIENTES-03 concluída (remoção da unicidade de `taxId`). Fase 3 decomposta em tasks atômicas; demais tasks não iniciadas.
+**Status:** Fase 3 concluída em 2026-10-19 — CLIENTES-01 a CLIENTES-24 concluídas; decisões D46–D75 validadas em 2026-10-19; implementação, testes, revisão semântica e fechamento concluídos.
 **Objetivo:** fixar o contrato de domínio, aplicação e HTTP do módulo Clientes antes de decompor a implementação em tasks atômicas.
 **Fontes de verdade:**
 1. `docs/PROJECT_SPEC.md` §2.1, §2.8, §3, §11, §12.4, §14 — comportamento do produto.
@@ -22,7 +22,7 @@
 - **Bloqueante** significa que a task de implementação correspondente não pode ser decomposta/executada com segurança antes da decisão.
 - **Aprovada** significa que o responsável pelo produto validou explicitamente a decisão em 2026-10-19.
 - **Vigente** significa decisão proposta que não foi contestada nem classificada como pendente; integra o contrato da fase.
-- Nenhuma decisão abaixo foi implementada. Nenhum arquivo de código, schema, migration, endpoint, repository ou teste foi alterado.
+- As decisões D46–D75 integram o contrato da fase, implementado em CLIENTES-04 a CLIENTES-24; a fase foi concluída em 2026-10-19.
 
 **Validação de 2026-10-19:** foram aprovadas explicitamente **D49, D51, D52 (alternativa A), D54 (alternativa A), D58, D59, D62, D63, D67, D68, D73 e D75**. As demais permanecem como contrato vigente, sem pendência aberta.
 
