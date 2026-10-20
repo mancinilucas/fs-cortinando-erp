@@ -214,6 +214,30 @@ describe('Quote state machine', () => {
     expect(quote.completedAt).toBe(now);
   });
 
+  it('blocks completion while the installation is in the future', () => {
+    const quote = quoteInStatus(QuoteStatus.IN_PRODUCTION, {
+      scheduledInstallationAt: future,
+    });
+
+    expect(() => quote.complete(now)).toThrow(InvalidQuoteTransitionError);
+    expect(quote.status).toBe(QuoteStatus.IN_PRODUCTION);
+    expect(quote.completedAt).toBeNull();
+  });
+
+  it.each([new Date('2026-10-10T12:00:00.000Z'), now])(
+    'completes with an installation at %s',
+    (scheduledInstallationAt) => {
+      const quote = quoteInStatus(QuoteStatus.IN_PRODUCTION, {
+        scheduledInstallationAt,
+      });
+
+      quote.complete(now);
+
+      expect(quote.status).toBe(QuoteStatus.COMPLETED);
+      expect(quote.completedAt).toBe(now);
+    },
+  );
+
   it('updates only validUntil on renewal', () => {
     const previousValidUntil = new Date('2026-10-25T12:00:00.000Z');
     const quote = quoteInStatus(QuoteStatus.SENT, {

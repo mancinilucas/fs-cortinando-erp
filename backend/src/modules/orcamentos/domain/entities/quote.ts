@@ -514,6 +514,16 @@ export class Quote {
     this.assertStatus(QuoteStatus.IN_PRODUCTION);
     assertValidDate(now, 'Quote completion instant');
 
+    // D105: a scheduled installation in the future blocks completion.
+    if (
+      this.scheduledInstallationAt !== null &&
+      this.scheduledInstallationAt.getTime() > now.getTime()
+    ) {
+      throw new InvalidQuoteTransitionError(
+        'Quote cannot be completed before the scheduled installation',
+      );
+    }
+
     this._status = QuoteStatus.COMPLETED;
     this.completedAt = now;
   }
