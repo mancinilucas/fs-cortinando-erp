@@ -1,12 +1,12 @@
 # 08 — Documentos (Fase 8)
 
-**Status:** DOCUMENTOS-02 concluída em 2026-10-20. Validação humana registrada em 2026-10-20: 30 decisões `[F]`, 37 `[A]`, 0 `[P]`, 0 `[V]`.
+**Status:** DOCUMENTOS-02 concluída em 2026-10-20. Validação humana registrada em 2026-10-20: 30 decisões `[F]`, 37 `[A]`, 0 `[P]`, 0 `[V]`. Decomposição definitiva `DOCUMENTOS-03…21` registrada; implementação autorizada.
 **Decisões:** D143–D209.
-**Implementação:** não iniciada. Nenhum código, schema, migration, rota ou dependência foi alterado.
+**Implementação:** não iniciada nesta rodada. Nenhum código, schema, migration, rota ou dependência foi alterado.
 **Auditoria de origem:** `docs/development/08-documentos-audit.md` (DOCUMENTOS-01).
-**Pendência operacional:** asset PNG da logo (D150) antes da finalização visual do renderer. Não há bloqueio funcional para decompor `DOCUMENTOS-03+`.
+**Pendência operacional:** asset PNG da logo (D150) antes da finalização visual do renderer. Não há bloqueio funcional para iniciar `DOCUMENTOS-03`.
 
-> Esta spec fecha as decisões técnicas, funcionais e de contrato da Fase 8. Todas as decisões propostas ou que exigiam validação humana foram **aprovadas em 2026-10-20**. A implementação pode ser decomposta em `DOCUMENTOS-03+`; a única pendência é o asset PNG da logo para a finalização visual.
+> Esta spec fecha as decisões técnicas, funcionais e de contrato da Fase 8. Todas as decisões propostas ou que exigiam validação humana foram **aprovadas em 2026-10-20**. A implementação está autorizada e segue a decomposição definitiva `DOCUMENTOS-03…21` (seção 13); a única pendência é o asset PNG da logo para a finalização visual.
 
 ---
 
@@ -624,19 +624,20 @@ A prévia em `DRAFT` não grava histórico, não altera status, não atualiza `u
 
 **Decisão aprovada em 2026-10-20:**
 
-1. carregar e validar os dados;
-2. montar a projeção;
-3. renderizar o PDF em memória;
-4. registrar o evento de histórico;
-5. devolver os bytes.
+1. carregar os dados;
+2. validar a disponibilidade;
+3. montar a projeção;
+4. renderizar os bytes em memória;
+5. registrar o evento de histórico;
+6. devolver os bytes.
 
 **Regras:**
 
-- falha na renderização: nenhum evento é registrado;
+- falha na montagem da projeção ou na renderização: nenhum evento é registrado;
 - falha na gravação do histórico: os bytes **não** são devolvidos, a requisição falha e não existe tentativa de compensação de arquivo, pois nenhum arquivo é persistido;
 - nenhuma transação de banco permanece aberta durante a renderização (D185);
-- `occurredAt` vem de `Clock.now()` no momento da gravação, não do início da requisição;
-- desconexão do cliente após a gravação: o evento permanece (a geração ocorreu no servidor).
+- `occurredAt` corresponde ao momento da escrita do histórico, não ao início da requisição;
+- após o evento persistido, eventual desconexão HTTP não remove o evento (a geração ocorreu no servidor).
 
 **Motivo:** mantém a invariante “evento de geração existe se e somente se o documento foi gerado com sucesso”.
 
@@ -1316,20 +1317,364 @@ Todas as 37 decisões abaixo foram aprovadas em 2026-10-20. As decisões D150, D
 
 ---
 
-## 13. Sequência proposta de implementação
+## 13. Decomposição definitiva das tasks
 
-> A decomposição em `DOCUMENTOS-03+` está liberada: não há decisão aberta que bloqueie a implementação. Esta sequência não cria tasks nesta rodada e não altera `docs/IMPLEMENTATION_PLAN.md`; a numeração e a sequência oficiais devem ser refletidas no plano em rodada própria. A única pendência é operacional: o PNG da logo (D150) precisa ser fornecido antes da finalização visual do renderer. Nenhuma task abaixo foi executada.
+> A implementação está autorizada. Não há decisão `[P]` ou `[V]`; não há bloqueio funcional para iniciar `DOCUMENTOS-03`. A única pendência é operacional: o PNG da logo (D150) precisa ser fornecido antes da finalização visual do renderer, sem impedir o restante da fase.
 
-| Task proposta | Escopo | Depende de |
+A sequência preliminar `DOCUMENTOS-03…08` foi substituída pela decomposição definitiva abaixo. Nenhuma task foi executada nesta rodada.
+
+### 13.1 Regras de execução
+
+Cada task implementável segue:
+
+```text
+READ
+→ IMPLEMENT
+→ VERIFY
+→ REVIEW
+→ REPAIR
+→ RE-VERIFY
+→ DONE
+```
+
+Uma task não está concluída apenas porque compila.
+
+**Gate 1 — mecânico.** No mínimo:
+
+```bash
+pnpm lint
+pnpm test
+pnpm build
+```
+
+Adicionar conforme o escopo:
+
+```bash
+pnpm test:e2e
+npx prisma validate
+npx prisma migrate status
+git diff --check
+git status --short
+```
+
+**Gate 2 — semântico.** Revisar contra `PROJECT_SPEC.md`, `ARCHITECTURE.md`, esta spec, `AGENTS.MD` e os critérios de aceite da task. Perguntas mínimas:
+
+1. Foi inventada alguma regra?
+2. Houve vazamento de campo proibido?
+3. Houve duplicação de cálculo?
+4. A Infrastructure vazou para a Application?
+5. O PDF passou a ser persistido?
+6. Algum módulo passou a acessar Prisma de outro módulo?
+7. Algum evento foi criado em momento incorreto?
+8. Algum arquivo fora do escopo foi alterado?
+
+**Commits.** Cada task concluída gera no máximo um commit atômico. Antes de commitar, conferir `git diff --check` e `git status --short`; não incluir alteração não relacionada. Mudança preexistente fora da task não deve ser sobrescrita nem removida: deve ser reportada.
+
+### 13.2 Sequência
+
+| Task | Escopo | Depende de |
 |---|---|---|
-| DOCUMENTOS-03 | projeções fechadas + testes unitários/negativos de projeção | D143–D147, D158–D173 |
-| DOCUMENTOS-04 | porta do renderer + adapter `pdf-lib` + formatadores + logo (D150) | D148–D152, D197 |
-| DOCUMENTOS-05 | use cases + escrita append-only + union de eventos + erros | D153–D157, D179–D188, D196 |
-| DOCUMENTOS-06 | rotas, headers, filename, status codes, `StreamableFile` | D189–D195 |
-| DOCUMENTOS-07 | integração, E2E, inspeção de conteúdo, isolamento E2E | D199–D206 |
-| DOCUMENTOS-08 | revisão final, gate mecânico e semântico, fechamento da fase | todas |
+| DOCUMENTOS-03 | Contratos de projeção e renderer | D143–D147, D158–D171, D197 |
+| DOCUMENTOS-04 | Integração com Dados do Negócio | D153–D154 |
+| DOCUMENTOS-05 | Consulta estreita de contato do Cliente | D155 |
+| DOCUMENTOS-06 | Projeção do PDF comercial | 03, 04, 05; D159–D168 |
+| DOCUMENTOS-07 | Projeção da ordem de produção | 03; D169–D173 |
+| DOCUMENTOS-08 | Formatadores de documento | D151, D172 |
+| DOCUMENTOS-09 | Histórico append-only de documentos | D182–D184 |
+| DOCUMENTOS-10 | Erros e disponibilidade dos documentos | 03; D174–D176, D193, D196 |
+| DOCUMENTOS-11 | Use case do PDF comercial | 06, 09, 10 |
+| DOCUMENTOS-12 | Use case da ordem de produção | 07, 09, 10 |
+| DOCUMENTOS-13 | Instalar e isolar `pdf-lib` | 03; D148, D197 |
+| DOCUMENTOS-14 | Infraestrutura de asset da logo | D150 |
+| DOCUMENTOS-15 | Renderer do PDF comercial | 06, 08, 13, 14 |
+| DOCUMENTOS-16 | Renderer da ordem de produção | 07, 08, 13 |
+| DOCUMENTOS-17 | Contrato HTTP e rotas | 11, 12; D189–D195 |
+| DOCUMENTOS-18 | Inspeção real de PDFs e testes de conteúdo | 15, 16; D200–D204 |
+| DOCUMENTOS-19 | Testes de integração | 11, 12, 17; D202 |
+| DOCUMENTOS-20 | E2E completo dos documentos | 17, 18, 19; D203, D206 |
+| DOCUMENTOS-21 | Auditoria semântica, reparos e fechamento | todas |
 
-Cada task deve rodar `pnpm build`, `pnpm lint`, `pnpm test` e os testes E2E aplicáveis, além de revisar as decisões `[F]` e `[A]` desta spec.
+### 13.3 DOCUMENTOS-03 — Contratos de projeção e renderer
+
+**Goal:** criar somente os contratos internos necessários à Fase 8, sem geração real de PDF e sem integração externa.
+
+**Scope:** criar em `orcamentos/application/documents/` ou estrutura equivalente aprovada:
+
+- `CommercialPdfProjection`: tipo fechado com somente os campos permitidos, suportando conceitualmente `quoteNumber`, `businessIdentity`, `customer`, `serviceLines`, `totalCents?` e `validUntil?`, conforme D159–D168. Não incluir `Quote`, `QuoteDetailView`, `customerId`, endereço, componentes, adicionais, desconto, ajuste, notas, medidas ou material.
+- `ProductionOrderProjection`: tipo fechado com somente `quoteNumber` e `curtains[]`; cada cortina somente com os campos autorizados em D169–D171.
+- `QuoteDocumentRenderer`: porta da Application com `renderCommercialPdf(...)` e `renderProductionOrder(...)`, retornando `Promise<Uint8Array>`. Não importar `pdf-lib`.
+
+**Tests:** testes de tipo/estrutura quando úteis; o principal gate é a revisão semântica.
+
+**Acceptance criteria:** nenhum tipo Prisma; nenhum NestJS; nenhuma biblioteca PDF; nenhum aggregate passado ao renderer; projeções sem campos proibidos; nenhuma abstração genérica de documento.
+
+**Verification:**
+
+```bash
+pnpm lint
+pnpm test
+pnpm build
+```
+
+**Revisão semântica:** comparar campo por campo contra D158–D171.
+
+**Commit:** `feat(DOCUMENTOS-03): define document projection contracts`
+
+### 13.4 DOCUMENTOS-04 — Integração com Dados do Negócio
+
+**Goal:** permitir que Orçamentos consuma `GetBusinessDataQuery` pela Application.
+
+**Scope:** exportar `GetBusinessDataQuery` em `DadosDoNegocioModule`; importar `DadosDoNegocioModule` em `OrcamentosModule`; nenhum Prisma direto; nenhuma chamada HTTP interna; nenhuma duplicação de normalização. Não criar adapter adicional sem necessidade concreta.
+
+**Tests:** provider resolve corretamente; regressão do módulo Dados do Negócio; build do módulo Orçamentos.
+
+**Acceptance criteria:** direção de dependência permanece Application → Application; nenhuma Infrastructure de Orçamentos conhece `business_data`.
+
+**Verification:** `pnpm lint`, `pnpm test`, `pnpm build`.
+
+**Commit:** `feat(DOCUMENTOS-04): expose business data query to quotes`
+
+### 13.5 DOCUMENTOS-05 — Consulta estreita de contato do Cliente
+
+**Goal:** fornecer ao PDF comercial somente nome e telefone do cliente.
+
+**Scope:** criar `GetCustomerContactQuery` em Clientes, retornando conceitualmente `{ name, phone }` ou `null`/erro conforme contrato aprovado. A consulta busca pelo id, consegue ler cliente soft-deleted e não retorna email, taxId, endereço nem notes; não reconstrói aggregate se desnecessário. Exportar a query via `ClientesModule`; `OrcamentosModule` importa `ClientesModule`.
+
+**Tests:** cliente ativo; cliente soft-deleted; inexistente; retorno somente com nome e telefone.
+
+**Double-check:** soft delete não pode impedir a reemissão histórica de orçamento.
+
+**Commit:** `feat(DOCUMENTOS-05): add customer contact query for documents`
+
+### 13.6 DOCUMENTOS-06 — Projeção do PDF comercial
+
+**Goal:** construir a projeção comercial sem renderizar PDF.
+
+**Scope:** mapper/builder de Application que recebe os dados explicitamente necessários e produz `CommercialPdfProjection`, contendo número do orçamento; identidade do negócio (`commercialNameOrConsultant`, `phone`, `email` e `taxId` somente se não vazios); cliente (`name`, `phone`); uma linha por cortina no formato `{room} — {description} — Cortina sob medida`, ou `{room} — Cortina sob medida` sem descrição; total final consolidado; validade quando existente.
+
+**DRAFT preview (D165):** BusinessData configurado; cliente existente; ao menos uma cortina com `room`; `totalCents === 0` → total omitido; `validUntil === null` → validade omitida; não aplicar o gate completo de envio.
+
+**Dados proibidos:** testes devem provar ausência de dados fiscais do cliente, endereços, material, medidas, componentes, adicionais, desconto, ajuste, notas e detalhamento financeiro.
+
+**Tests obrigatórios:** identidade completa; opcionais da identidade ausentes; descrição presente/ausente; várias cortinas; total; DRAFT sem total; DRAFT sem validade; nenhuma propriedade proibida.
+
+**Commit:** `feat(DOCUMENTOS-06): build commercial quote projection`
+
+### 13.7 DOCUMENTOS-07 — Projeção da ordem de produção
+
+**Goal:** construir uma projeção técnica fechada.
+
+**Scope:** para cada `Curtain`, incluir `sequence`, `room`, `description?`, `material`, `finalWidth` e `height`. Não incluir cliente, BusinessData, endereço, `openingWidth`, `borderValue`, `fabricFactor`, `fabricQuantity`, components, generalAddOns, notes, prices, subtotal, desconto, ajuste ou total. Usar `curtain.finalWidth`; não recalcular.
+
+**Validation:** em estado permitido, dados técnicos ausentes → `DocumentDataIncompleteError`. Não renderizar valor vazio nem “a definir”.
+
+**Tests:** uma cortina; várias em `sequence`; description opcional; valor derivado vindo do domínio; ausência de room; ausência de material; ausência de height; ausência/impossibilidade de `finalWidth`; prova explícita de dados proibidos ausentes.
+
+**Commit:** `feat(DOCUMENTOS-07): build production order projection`
+
+### 13.8 DOCUMENTOS-08 — Formatadores de documento
+
+**Goal:** centralizar somente formatação visual.
+
+**Scope:** helpers puros para:
+
+- moeda `R$ 1.234,56` com `Intl.NumberFormat('pt-BR')`, normalizando NBSP para espaço comum quando necessário para WinAnsi;
+- data `DD/MM/AAAA` com timezone `America/Sao_Paulo`;
+- medidas com até três casas decimais, preservando precisão: `2,6 m`, `2,65 m`, `2,605 m`; não arredondar para duas casas;
+- CPF/CNPJ do negócio somente para apresentação, sem alterar persistência.
+
+**Tests:** valores monetários; datas próximas à meia-noite UTC; medidas de 1, 2 e 3 casas; CPF; CNPJ; strings com NBSP.
+
+**Commit:** `feat(DOCUMENTOS-08): add document formatters`
+
+### 13.9 DOCUMENTOS-09 — Histórico append-only de documentos
+
+**Goal:** registrar eventos de geração sem modificar o aggregate.
+
+**Scope:** adicionar ao union existente `COMMERCIAL_PDF_GENERATED` e `PRODUCTION_ORDER_GENERATED`. Criar o port estreito `QuoteHistoryWriter`, conforme D183, com operação conceitual `append(quoteId, event)`. A implementação Prisma apenas executa `INSERT` em `quote_history`; não executa `QuoteRepository.save` nem `mutate`, não atualiza `quotes.updatedAt` e não reconcilia filhos. `details` deve ser ausente.
+
+**Integration tests:** evento inserido; `occurredAt` correto; quote semanticamente inalterado; `updatedAt` não muda; filhos não mudam; eventos repetidos são permitidos.
+
+**Commit:** `feat(DOCUMENTOS-09): add append-only document history writer`
+
+### 13.10 DOCUMENTOS-10 — Erros e disponibilidade dos documentos
+
+**Goal:** centralizar as regras de disponibilidade sem misturá-las ao renderer.
+
+**Scope:** criar erros explícitos conforme D193/D196. Os nomes canônicos são os de D196 — `DocumentNotAvailableError`, `BusinessDataNotConfiguredError`, `DocumentCustomerNotFoundError`, `DocumentDataIncompleteError`, `DocumentRenderError` e `DocumentHistoryWriteError`; “equivalentes” não autoriza renomear. Não vazar erro técnico de PDF.
+
+**PDF comercial (D174):** `DRAFT` → prévia; `SENT`, `EXPIRED`, `CONFIRMED`, `IN_PRODUCTION`, `COMPLETED` → geração; `CANCELLED` → rejeição. `EXPIRED` continua condição derivada de `SENT`.
+
+**Ordem de produção (D175):** permitida em `CONFIRMED`, `IN_PRODUCTION` e `COMPLETED`; rejeitada nos demais estados.
+
+**Mapping HTTP:** usar exatamente a tabela aprovada de D193.
+
+**Tests:** matriz completa `status × PDF comercial` e `status × ordem de produção`, cobrindo `EXPIRED` separadamente.
+
+**Commit:** `feat(DOCUMENTOS-10): define document availability and errors`
+
+### 13.11 DOCUMENTOS-11 — Use case do PDF comercial
+
+**Goal:** orquestrar geração/prévia comercial sem implementar layout.
+
+**Scope:** o use case deve:
+
+1. carregar `Quote` pelo repository;
+2. validar existência e status;
+3. buscar `BusinessData`;
+4. traduzir ausência para erro de documento;
+5. buscar contato do `Customer`;
+6. montar a projeção;
+7. chamar `QuoteDocumentRenderer.renderCommercialPdf`;
+8. em `DRAFT`, retornar bytes sem gravar histórico;
+9. em estado de geração, gravar `COMMERCIAL_PDF_GENERATED` e somente depois retornar bytes.
+
+Não abrir transação durante o renderer.
+
+**Failure semantics (D180):** falha de projeção → nenhum evento; falha do renderer → nenhum evento; falha do histórico → requisição falha e bytes não são entregues.
+
+**Tests:** DRAFT preview; SENT; EXPIRED; CONFIRMED; IN_PRODUCTION; COMPLETED; CANCELLED; BusinessData ausente; customer ausente; renderer falhando; history falhando; evento repetido em gerações sucessivas.
+
+**Commit:** `feat(DOCUMENTOS-11): implement commercial pdf generation use case`
+
+### 13.12 DOCUMENTOS-12 — Use case da ordem de produção
+
+**Goal:** orquestrar a ordem de produção.
+
+**Scope:** carregar `Quote`; validar status; construir projeção; renderizar; gravar `PRODUCTION_ORDER_GENERATED`; devolver bytes. Não ler Customer nem BusinessData; não acessar dados financeiros.
+
+**Tests:** estados permitidos/proibidos; dados técnicos incompletos; renderer falha; history falha; reemissão gera novo evento.
+
+**Commit:** `feat(DOCUMENTOS-12): implement production order generation use case`
+
+### 13.13 DOCUMENTOS-13 — Instalar e isolar `pdf-lib`
+
+**Goal:** adicionar a dependência técnica sem misturar layout ou regra.
+
+**Scope:** adicionar `pdf-lib@1.17.1` com versão exata, sem `^`. Não instalar Chromium, Puppeteer, Playwright, pdfkit, fontkit em runtime nem bibliotecas nativas. Criar adapter inicial de `QuoteDocumentRenderer` em `orcamentos/infrastructure/documents/`, que pode inicialmente produzir um PDF mínimo para validar ESM, runtime Node, `Uint8Array`, Helvetica e caracteres pt-BR. Não implementar ainda o layout completo.
+
+**Tests:** smoke/unit test provando assinatura PDF nos bytes, abertura por parser compatível e texto básico com acentos.
+
+**Verification extra:** `pnpm install`, `pnpm lint`, `pnpm test`, `pnpm build`; revisar `package.json` e `pnpm-lock.yaml`. Nenhuma dependência não esperada deve ser adicionada.
+
+**Commit:** `feat(DOCUMENTOS-13): add pdf-lib document renderer adapter`
+
+### 13.14 DOCUMENTOS-14 — Infraestrutura do asset da logo
+
+**Goal:** garantir carregamento reproduzível do PNG fixo.
+
+**Scope:** quando o PNG real estiver disponível, colocá-lo em `infrastructure/documents/assets/logo.png`, configurar a cópia no build via `nest-cli.json` e criar loader estreito na Infrastructure.
+
+**Regras:** nenhum upload; nenhum campo novo; nenhum base64 definitivo em código; não buscar arquivo no frontend; não depender de `cwd` acidental; funcionar em source/dev e em `dist`/produção.
+
+**Caso o asset ainda não exista:** não inventar logo. Implementar apenas o mecanismo estrutural que possa ser validado sem falsificar o asset e registrar a pendência. Não marcar a finalização visual como concluída sem o PNG real.
+
+**Tests:** path correto; asset ausente gera erro controlado; build preserva/copia o asset quando presente.
+
+**Commit:** `feat(DOCUMENTOS-14): add fixed business logo asset support`
+
+### 13.15 DOCUMENTOS-15 — Renderer do PDF comercial
+
+**Goal:** renderizar `CommercialPdfProjection` em A4.
+
+**Scope:** implementar somente apresentação: logo + identidade; número do orçamento; cliente; serviços por ambiente; total; validade quando existente. Usar A4 portrait, margens de 48 pt, Helvetica/Helvetica-Bold, cursor vertical, word wrapping e paginação automática; sem HTML e sem Chromium. Não recalcular regra de negócio.
+
+**Tests:** PDF válido; múltiplas páginas; acentos; descrição longa; várias cortinas; identidade opcional; total; validade.
+
+**Critical negative tests:** o renderer/projeção não pode produzir CPF do cliente, endereço, material, dimensões, componentes, desconto, ajuste nem valores internos.
+
+**Commit:** `feat(DOCUMENTOS-15): render commercial quote pdf`
+
+### 13.16 DOCUMENTOS-16 — Renderer da ordem de produção
+
+**Goal:** renderizar documento técnico.
+
+**Scope:** título; `quoteNumber`; blocos/tabela de cortinas com `sequence`, `room`, `description` opcional, `material`, `finalWidth` e `height`. Em nova página, repetir o cabeçalho da estrutura/tabulação quando aplicável. Não usar logo nem BusinessData.
+
+**Critical negative tests:** o PDF não pode conter nome/telefone do cliente, endereço, preço, subtotal, total, desconto, ajuste, componentes financeiros, frete, mão de obra, `fabricQuantity`, `border` nem `factor`.
+
+**Commit:** `feat(DOCUMENTOS-16): render production order pdf`
+
+### 13.17 DOCUMENTOS-17 — Contrato HTTP e rotas
+
+**Goal:** expor os dois fluxos aprovados.
+
+**Routes:** `GET /orcamentos/:id/pdf` e `GET /orcamentos/:id/ordem-producao`. Manter `AuthGuard`; não criar `POST` alternativo.
+
+**Response:** usar `StreamableFile`, com `Content-Type: application/pdf`, `Content-Disposition: inline; filename="..."` e `Cache-Control: no-store`. O filename deve ser sanitizado e derivado somente do número do orçamento; não usar nome do cliente. Preferir representação ASCII segura em `filename`, podendo usar `filename*` quando necessário.
+
+**Tests:** auth; UUID inválido; headers; bytes; mapeamentos de status; nenhum envelope JSON.
+
+**Commit:** `feat(DOCUMENTOS-17): expose quote document endpoints`
+
+### 13.18 DOCUMENTOS-18 — Inspeção real de PDFs e testes de conteúdo
+
+**Goal:** provar o conteúdo do arquivo gerado, não apenas da projeção.
+
+**Scope:** adicionar `unpdf` somente como `devDependency`, conforme D201; criar helper de teste para extrair texto dos PDFs; não usar parser em runtime.
+
+**PDF comercial — presença:** `quoteNumber`, identidade, cliente, linhas de serviço, total e validade quando existente. **Ausência (sentinela):** `taxId` do cliente, endereço, material, medidas, preços internos, desconto, ajuste e notes.
+
+**Ordem de produção — presença:** `quoteNumber`, room, description quando aplicável, material, `finalWidth` e height. **Ausência:** customer name, customer phone, BusinessData, valores financeiros, endereço e dados proibidos de D171.
+
+**Commit:** `test(DOCUMENTOS-18): verify generated pdf content`
+
+### 13.19 DOCUMENTOS-19 — Testes de integração completos
+
+**Goal:** validar interação entre Application, módulos e PostgreSQL.
+
+**Scope:** cobrir BusinessData real, customer contact real, aggregate real, history writer, geração final, histórico, regeneração e ausência de alteração no orçamento.
+
+**Critical assertions:** antes/depois da geração, comparar status da Quote, datas de lifecycle, `updatedAt`, filhos e totais. Somente `quote_history` pode receber nova linha. DRAFT preview não altera sequer o histórico.
+
+**Failure semantics:** forçar falhas de renderer e history writer quando tecnicamente possível; confirmar o contrato D180.
+
+**Commit:** `test(DOCUMENTOS-19): cover document integration flows`
+
+### 13.20 DOCUMENTOS-20 — E2E completo
+
+**Goal:** validar HTTP → Application → renderer → history.
+
+**E2E PDF comercial:** 401; UUID inválido; DRAFT preview; SENT; EXPIRED; CONFIRMED; IN_PRODUCTION; COMPLETED; CANCELLED 409; BusinessData ausente 409; customer soft-deleted; headers; conteúdo; evento; múltiplas gerações → múltiplos eventos; preview → nenhum evento.
+
+**E2E ordem de produção:** CONFIRMED; IN_PRODUCTION; COMPLETED; estados proibidos; headers; conteúdo técnico; ausência de dados financeiros/pessoais; evento por geração.
+
+**Isolation:** aplicar a estratégia de D206. Se necessário, `fileParallelism: false` na configuração E2E que compartilha `business_data`; não alterar o paralelismo dos testes unitários sem necessidade.
+
+**Commit:** `test(DOCUMENTOS-20): cover document generation e2e`
+
+### 13.21 DOCUMENTOS-21 — Auditoria semântica, reparos e fechamento
+
+**Goal:** executar revisão final independente da Fase 8, começando como read-only.
+
+**Audit checklist — arquitetura:** nenhum Document aggregate; nenhum repository de documento; nenhum PDF persistido; renderer somente na Infrastructure; projeção/Application não importa `pdf-lib`; nenhuma chamada HTTP interna; nenhum Prisma de BusinessData em Orçamentos.
+
+**Segurança e privacidade:** PDF comercial somente com dados autorizados; ordem de produção sem dado financeiro nem dado pessoal proibido.
+
+**Lifecycle:** D174 aplicada integralmente; D175 aplicada integralmente; CANCELLED bloqueado; DRAFT preview sem evento.
+
+**Histórico:** um evento por geração real; nenhum evento em falha; nenhum evento em preview; history writer não altera Quote; falha do histórico impede a entrega dos bytes.
+
+**Técnico:** `pdf-lib` isolada; sem Chromium; PDF em memória; sem temporários persistentes; asset reproduzível; locale/timezone explícitos; conteúdo testado via parser.
+
+**Mechanical gates:**
+
+```bash
+pnpm lint
+pnpm test
+pnpm test:e2e
+pnpm build
+npx prisma validate
+npx prisma migrate status
+git diff --check
+git status --short
+```
+
+**Repair:** qualquer finding segue `REPRODUCE → REPAIR → TARGETED TEST → FULL RELEVANT SUITE → SEMANTIC RECHECK`. Não fechar com finding bloqueante ou alto.
+
+**Documentation:** ao final, atualizar esta spec e `IMPLEMENTATION_PLAN.md`; marcar a Fase 8 concluída apenas se todos os gates estiverem verdes; registrar eventual pendência exclusivamente visual do logo se ela impedir a conclusão real.
+
+**Commit:** `docs(DOCUMENTOS-21): close documents phase`
 
 ---
 
@@ -1341,7 +1686,8 @@ DOCUMENTOS-02 termina com:
 - decisões D143–D209 registradas e classificadas;
 - 30 decisões `[F]` e 37 decisões `[A]`; 0 `[P]` e 0 `[V]`;
 - nenhuma decisão aberta;
+- decomposição definitiva `DOCUMENTOS-03…21` registrada;
 - nenhum arquivo de código, schema, migration, seed, endpoint, DTO, serviço, dependência ou teste alterado;
-- nenhum commit.
+- nenhum commit de implementação.
 
-Não há bloqueio funcional para decompor `DOCUMENTOS-03+`. A única pendência é operacional: fornecer o asset PNG da logo (D150) antes da finalização visual do renderer. A implementação deve estruturar o suporte ao asset sem criar imagem substituta.
+A implementação está autorizada. Cada task `DOCUMENTOS-03…21` só é concluída após o Gate 1 e o Gate 2 aplicáveis. A Fase 8 só é encerrada em `DOCUMENTOS-21`, com todos os gates verdes e a pendência do PNG da logo (D150) registrada como exclusivamente visual, se ainda existir.
