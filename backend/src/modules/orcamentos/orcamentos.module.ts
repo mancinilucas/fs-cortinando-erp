@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../shared/database/prisma.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { ClientesModule } from '../clientes/clientes.module.js';
 import { DadosDoNegocioModule } from '../dados-do-negocio/dados-do-negocio.module.js';
 import { Clock } from './application/ports/clock.port.js';
 import { CustomerEligibility } from './application/ports/customer-eligibility.port.js';
@@ -32,7 +33,7 @@ import { SystemClock } from './infrastructure/system-clock.js';
 import { OrcamentosController } from './presentation/orcamentos.controller.js';
 
 @Module({
-  imports: [AuthModule, PrismaModule, DadosDoNegocioModule],
+  imports: [AuthModule, PrismaModule, DadosDoNegocioModule, ClientesModule],
   controllers: [OrcamentosController],
   providers: [
     { provide: QuoteRepository, useClass: PrismaQuoteRepository },
