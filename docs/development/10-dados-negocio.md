@@ -5,7 +5,12 @@
 **Auditoria de origem:** `docs/development/10-dados-negocio-audit.md` (DADOS-DO-NEGOCIO-01)
 **Fontes de verdade:** `docs/PROJECT_SPEC.md` (§2.7, §10.2, §13–§14, §17), `docs/ARCHITECTURE.md` (§2.1, §5–§7, §14.2, §16, §19–§22), `docs/IMPLEMENTATION_PLAN.md` (Fase 10), decisões D1–D124
 
-Este documento **não implementa** o módulo. Ele fecha as decisões necessárias para decompor a Fase 10 em tasks atômicas. Nenhum código, schema, migration, endpoint, store, use case, DTO ou teste foi alterado.
+Este documento foi criado originalmente na DADOS-DO-NEGOCIO-02 para
+registrar as decisões da Fase 10 e sua decomposição em tasks atômicas.
+
+As tasks DADOS-DO-NEGOCIO-03 a -12 foram posteriormente implementadas,
+verificadas e concluídas em 2026-10-20. O fechamento da implementação está
+registrado na seção 10.
 
 ---
 
