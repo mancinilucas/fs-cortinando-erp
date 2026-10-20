@@ -25,3 +25,15 @@ export class InvalidQuoteTransitionError extends Error {
     this.name = 'InvalidQuoteTransitionError';
   }
 }
+
+export interface QuoteValidationViolation {
+  code: string;
+  message: string;
+}
+
+export class QuoteValidationError extends Error {
+  constructor(readonly violations: QuoteValidationViolation[]) {
+    super('Quote does not satisfy the sending requirements');
+    this.name = 'QuoteValidationError';
+  }
+}

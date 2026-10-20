@@ -9,7 +9,9 @@ import {
 import {
   InvalidQuoteTransitionError,
   QuoteNotEditableError,
+  QuoteValidationError,
   UnknownQuoteItemError,
+  type QuoteValidationViolation,
 } from '../errors/quote-domain.errors.js';
 import { Discount } from '../value-objects/discount.js';
 import type { InstallationAddress } from '../value-objects/installation-address.js';
@@ -217,7 +219,125 @@ export class Quote {
 
   markAsSent(): void {
     this.assertStatus(QuoteStatus.DRAFT);
+
+    const violations = this.validateForSend();
+
+    if (violations.length > 0) {
+      throw new QuoteValidationError(violations);
+    }
+
     this._status = QuoteStatus.SENT;
+  }
+
+  // D97 sending gate. Customer existence/activity belongs to the application
+  // layer because Customer is a separate aggregate. Validity is added by the
+  // temporal-rules task.
+  validateForSend(): QuoteValidationViolation[] {
+    const violations: QuoteValidationViolation[] = [];
+
+    if (
+      this.installationAddress === null ||
+      !this.installationAddress.isComplete()
+    ) {
+      violations.push({
+        code: 'INSTALLATION_ADDRESS_INCOMPLETE',
+        message: 'Installation address is incomplete',
+      });
+    }
+
+    if (this.curtains.length === 0) {
+      violations.push({
+        code: 'NO_CURTAINS',
+        message: 'At least one curtain is required',
+      });
+    }
+
+    for (const curtain of this.curtains) {
+      const label = `Curtain ${curtain.sequence}`;
+
+      if (curtain.room === null) {
+        violations.push({
+          code: 'CURTAIN_ROOM_REQUIRED',
+          message: `${label} must have a room`,
+        });
+      }
+
+      if (curtain.openingWidth === null || curtain.openingWidth <= 0) {
+        violations.push({
+          code: 'CURTAIN_OPENING_WIDTH_INVALID',
+          message: `${label} opening width must be greater than zero`,
+        });
+      }
+
+      if (curtain.height === null || curtain.height <= 0) {
+        violations.push({
+          code: 'CURTAIN_HEIGHT_INVALID',
+          message: `${label} height must be greater than zero`,
+        });
+      }
+
+      if (curtain.borderValue === null || curtain.borderValue < 0) {
+        violations.push({
+          code: 'CURTAIN_BORDER_INVALID',
+          message: `${label} border must be informed and not negative`,
+        });
+      }
+
+      if (curtain.fabricFactor === null || curtain.fabricFactor <= 0) {
+        violations.push({
+          code: 'CURTAIN_FABRIC_FACTOR_INVALID',
+          message: `${label} fabric factor must be greater than zero`,
+        });
+      }
+
+      if (curtain.material === null) {
+        violations.push({
+          code: 'CURTAIN_MATERIAL_REQUIRED',
+          message: `${label} must have a material`,
+        });
+      }
+
+      if (!curtain.components.some(isCompleteItem)) {
+        violations.push({
+          code: 'CURTAIN_COMPONENT_REQUIRED',
+          message: `${label} must have at least one complete component`,
+        });
+      }
+
+      for (const component of curtain.components) {
+        if (!isCompleteItem(component)) {
+          violations.push({
+            code: 'COMPONENT_INVALID',
+            message: `${label} component "${component.name}" must have quantity and unit price greater than zero`,
+          });
+        }
+      }
+    }
+
+    for (const addOn of this.generalAddOns) {
+      if (!isCompleteItem(addOn)) {
+        violations.push({
+          code: 'GENERAL_ADD_ON_INVALID',
+          message: `General add-on "${addOn.name}" must have quantity and unit price greater than zero`,
+        });
+      }
+    }
+
+    if (!this.discount.isApplicableTo(this.subtotalCents)) {
+      violations.push({
+        code: 'DISCOUNT_EXCEEDS_SUBTOTAL',
+        message: 'Discount must not exceed the quote subtotal',
+      });
+    }
+
+    if (this.totalCents <= 0) {
+      violations.push({
+        code: 'TOTAL_NOT_POSITIVE',
+        message: 'Quote total must be greater than zero',
+      });
+    }
+
+    return violations;
   }
 
   confirm(now: Date): void {
@@ -437,6 +557,15 @@ export class Quote {
       Money.fromCents(this.effectiveCommercialAdjustmentCents),
     ).cents;
   }
+}
+
+function isCompleteItem(item: FinancialItem): boolean {
+  return (
+    item.quantity !== null &&
+    item.quantity > 0 &&
+    item.unitPriceCents !== null &&
+    item.unitPriceCents > 0
+  );
 }
 
 function normalizeAdjustment(value: number | null | undefined): number | null {

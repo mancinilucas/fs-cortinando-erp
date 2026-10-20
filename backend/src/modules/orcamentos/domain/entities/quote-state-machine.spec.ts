@@ -1,13 +1,45 @@
 import { describe, expect, it } from 'vitest';
 import { InvalidQuoteTransitionError } from '../errors/quote-domain.errors.js';
 import { Discount } from '../value-objects/discount.js';
+import { InstallationAddress } from '../value-objects/installation-address.js';
 import { QuoteNumber } from '../value-objects/quote-number.js';
+import { Curtain } from './curtain.js';
+import { FinancialItem } from './financial-item.js';
 import type { QuoteSnapshot } from './quote.js';
 import { Quote, QuoteStatus } from './quote.js';
 
 const createdAt = new Date('2026-10-19T12:00:00.000Z');
 const now = new Date('2026-10-20T12:00:00.000Z');
 const future = new Date('2026-11-19T12:00:00.000Z');
+
+function quoteWithValidData(): Quote {
+  return Quote.create({
+    quoteNumber: QuoteNumber.create(2026, 42),
+    customerId: '6f2b9f2c-3b8c-4e4a-9f2e-1a2b3c4d5e6f',
+    createdAt,
+    installationAddress: InstallationAddress.create({
+      street: 'Rua das Flores',
+      number: '123',
+      neighborhood: 'Centro',
+      city: 'São Paulo',
+    }),
+    curtains: [
+      Curtain.create({
+        room: 'Sala',
+        material: 'Linho',
+        openingWidth: 2,
+        height: 2.7,
+        components: [
+          FinancialItem.create({
+            name: 'Tecido',
+            quantity: 8.05,
+            unitPriceCents: 3_000,
+          }),
+        ],
+      }),
+    ],
+  });
+}
 
 function quoteInStatus(
   status: QuoteStatus,
@@ -112,7 +144,10 @@ const transitions: TransitionCase[] = [
 describe('Quote state machine', () => {
   describe.each(transitions)('$name', (transition) => {
     it.each(allStatuses)('from %s', (from) => {
-      const quote = quoteInStatus(from);
+      const quote =
+        transition.name === 'markAsSent' && from === QuoteStatus.DRAFT
+          ? quoteWithValidData()
+          : quoteInStatus(from);
       const allowed = transition.allowedFrom.includes(from);
 
       if (allowed) {
