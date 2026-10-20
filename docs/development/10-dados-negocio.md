@@ -1,6 +1,6 @@
 # 10 — Dados do Negócio
 
-**Status:** DADOS-DO-NEGOCIO-02 validada em 2026-10-20; decisões D125–D142 registradas e as decisões materiais aprovadas como normativas. A implementação está autorizada a partir de DADOS-DO-NEGOCIO-03, mas não foi iniciada.
+**Status:** DADOS-DO-NEGOCIO-12 concluída em 2026-10-20. As decisões D125–D142 estão registradas e as decisões materiais aprovadas são normativas. As tasks DADOS-DO-NEGOCIO-03 a -12 foram implementadas, verificadas e encerradas; a Fase 10 está concluída.
 **Task de origem:** `DADOS-DO-NEGOCIO-02 — Fechar decisões técnicas e de contrato`
 **Auditoria de origem:** `docs/development/10-dados-negocio-audit.md` (DADOS-DO-NEGOCIO-01)
 **Fontes de verdade:** `docs/PROJECT_SPEC.md` (§2.7, §10.2, §13–§14, §17), `docs/ARCHITECTURE.md` (§2.1, §5–§7, §14.2, §16, §19–§22), `docs/IMPLEMENTATION_PLAN.md` (Fase 10), decisões D1–D124
@@ -498,7 +498,7 @@ Não há bloqueios pendentes. Em 2026-10-20 foram aprovadas D127, D129, D130, D1
 | D138 | Aprovada — testes de integração do singleton em um único arquivo, sem concorrência, com limpeza explícita. |
 | D142 | Aprovada — `DadosDoNegocioModule` e `DadosDoNegocioController`, com classes e contratos internos em inglês. |
 
-A implementação está autorizada a partir de DADOS-DO-NEGOCIO-03.
+A implementação foi executada nas tasks DADOS-DO-NEGOCIO-03 a -12, conforme o fechamento registrado na seção 10.
 
 ---
 
@@ -526,7 +526,7 @@ Sim:
 
 ### 5.5 O que falta para implementar?
 
-Nada bloqueia a implementação. As decisões materiais foram aprovadas em 2026-10-20; a próxima task é DADOS-DO-NEGOCIO-03, ainda não iniciada.
+Nada bloqueia a implementação. As decisões materiais foram aprovadas em 2026-10-20 e as tasks DADOS-DO-NEGOCIO-03 a -12 foram concluídas.
 
 ---
 
@@ -546,15 +546,14 @@ Nada bloqueia a implementação. As decisões materiais foram aprovadas em 2026-
 
 ## 7. Condição de parada
 
-A implementação está autorizada a partir de **DADOS-DO-NEGOCIO-03**, conforme validação humana de 2026-10-20. As decisões D127, D129, D130, D131, D132, D134, D135, D136, D138 e D142 passam a ser normativas.
+A implementação foi executada nas tasks **DADOS-DO-NEGOCIO-03 a -12**, conforme validação humana de 2026-10-20. As decisões D127, D129, D130, D131, D132, D134, D135, D136, D138 e D142 são normativas.
 
 Continuam vedados nesta fase:
 
 - alterar schema, migration ou seed;
-- implementar PDF, frontend ou logo;
-- iniciar DADOS-DO-NEGOCIO-03 fora do workflow da skill `spec-task`.
+- implementar PDF, frontend ou logo.
 
-Se a implementação revelar necessidade de alteração de schema, parar e reportar antes de alterar.
+Se uma próxima alteração revelar necessidade de mudança de schema, ela deve parar e ser reportada antes de qualquer alteração.
 
 Nenhum arquivo de código, schema, migration ou teste foi alterado na DADOS-DO-NEGOCIO-01 ou DADOS-DO-NEGOCIO-02.
 
@@ -562,7 +561,7 @@ Nenhum arquivo de código, schema, migration ou teste foi alterado na DADOS-DO-N
 
 ## 8. Tasks atômicas
 
-As tasks abaixo estão **planejadas, não iniciadas**. Cada uma deve ser executada com o workflow da skill `spec-task`.
+As tasks abaixo foram **executadas em 2026-10-20** com o workflow da skill `spec-task`.
 
 ### DADOS-DO-NEGOCIO-03 — Criar scaffold do módulo
 
@@ -893,4 +892,33 @@ A DADOS-DO-NEGOCIO-02 entrega:
 - critérios de aceite e verificação;
 - riscos e decisões aprovadas.
 
-Não entrega código. A validação humana de 2026-10-20 aprovou D127, D129, D130, D131, D132, D134, D135, D136, D138 e D142. A próxima ação é executar DADOS-DO-NEGOCIO-03, que não foi iniciada nesta consolidação.
+Não entrega código. A validação humana de 2026-10-20 aprovou D127, D129, D130, D131, D132, D134, D135, D136, D138 e D142. A implementação correspondente foi concluída nas tasks DADOS-DO-NEGOCIO-03 a -12 e está registrada na seção 10.
+
+---
+
+## 10. Fechamento da fase
+
+A Fase 10 foi concluída em 2026-10-20.
+
+**Entregue:**
+
+- `DadosDoNegocioModule` importado no `AppModule`, sem camada `domain/`;
+- `BusinessDataStore` na Application e `PrismaBusinessDataStore` na Infrastructure, com identificador singleton privado;
+- `GetBusinessDataQuery` e `UpdateBusinessDataUseCase`, com normalização e validação reaplicadas na Application;
+- `GET` e `PUT /dados-do-negocio` protegidos por `AuthGuard`, com `CsrfOriginGuard` global no `PUT`;
+- DTOs, response mapper e error mapper na Presentation, com `updatedAt` em ISO 8601 e sem expor `id`;
+- testes unitários, um arquivo de integração serial para `business_data` e E2E do contrato HTTP.
+
+**Commits da implementação:** `ce85f66` (03), `a1cd932` (04), `ecebb33` (05), `e489aff` (06), `55ec1fd` (07), `2ac2582` (08), `d0ac450` (09), `199cc79` (10), `02d3360` (11).
+
+**Gates finais:**
+
+| Check | Resultado |
+|---|---|
+| `pnpm lint` | aprovado |
+| `pnpm build` | aprovado |
+| `pnpm test` | 931 testes em 78 arquivos, aprovado |
+| `pnpm test:e2e` | 44 testes em 6 arquivos, aprovado |
+| `npx prisma validate` | schema válido |
+
+Nenhum schema, migration, seed, arquivo de frontend ou módulo fora do escopo foi alterado.
