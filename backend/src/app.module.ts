@@ -6,6 +6,7 @@ import { AppService } from './app.service.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { LOGIN_THROTTLER_OPTIONS } from './modules/auth/presentation/login-throttler.js';
 import { ClientesModule } from './modules/clientes/clientes.module.js';
+import { OrcamentosModule } from './modules/orcamentos/orcamentos.module.js';
 import { PrismaModule } from './shared/database/prisma.module.js';
 import { CsrfOriginGuard } from './shared/http/csrf-origin.guard.js';
 import { LoggingThrottlerGuard } from './shared/http/logging-throttler.guard.js';
@@ -19,6 +20,7 @@ import { LoggingThrottlerGuard } from './shared/http/logging-throttler.guard.js'
     PrismaModule,
     AuthModule,
     ClientesModule,
+    OrcamentosModule,
   ],
   controllers: [AppController],
   providers: [
