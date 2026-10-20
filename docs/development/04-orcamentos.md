@@ -1,6 +1,6 @@
 # ORCAMENTO-02 — Decisões técnicas e de domínio do módulo Orçamento
 
-**Status:** revisada — decisões bloqueantes aprovadas em 2026-10-19; demais propostas aguardam validação
+**Status:** implementada e revisada — núcleo de Orçamento fechado em 2026-10-20 (ORCAMENTO-48); decisões bloqueantes aprovadas em 2026-10-19
 **Data:** 2026-10-19
 **Task de origem:** `ORCAMENTO-02 — Fechar decisões técnicas e de domínio do módulo Orçamento`
 **Auditoria de origem:** `docs/development/04-orcamentos-audit.md` (ORCAMENTO-01)
@@ -3533,3 +3533,46 @@ Confirmar:
 ## Commit sugerido
 
 `docs(ORCAMENTO-48): close quote core stage`
+
+---
+
+# Fechamento da fase (ORCAMENTO-48)
+
+**Data:** 2026-10-20
+
+## Tasks concluídas
+
+- ORCAMENTO-01 — auditoria inicial (`04-orcamentos-audit.md`);
+- ORCAMENTO-02 — decisões técnicas e de domínio (D76–D124);
+- ORCAMENTO-03 a ORCAMENTO-42 — domínio, persistência, use cases, queries,
+  DTOs, controller, testes unitários e de integração;
+- ORCAMENTO-43 e ORCAMENTO-44 — E2E do fluxo comercial principal e dos fluxos
+  alternativos (edição, reabertura, renovação, cancelamento e exclusão de
+  rascunho);
+- ORCAMENTO-45 — auditoria semântica (`04-orcamentos-review.md`);
+- ORCAMENTO-46 — reparo e re-verificação dos findings da auditoria;
+- ORCAMENTO-47 — revisão final independente
+  (`04-orcamentos-final-review.md`), aprovada sem findings bloqueantes;
+- ORCAMENTO-48 — fechamento da fase.
+
+## Pendências deliberadamente adiadas
+
+- PDF comercial e ordem de produção: Fase 8 (D108, D124);
+- dashboard e consultas operacionais detalhadas: Fase 9 (D113, D124);
+- dados do negócio: Fase 10;
+- frontend: Fase 11;
+- paginação das listagens: fora do MVP (D113);
+- optimistic locking: adiado; a estratégia vigente é last-write-wins (D120);
+- livraria de PDF, hosting, observabilidade e MFA: `ARCHITECTURE.md` §22.
+
+## Dívida técnica aceita
+
+- D112 não lista o método transacional `mutate` no repository; o
+  comportamento é autorizado por D119 e está implementado e testado.
+- A mensagem fixa de `QuoteValidationError` também acompanha violações de
+  faixa monetária (`TOTAL_OUT_OF_RANGE`); o contrato de erro permanece
+  `message` + `errors`, sem impacto de comportamento.
+- A projeção resumida de D113 duplica as fórmulas de D91/D93 em SQL por
+  decisão explícita, para evitar N+1 e reconstrução de aggregate.
+- O risco de sobrescrita em edições simultâneas é aceito e documentado em
+  D120.

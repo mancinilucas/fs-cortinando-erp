@@ -29,10 +29,13 @@
 - [x] PostgreSQL de desenvolvimento disponível via Docker.
 - [x] `PROJECT_SPEC.md` consolidado.
 - [x] `ARCHITECTURE.md` consolidado.
+- [x] Fase 2 — Autenticação e sessão.
+- [x] Fase 3 — Clientes.
+- [x] Fases 4–7 — Núcleo de Orçamento (domínio, rascunho/edição, ciclo de vida/histórico e instalação), encerrado em 2026-10-20 (ORCAMENTO-48).
 
 ### Próxima etapa
 
-- [ ] Implementar a Fase 4 — Núcleo de Orçamento.
+- [ ] Implementar a Fase 8 — Documentos.
 
 ---
 
@@ -95,19 +98,19 @@
 
 **Objetivo:** implementar o modelo de domínio antes dos fluxos HTTP completos.
 
-- [ ] `Money`.
-- [ ] `NumeroOrcamento`.
-- [ ] `EnderecoInstalacao`.
-- [ ] `Desconto`.
-- [ ] `ItemFinanceiro`.
-- [ ] `Cortina`.
-- [ ] Aggregate Root `Orcamento`.
-- [ ] Regras de cálculo de medidas.
-- [ ] Regras monetárias e `HALF_UP`.
-- [ ] Ajuste comercial global.
-- [ ] Invariantes de edição e estados terminais.
+- [x] `Money`.
+- [x] `NumeroOrcamento`.
+- [x] `EnderecoInstalacao`.
+- [x] `Desconto`.
+- [x] `ItemFinanceiro`.
+- [x] `Cortina`.
+- [x] Aggregate Root `Orcamento`.
+- [x] Regras de cálculo de medidas.
+- [x] Regras monetárias e `HALF_UP`.
+- [x] Ajuste comercial global.
+- [x] Invariantes de edição e estados terminais.
 
-**Spec:** `docs/development/04-orcamento-domain.md`
+**Spec:** `docs/development/04-orcamentos.md` (fases 4–7 consolidadas)
 
 ---
 
@@ -115,18 +118,18 @@
 
 **Objetivo:** permitir a criação real do orçamento e sua edição enquanto permitido.
 
-- [ ] Implementar contador anual transacional.
-- [ ] `POST /clientes/:clienteId/orcamentos`.
-- [ ] Criar orçamento apenas no primeiro `Salvar rascunho`.
-- [ ] Adicionar/editar/remover cortinas.
-- [ ] Adicionar/editar/remover componentes financeiros.
-- [ ] Adicionar/editar/remover adicionais gerais.
-- [ ] Definir desconto.
-- [ ] Definir valor final desejado/ajuste comercial.
-- [ ] Definir endereço de instalação.
-- [ ] Excluir fisicamente apenas rascunhos.
+- [x] Implementar contador anual transacional.
+- [x] `POST /clientes/:clienteId/orcamentos`.
+- [x] Criar orçamento apenas no primeiro `Salvar rascunho`.
+- [x] Adicionar/editar/remover cortinas.
+- [x] Adicionar/editar/remover componentes financeiros.
+- [x] Adicionar/editar/remover adicionais gerais.
+- [x] Definir desconto.
+- [x] Definir valor final desejado/ajuste comercial.
+- [x] Definir endereço de instalação.
+- [x] Excluir fisicamente apenas rascunhos.
 
-**Spec:** `docs/development/05-orcamento-draft.md`
+**Spec:** `docs/development/04-orcamentos.md` (fases 4–7 consolidadas)
 
 ---
 
@@ -134,20 +137,20 @@
 
 **Objetivo:** implementar as transições de negócio com consistência transacional.
 
-- [ ] Marcar como enviado.
-- [ ] Validar gate completo de envio.
-- [ ] Confirmar.
-- [ ] Renovar.
-- [ ] Reabrir.
-- [ ] Cancelar.
-- [ ] Iniciar produção.
-- [ ] Concluir serviço.
-- [ ] Persistir datas do ciclo.
-- [ ] Derivar `EXPIRADO`.
-- [ ] Registrar histórico na mesma transação das mudanças relevantes.
-- [ ] Agrupar alterações de uma edição em um único registro de histórico.
+- [x] Marcar como enviado.
+- [x] Validar gate completo de envio.
+- [x] Confirmar.
+- [x] Renovar.
+- [x] Reabrir.
+- [x] Cancelar.
+- [x] Iniciar produção.
+- [x] Concluir serviço.
+- [x] Persistir datas do ciclo.
+- [x] Derivar `EXPIRADO`.
+- [x] Registrar histórico na mesma transação das mudanças relevantes.
+- [x] Agrupar alterações de uma edição em um único registro de histórico.
 
-**Spec:** `docs/development/06-lifecycle-history.md`
+**Spec:** `docs/development/04-orcamentos.md` (fases 4–7 consolidadas)
 
 ---
 
@@ -155,14 +158,14 @@
 
 **Objetivo:** completar o fluxo operacional após confirmação.
 
-- [ ] Agendar instalação.
-- [ ] Alterar instalação.
-- [ ] Remover instalação.
-- [ ] Bloquear conclusão quando houver instalação futura.
-- [ ] Derivar condição `Instalação atrasada`.
-- [ ] Registrar histórico das mudanças.
+- [x] Agendar instalação.
+- [x] Alterar instalação.
+- [x] Remover instalação.
+- [x] Bloquear conclusão quando houver instalação futura.
+- [x] Derivar condição `Instalação atrasada`.
+- [x] Registrar histórico das mudanças.
 
-**Spec:** `docs/development/07-instalacao.md`
+**Spec:** `docs/development/04-orcamentos.md` (fases 4–7 consolidadas)
 
 ---
 
@@ -186,12 +189,12 @@
 
 **Objetivo:** implementar leitura eficiente sem reconstruir aggregates desnecessariamente.
 
-- [ ] Histórico de orçamentos por cliente.
-- [ ] Busca por número de orçamento.
-- [ ] Busca por nome do cliente.
-- [ ] Filtros de situação.
+- [x] Histórico de orçamentos por cliente.
+- [x] Busca por número de orçamento.
+- [x] Busca por nome do cliente.
+- [x] Filtros de situação.
 - [ ] Dashboard por status.
-- [ ] Separar expirados de enviados válidos.
+- [x] Separar expirados de enviados válidos.
 - [ ] Próximas instalações.
 - [ ] Instalações da semana.
 - [ ] Instalações atrasadas.
