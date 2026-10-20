@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { FinancialItem } from './financial-item.js';
+import type { FinancialItemPatch } from './financial-item.js';
+import { FinancialItem, reconcileFinancialItems } from './financial-item.js';
 import {
   calculateFabricQuantity,
   calculateFinalWidth,
@@ -46,6 +47,21 @@ export interface CurtainSnapshot {
   fabricFactor: number | null;
   notes: string | null;
   components: FinancialItem[];
+}
+
+// Partial update of an existing curtain (D117). Sequence is aggregate-owned
+// and is not part of the patch. Components omitted keep the current set; a
+// sent components array replaces it completely by id reconciliation.
+export interface CurtainPatch {
+  room?: string | null;
+  description?: string | null;
+  material?: string | null;
+  openingWidth?: number | null;
+  borderValue?: number | null;
+  height?: number | null;
+  fabricFactor?: number | null;
+  notes?: string | null;
+  components?: FinancialItemPatch[];
 }
 
 export class Curtain {
@@ -105,6 +121,63 @@ export class Curtain {
       snapshot.notes,
       snapshot.components,
     );
+  }
+
+  applyPatch(patch: CurtainPatch): void {
+    if (patch.room !== undefined) {
+      this.room = normalizeText(patch.room);
+    }
+
+    if (patch.description !== undefined) {
+      this.description = normalizeText(patch.description);
+    }
+
+    if (patch.material !== undefined) {
+      this.material = normalizeText(patch.material);
+    }
+
+    if (patch.openingWidth !== undefined) {
+      this.openingWidth = validatedMeasure(
+        patch.openingWidth,
+        'Curtain opening width',
+        MAX_OPENING_WIDTH_MILLI,
+      );
+    }
+
+    if (patch.borderValue !== undefined) {
+      this.borderValue = validatedMeasure(
+        patch.borderValue,
+        'Curtain border value',
+        MAX_BORDER_MILLI,
+      );
+    }
+
+    if (patch.height !== undefined) {
+      this.height = validatedMeasure(
+        patch.height,
+        'Curtain height',
+        MAX_HEIGHT_MILLI,
+      );
+    }
+
+    if (patch.fabricFactor !== undefined) {
+      this.fabricFactor = validatedMeasure(
+        patch.fabricFactor,
+        'Curtain fabric factor',
+        MAX_FABRIC_FACTOR_MILLI,
+      );
+    }
+
+    if (patch.notes !== undefined) {
+      this.notes = normalizeText(patch.notes);
+    }
+
+    if (patch.components !== undefined) {
+      this.components = reconcileFinancialItems(
+        this.components,
+        patch.components,
+      );
+    }
   }
 
   get finalWidth(): number | null {

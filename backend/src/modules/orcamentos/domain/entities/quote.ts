@@ -1,6 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import type { Curtain } from './curtain.js';
-import type { FinancialItem } from './financial-item.js';
+import { Curtain, type CurtainPatch } from './curtain.js';
+import {
+  assertFinancialItemPatchesReconcilable,
+  FinancialItem,
+  reconcileFinancialItems,
+  type FinancialItemPatch,
+} from './financial-item.js';
+import {
+  QuoteNotEditableError,
+  UnknownQuoteItemError,
+} from '../errors/quote-domain.errors.js';
 import { Discount } from '../value-objects/discount.js';
 import type { InstallationAddress } from '../value-objects/installation-address.js';
 import { Money } from '../value-objects/money.js';
@@ -36,6 +45,16 @@ export interface UpdateQuoteEditableDataInput {
   discount?: Discount | null;
   commercialAdjustmentCents?: number | null;
   notes?: string | null;
+}
+
+export type QuoteCurtainPatch = Omit<CurtainPatch, 'components'> & {
+  id?: string | null;
+  components?: FinancialItemPatch[];
+};
+
+export interface QuotePatch extends UpdateQuoteEditableDataInput {
+  curtains?: QuoteCurtainPatch[];
+  generalAddOns?: FinancialItemPatch[];
 }
 
 export interface QuoteSnapshot {
@@ -155,10 +174,126 @@ export class Quote {
     }
   }
 
+  // Full D117 patch. Scalar fields and each editable collection follow the
+  // same rules: omitted means unchanged; a sent collection is the complete
+  // state and is reconciled by id. Known and duplicated ids are checked
+  // before any mutation so a malformed patch is rejected up front.
+  applyPatch(patch: QuotePatch): void {
+    if (this.status !== QuoteStatus.DRAFT && this.status !== QuoteStatus.SENT) {
+      throw new QuoteNotEditableError();
+    }
+
+    this.assertPatchReconcilable(patch);
+
+    this.updateEditableData({
+      installationAddress: patch.installationAddress,
+      discount: patch.discount,
+      commercialAdjustmentCents: patch.commercialAdjustmentCents,
+      notes: patch.notes,
+    });
+
+    if (patch.curtains !== undefined) {
+      this.reconcileCurtains(patch.curtains);
+    }
+
+    if (patch.generalAddOns !== undefined) {
+      this.generalAddOns = reconcileFinancialItems(
+        this.generalAddOns,
+        patch.generalAddOns,
+      );
+    }
+  }
+
   normalizeCurtainSequences(): void {
     this.curtains.forEach((curtain, index) => {
       curtain.sequence = index + 1;
     });
+  }
+
+  private assertPatchReconcilable(patch: QuotePatch): void {
+    if (patch.commercialAdjustmentCents !== undefined) {
+      normalizeAdjustment(patch.commercialAdjustmentCents);
+    }
+
+    if (patch.generalAddOns !== undefined) {
+      assertFinancialItemPatchesReconcilable(
+        this.generalAddOns,
+        patch.generalAddOns,
+      );
+    }
+
+    if (patch.curtains === undefined) {
+      return;
+    }
+
+    const byId = new Map(this.curtains.map((curtain) => [curtain.id, curtain]));
+    const seen = new Set<string>();
+
+    for (const curtainPatch of patch.curtains) {
+      if (curtainPatch.id === undefined || curtainPatch.id === null) {
+        if (curtainPatch.components !== undefined) {
+          assertFinancialItemPatchesReconcilable([], curtainPatch.components);
+        }
+
+        continue;
+      }
+
+      if (seen.has(curtainPatch.id)) {
+        throw new UnknownQuoteItemError('Duplicate curtain id');
+      }
+
+      seen.add(curtainPatch.id);
+
+      const existing = byId.get(curtainPatch.id);
+
+      if (existing === undefined) {
+        throw new UnknownQuoteItemError('Unknown curtain id');
+      }
+
+      if (curtainPatch.components !== undefined) {
+        assertFinancialItemPatchesReconcilable(
+          existing.components,
+          curtainPatch.components,
+        );
+      }
+    }
+  }
+
+  private reconcileCurtains(patches: QuoteCurtainPatch[]): void {
+    const byId = new Map(this.curtains.map((curtain) => [curtain.id, curtain]));
+
+    this.curtains = patches.map((patch) => {
+      if (patch.id !== undefined && patch.id !== null) {
+        const existing = byId.get(patch.id);
+
+        if (existing === undefined) {
+          throw new UnknownQuoteItemError('Unknown curtain id');
+        }
+
+        existing.applyPatch(patch);
+
+        return existing;
+      }
+
+      const curtain = Curtain.create({
+        room: patch.room,
+        description: patch.description,
+        material: patch.material,
+        openingWidth: patch.openingWidth,
+        borderValue: patch.borderValue,
+        height: patch.height,
+        fabricFactor: patch.fabricFactor,
+        notes: patch.notes,
+      });
+
+      if (patch.components !== undefined) {
+        curtain.applyPatch({ components: patch.components });
+      }
+
+      return curtain;
+    });
+
+    this.normalizeCurtainSequences();
   }
 
   get curtainsSubtotalCents(): number {

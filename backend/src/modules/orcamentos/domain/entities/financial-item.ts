@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { UnknownQuoteItemError } from '../errors/quote-domain.errors.js';
 import {
   calculateItemTotalCents,
   MONEY_MAX_CENTS,
@@ -26,6 +27,19 @@ export interface FinancialItemSnapshot {
   unit: string | null;
   unitPriceCents: number | null;
 }
+
+// Partial update of an existing item (D117). Omitted fields keep their
+// current value; null clears the field when absence is allowed. The optional
+// id is used by collection reconciliation and ignored by update().
+export interface FinancialItemPatch {
+  id?: string | null;
+  name?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
+  unitPriceCents?: number | null;
+}
+
+export type FinancialItemScalarPatch = Omit<FinancialItemPatch, 'id'>;
 
 // Decimal(12,6) upper bound for persisted quantities.
 const MAX_QUANTITY_MICRO = 999_999_999_999;
@@ -57,6 +71,24 @@ export class FinancialItem {
       snapshot.unit,
       snapshot.unitPriceCents,
     );
+  }
+
+  update(patch: FinancialItemScalarPatch): void {
+    if (patch.name !== undefined) {
+      this.name = requiredName(patch.name);
+    }
+
+    if (patch.quantity !== undefined) {
+      this.quantity = validatedQuantity(patch.quantity);
+    }
+
+    if (patch.unit !== undefined) {
+      this.unit = normalizeUnit(patch.unit);
+    }
+
+    if (patch.unitPriceCents !== undefined) {
+      this.unitPriceCents = validatedUnitPrice(patch.unitPriceCents);
+    }
   }
 
   get isComplete(): boolean {
@@ -141,4 +173,61 @@ function validatedUnitPrice(value: number | null | undefined): number | null {
   }
 
   return value;
+}
+
+// D117 collection reconciliation: ids update existing items in place, items
+// without an id are created, and existing items omitted from the sent
+// collection are removed. Unknown or duplicated ids reject the whole patch.
+export function assertFinancialItemPatchesReconcilable(
+  current: FinancialItem[],
+  patches: FinancialItemPatch[],
+): void {
+  const currentIds = new Set(current.map((item) => item.id));
+  const seen = new Set<string>();
+
+  for (const patch of patches) {
+    if (patch.id === undefined || patch.id === null) {
+      continue;
+    }
+
+    if (seen.has(patch.id)) {
+      throw new UnknownQuoteItemError('Duplicate financial item id');
+    }
+
+    seen.add(patch.id);
+
+    if (!currentIds.has(patch.id)) {
+      throw new UnknownQuoteItemError('Unknown financial item id');
+    }
+  }
+}
+
+export function reconcileFinancialItems(
+  current: FinancialItem[],
+  patches: FinancialItemPatch[],
+): FinancialItem[] {
+  assertFinancialItemPatchesReconcilable(current, patches);
+
+  const byId = new Map(current.map((item) => [item.id, item]));
+
+  return patches.map((patch) => {
+    if (patch.id !== undefined && patch.id !== null) {
+      const existing = byId.get(patch.id);
+
+      if (existing === undefined) {
+        throw new UnknownQuoteItemError('Unknown financial item id');
+      }
+
+      existing.update(patch);
+
+      return existing;
+    }
+
+    return FinancialItem.create({
+      name: patch.name ?? '',
+      quantity: patch.quantity,
+      unit: patch.unit,
+      unitPriceCents: patch.unitPriceCents,
+    });
+  });
 }
