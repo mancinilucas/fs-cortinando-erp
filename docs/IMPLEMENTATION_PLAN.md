@@ -43,14 +43,14 @@
 A numeração histórica das fases é preservada; a ordem de execução recomendada está em §2.7.
 
 - [x] Fase 10 — Dados do Negócio.
-- [ ] Fase 8 — Documentos.
+- [x] Fase 8 — Documentos.
 - [ ] Fase 9 — Dashboard e consultas operacionais restantes.
 - [ ] Fase 11 — Frontend.
 - [ ] Fase 12 — Hardening e entrega.
 
-**Próxima task esperada:** abrir a Fase 8 (Documentos) — criar `docs/development/08-documentos.md` e executar a auditoria inicial.
+**Próxima task esperada:** abrir a parte restante da Fase 9 (Dashboard e consultas operacionais) — criar `docs/development/09-queries-dashboard.md`.
 
-A Fase 10 foi concluída em 2026-10-20: o módulo de dados do negócio está implementado, testado e documentado. A próxima fase recomendada é a Fase 8 (Documentos), que consome a identidade do negócio para o PDF comercial.
+A Fase 8 foi concluída em 2026-10-20: `docs/development/08-documentos.md` registra DOCUMENTOS-03 a DOCUMENTOS-21, os gates finais e a única pendência remanescente, exclusivamente visual (PNG da logo, D150). A próxima frente recomendada é a parte restante da Fase 9.
 
 ### 2.3 Classificação das fases
 
@@ -63,7 +63,7 @@ A Fase 10 foi concluída em 2026-10-20: o módulo de dados do negócio está imp
 | 5 — Rascunho, numeração e edição | Todos os itens `[x]` | **ABSORVIDA POR OUTRA FASE** (trabalho concluído) | `04-orcamentos.md` (D79–D95, D110–D117, D119); criação, edição, numeração anual e exclusão de rascunho implementadas e testadas. |
 | 6 — Ciclo de vida e histórico | Todos os itens `[x]` | **ABSORVIDA POR OUTRA FASE** (trabalho concluído) | `04-orcamentos.md` (D96–D109, D119); 12 use cases de escrita, máquina de estados e histórico transacional cobertos por testes. |
 | 7 — Instalação | Todos os itens `[x]` | **ABSORVIDA POR OUTRA FASE** (trabalho concluído) | `04-orcamentos.md` (D104–D107); agendamento, alteração, remoção, bloqueio de conclusão e instalação atrasada implementados. |
-| 8 — Documentos | Todos os itens `[ ]` | **PENDENTE** | `infrastructure/documents/` contém apenas `.gitkeep`; não há serviço ou rota de PDF/ordem de produção; não existe tabela nem aggregate `ProductionOrder`; os valores de enum de documentos não constituem implementação. |
+| 8 — Documentos | Todos os itens `[x]` | **CONCLUÍDA** | `08-documentos.md` (D143–D209; DOCUMENTOS-03 a -21); projeções fechadas, use cases, renderers `pdf-lib` restritos à Infrastructure, rotas `GET /orcamentos/:id/pdf` e `GET /orcamentos/:id/ordem-producao`, histórico append-only, testes unitários, de conteúdo, integração e E2E. Gates finais: build, lint, 1066 testes unitários, 80 E2E, `prisma validate` e `migrate status`. Pendência exclusivamente visual do PNG da logo (D150). |
 | 9 — Consultas e dashboard | Cinco itens `[x]`, quatro `[ ]` | **REORGANIZADA** (parte concluída, parte pendente) | Consultas básicas implementadas em `04-orcamentos.md` (D113) e expostas nas rotas de orçamento; não existe `DashboardQuery` nem endpoints de dashboard/instalações operacionais. |
 | 10 — Dados do negócio | Todos os itens `[x]` | **CONCLUÍDA** | `10-dados-negocio.md` (D125–D142); módulo `backend/src/modules/dados-do-negocio/` com store Prisma, query, use case, DTOs, controller `GET`/`PUT /dados-do-negocio`, testes unitários, integração e E2E (DADOS-DO-NEGOCIO-03 a -12). |
 | 11 — Frontend | Todos os itens `[ ]` | **PENDENTE** | `frontend/src` contém apenas `App.jsx`, `main.jsx`, CSS e assets do template Vite; nenhuma feature de Auth, Clientes, Orçamento, Documentos, Dashboard ou Dados do Negócio. |
@@ -75,7 +75,7 @@ A Fase 10 foi concluída em 2026-10-20: o módulo de dados do negócio está imp
 |---|---|---|---|---|---|
 | Fase 4 — Núcleo de Orçamento | Implementar o modelo de domínio antes dos fluxos HTTP completos. | CONCLUÍDA | `04-orcamentos.md` (D76–D95) | `domain/entities/quote.ts`, `curtain.ts`, `financial-item.ts`; VOs `money`, `quote-number`, `installation-address`, `discount`; specs unitárias do domínio. | Nenhuma nesta fase. PDF, ordem de produção e dashboard pertencem às Fases 8 e 9. |
 | Fase 5 — Rascunho, numeração e edição | Permitir a criação real do orçamento e sua edição enquanto permitido. | CONCLUÍDA | `04-orcamentos.md` (D79–D95, D110–D117, D119) | `CreateQuoteFromCustomerUseCase`, `UpdateQuoteUseCase`, `DeleteDraftQuoteUseCase`, `PrismaQuoteSequence`; 16 rotas no `OrcamentosController`; testes de integração e E2E. | Nenhuma nesta fase. Paginação e optimistic locking estão fora do MVP (D113, D120). |
-| Fase 6 — Ciclo de vida e histórico | Implementar as transições de negócio com consistência transacional. | CONCLUÍDA | `04-orcamentos.md` (D96–D109, D119) | Use cases de envio, confirmação, reabertura, renovação, cancelamento, produção e conclusão; `quote-state-machine.spec.ts`; testes de transação e rollback de histórico. | Eventos de PDF/ordem de produção permanecem na Fase 8; o enum já os declara, mas não são emitidos. |
+| Fase 6 — Ciclo de vida e histórico | Implementar as transições de negócio com consistência transacional. | CONCLUÍDA | `04-orcamentos.md` (D96–D109, D119) | Use cases de envio, confirmação, reabertura, renovação, cancelamento, produção e conclusão; `quote-state-machine.spec.ts`; testes de transação e rollback de histórico. | Eventos de PDF/ordem de produção não eram emitidos na Fase 6; a emissão foi implementada na Fase 8, concluída em 2026-10-20. |
 | Fase 7 — Instalação | Completar o fluxo operacional após confirmação. | CONCLUÍDA | `04-orcamentos.md` (D104–D107) | `ScheduleInstallationUseCase`, `RemoveInstallationUseCase`, `CompleteServiceUseCase`; testes de instalação e de conclusão bloqueada por instalação futura. | Listas operacionais de instalação pertencem à Fase 9. |
 | Fase 9 — Consultas e dashboard (parte de consultas) | Implementar leitura eficiente sem reconstruir aggregates desnecessariamente. | PARCIALMENTE CONCLUÍDA | `04-orcamentos.md` (D113) | `SearchQuotesQuery`, `GetQuoteQuery`, `ListCustomerQuotesQuery`, `ListQuoteHistoryQuery`; `GET /orcamentos?search=&status=`; filtro virtual `EXPIRED` e separação de enviados válidos. | Dashboard por status; próximas instalações; instalações da semana; instalações atrasadas. |
 
@@ -83,7 +83,7 @@ A Fase 10 foi concluída em 2026-10-20: o módulo de dados do negócio está imp
 
 | Fase | Itens pendentes |
 |---|---|
-| 8 — Documentos | Projeção e geração do PDF comercial sob demanda; projeção e geração da ordem de produção; uso dos dados do negócio no PDF; ausência de dados proibidos; registro dos eventos de geração no histórico; não persistir arquivos PDF. |
+| 8 — Documentos | Nenhum item funcional pendente. Permanece apenas a pendência visual do PNG real da logo (D150); o PDF é gerado sem logo e sem imagem substituta. |
 | 9 — Dashboard e consultas operacionais | Dashboard por status (com `EXPIRED` separado de `SENT` válido); próximas instalações; instalações da semana; instalações atrasadas. |
 | 11 — Frontend | Login e sessão; clientes; detalhes do cliente e histórico; formulário de orçamento mobile-first; cortinas e composição financeira; ciclo de estados; instalação; prévia/geração de documentos; dashboard; dados do negócio; tratamento uniforme de loading, sucesso e erro. |
 | 12 — Hardening e entrega | E2E dos fluxos críticos; revisão de autorização/autenticação; revisão CSRF/XSS/logging; validação de dados sensíveis na ordem de produção; revisão de índices e queries; backup; configuração de produção; `trust proxy` com hops confiáveis; HTTPS; deploy; smoke tests pós-deploy. |
@@ -93,10 +93,10 @@ A Fase 10 foi concluída em 2026-10-20: o módulo de dados do negócio está imp
 | Próxima fase | Depende de | Já disponível? | Bloqueio |
 |---|---|---|---|
 | Dados do Negócio (Fase 10) | Fase 1 (Prisma), `AuthGuard`, model/tabela `BusinessData` | Sim: módulo, store, query, use case, DTOs, `GET`/`PUT /dados-do-negocio` e testes implementados. | Nenhum. Fase concluída em 2026-10-20. |
-| PDF comercial (Fase 8) | Fase 10 (identidade do negócio), aggregate e queries de Orçamento, enum de histórico | Parcialmente: Orçamento, `COMMERCIAL_PDF_GENERATED` e API de dados do negócio existem; não há geração de PDF. | Spec `08-documentos.md`; escolha da biblioteca de PDF (decisão adiada em `ARCHITECTURE.md` §22). |
-| Ordem de produção (Fase 8) | Aggregate de Orçamento, status `CONFIRMED`/`IN_PRODUCTION`/`COMPLETED`, dados técnicos da cortina, enum de histórico | Sim para os dados e transições; não há `ProductionOrder` por decisão de arquitetura. | Spec `08-documentos.md`; definição do formato de entrega do documento. Não depende de Dados do Negócio. |
+| PDF comercial (Fase 8) | Fase 10 (identidade do negócio), aggregate e queries de Orçamento, enum de histórico | Sim: projeção, consulta de contato, use case, renderer e rota implementados e testados. Fase 8 concluída em 2026-10-20. | Nenhum bloqueio funcional. Pendência visual do PNG da logo (D150). |
+| Ordem de produção (Fase 8) | Aggregate de Orçamento, status `CONFIRMED`/`IN_PRODUCTION`/`COMPLETED`, dados técnicos da cortina, enum de histórico | Sim: projeção, use case, renderer e rota implementados e testados, sem `ProductionOrder` por decisão de arquitetura. Fase 8 concluída em 2026-10-20. | Nenhum. |
 | Dashboard (Fase 9 restante) | `QuoteStatus`, condições derivadas `EXPIRED`/instalação atrasada, `scheduledInstallationAt`, queries de leitura | Sim para os dados e para as projeções de D113; não existe `DashboardQuery`. | Spec `09-queries-dashboard.md`; definição dos contadores e listas operacionais. Sem bloqueio estrutural. |
-| Frontend (Fase 11) | Contratos HTTP de Auth, Clientes, Orçamento, Documentos, Dashboard e Dados do Negócio | Parcialmente: Auth, Clientes, Orçamento e Dados do Negócio estão disponíveis; Documentos e Dashboard não. | Conclusão das Fases 8 e 9; spec `11-frontend.md`. |
+| Frontend (Fase 11) | Contratos HTTP de Auth, Clientes, Orçamento, Documentos, Dashboard e Dados do Negócio | Parcialmente: Auth, Clientes, Orçamento, Documentos e Dados do Negócio estão disponíveis; Dashboard não. | Conclusão da Fase 9; spec `11-frontend.md`. |
 | Hardening e entrega (Fase 12) | Escopo funcional completo (Fases 8–11), topologia de produção, decisões de backup e hosting | Parcialmente: Auth, CSRF, rate limiting, cookie, migrations e 6 arquivos E2E existem. | Conclusão das Fases 8–11; definição de hosting/topologia/backup (`ARCHITECTURE.md` §20 e §22); número de hops confiáveis para `trust proxy`. |
 
 ### 2.7 Ordem de execução recomendada
@@ -104,7 +104,7 @@ A Fase 10 foi concluída em 2026-10-20: o módulo de dados do negócio está imp
 | Ordem | Fase | Justificativa |
 |---|---|---|
 | 1 | Fase 10 — Dados do Negócio | O PDF comercial exige a identidade do negócio (`PROJECT_SPEC` §10.2). O schema/tabela já existem; é a menor dependência pendente e não depende de documentos. **Concluída em 2026-10-20.** |
-| 2 | Fase 8 — Documentos | O PDF comercial consome os dados da Fase 10; a ordem de produção depende apenas do núcleo de Orçamento. Ambos são gerados sob demanda e não persistidos (`ARCHITECTURE.md` §16). |
+| 2 | Fase 8 — Documentos | O PDF comercial consome os dados da Fase 10; a ordem de produção depende apenas do núcleo de Orçamento. Ambos são gerados sob demanda e não persistidos (`ARCHITECTURE.md` §16). **Concluída em 2026-10-20.** |
 | 3 | Fase 9 — Dashboard e consultas restantes | Lê dados já produzidos pelo núcleo de Orçamento e não depende de documentos. A posição após a Fase 8 segue a ordem de entrega definida neste plano; não há dependência técnica. |
 | 4 | Fase 11 — Frontend | Deve ser construído sobre contratos backend estáveis, incluindo documentos, dashboard e dados do negócio. |
 | 5 | Fase 12 — Hardening e entrega | Revisão final, configuração de produção, backup, deploy e smoke tests exigem o escopo funcional e o frontend concluídos. |
@@ -276,24 +276,28 @@ Esta ordem não conflita com `PROJECT_SPEC` nem com `ARCHITECTURE`: as fontes n�
 
 ### Fase 8 — Documentos
 
-**Estado:** PENDENTE.
+**Estado:** CONCLUÍDA em 2026-10-20.
 
 **Objetivo:** gerar documentos sob demanda sem introduzir estado redundante.
 
-- [ ] Criar DTO/projeção do PDF comercial.
-- [ ] Gerar PDF comercial sob demanda.
-- [ ] Integrar os dados do negócio à projeção do PDF comercial (item transferido da Fase 10).
-- [ ] Criar DTO/projeção da ordem de produção.
-- [ ] Gerar ordem de produção sob demanda.
-- [ ] Garantir ausência de dados proibidos em cada documento.
-- [ ] Registrar geração no histórico.
-- [ ] Não persistir arquivos PDF.
+- [x] Criar DTO/projeção do PDF comercial.
+- [x] Gerar PDF comercial sob demanda.
+- [x] Integrar os dados do negócio à projeção do PDF comercial (item transferido da Fase 10).
+- [x] Criar DTO/projeção da ordem de produção.
+- [x] Gerar ordem de produção sob demanda.
+- [x] Garantir ausência de dados proibidos em cada documento.
+- [x] Registrar geração no histórico.
+- [x] Não persistir arquivos PDF.
 
-**Evidência do estado atual:** `backend/src/modules/orcamentos/infrastructure/documents/` contém apenas `.gitkeep`; não há serviço ou rota de PDF/ordem de produção; não existe tabela nem aggregate `ProductionOrder` (`ARCHITECTURE.md` §16.2). Os valores `COMMERCIAL_PDF_GENERATED` e `PRODUCTION_ORDER_GENERATED` existem no enum `HistoryEventType` e no tipo de leitura do histórico, mas não há geração implementada.
+**Evidência do estado atual:** `backend/src/modules/orcamentos/application/documents/` contém projeções fechadas, disponibilidade, formatadores e a porta `QuoteDocumentRenderer`; `application/use-cases/generate-commercial-pdf.use-case.ts` e `generate-production-order.use-case.ts` coordenam dados, renderização e histórico; `infrastructure/documents/` contém o renderer `pdf-lib`, o loader do asset e os testes de conteúdo; `presentation/` expõe `GET /orcamentos/:id/pdf` e `GET /orcamentos/:id/ordem-producao`; `PrismaQuoteHistoryWriter` insere os eventos `COMMERCIAL_PDF_GENERATED` e `PRODUCTION_ORDER_GENERATED`. Testes: unitários/projeções/renderer, conteúdo com parser real (`unpdf`), integração e E2E. Nenhuma tabela, aggregate, repository, cache ou arquivo PDF foi criado.
+
+**Gates finais (2026-10-20):** build, lint, 1066 testes unitários, 80 testes E2E, `prisma validate` e `prisma migrate status` aprovados; `git diff --check` limpo.
+
+**Pendência operacional:** o PNG real da logo (D150) não foi fornecido. O renderer funciona sem logo e não cria imagem substituta; a pendência é exclusivamente visual e não bloqueia a conclusão funcional.
 
 **Dependência:** a geração do PDF comercial depende da Fase 10 (identidade do negócio). A ordem de produção depende apenas do núcleo de Orçamento.
 
-**Spec:** `docs/development/08-documentos.md` (a criar na abertura da fase).
+**Spec:** `docs/development/08-documentos.md` (D143–D209; DOCUMENTOS-03 a DOCUMENTOS-21 concluídas em 2026-10-20).
 
 ---
 
@@ -329,7 +333,13 @@ Esta ordem não conflita com `PROJECT_SPEC` nem com `ARCHITECTURE`: as fontes n�
 
 - [x] Consultar configuração.
 - [x] Atualizar dados do negócio.
-- [x] Manter logo como asset fixo.
+- [ ] Manter logo como asset fixo.
+
+**Correção documental (DOCUMENTOS-21):** a marcação anterior deste item como
+concluído não correspondia ao repositório. O suporte ao asset fixo foi
+implementado na Fase 8 (D150), mas o PNG real nunca foi fornecido; a pendência
+é exclusivamente visual e está registrada na Fase 8. O módulo de dados do
+negócio permanece concluído.
 
 **Evidência do estado atual:** módulo `backend/src/modules/dados-do-negocio/` com `DadosDoNegocioModule`, `PrismaBusinessDataStore` sobre o model `BusinessData`, `GetBusinessDataQuery`, `UpdateBusinessDataUseCase`, DTOs, mappers e `GET`/`PUT /dados-do-negocio` protegidos por `AuthGuard`. Testes unitários, um arquivo de integração serial para `business_data` e E2E em `backend/test/dados-do-negocio.e2e-spec.ts`. Gates finais: build, lint, 931 testes unitários/integração, 44 testes E2E e `prisma validate` aprovados.
 

@@ -3,12 +3,8 @@ import type { QuoteHistoryEventType } from '../../domain/history/quote-history.j
 // Read port for the quote history (D108/D113). History is not loaded with the
 // aggregate, so this projection is served by a dedicated read repository.
 
-// All 14 persisted types exist (D108); the two Phase 8 events are readable
-// even though this phase does not emit them.
-export type QuoteHistoryReadEventType =
-  | QuoteHistoryEventType
-  | 'COMMERCIAL_PDF_GENERATED'
-  | 'PRODUCTION_ORDER_GENERATED';
+// All 14 persisted types exist (D108), including the document events (D184).
+export type QuoteHistoryReadEventType = QuoteHistoryEventType;
 
 export interface QuoteHistoryEntry {
   id: string;

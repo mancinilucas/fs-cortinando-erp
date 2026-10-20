@@ -15,5 +15,8 @@ import { DadosDoNegocioController } from './presentation/dados-do-negocio.contro
     GetBusinessDataQuery,
     UpdateBusinessDataUseCase,
   ],
+  // Quotes reads the current business identity through the Application
+  // boundary (D140/D153), never through Prisma or an internal HTTP call.
+  exports: [GetBusinessDataQuery],
 })
 export class DadosDoNegocioModule {}
