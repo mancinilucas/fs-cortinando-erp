@@ -9,6 +9,12 @@ import {
 import { SessionTokenService } from '../../auth/application/session-token.service.js';
 import { UserIdentity, UserStore } from '../../auth/application/user-store.js';
 import { AuthGuard } from '../../auth/presentation/auth.guard.js';
+import { BusinessDataNotConfiguredError } from '../application/errors/business-data-not-configured.error.js';
+import { DocumentCustomerNotFoundError } from '../application/errors/document-customer-not-found.error.js';
+import { DocumentDataIncompleteError } from '../application/errors/document-data-incomplete.error.js';
+import { DocumentHistoryWriteError } from '../application/errors/document-history-write.error.js';
+import { DocumentNotAvailableError } from '../application/errors/document-not-available.error.js';
+import { DocumentRenderError } from '../application/errors/document-render.error.js';
 import { QuoteCustomerNotFoundError } from '../application/errors/quote-customer-not-found.error.js';
 import { QuoteNotFoundError } from '../application/errors/quote-not-found.error.js';
 import type { QuoteHistoryEntry } from '../application/ports/quote-history-query.repository.js';
@@ -23,6 +29,8 @@ import { CompleteServiceUseCase } from '../application/use-cases/complete-servic
 import { ConfirmQuoteUseCase } from '../application/use-cases/confirm-quote.use-case.js';
 import { CreateQuoteFromCustomerUseCase } from '../application/use-cases/create-quote-from-customer.use-case.js';
 import { DeleteDraftQuoteUseCase } from '../application/use-cases/delete-draft-quote.use-case.js';
+import { GenerateCommercialPdfUseCase } from '../application/use-cases/generate-commercial-pdf.use-case.js';
+import { GenerateProductionOrderUseCase } from '../application/use-cases/generate-production-order.use-case.js';
 import { MarkQuoteAsSentUseCase } from '../application/use-cases/mark-quote-as-sent.use-case.js';
 import { RemoveInstallationUseCase } from '../application/use-cases/remove-installation.use-case.js';
 import { RenewQuoteUseCase } from '../application/use-cases/renew-quote.use-case.js';
@@ -99,6 +107,8 @@ const mocks = {
   search: vi.fn<SearchQuotesQuery['execute']>(),
   listByCustomer: vi.fn<ListCustomerQuotesQuery['execute']>(),
   history: vi.fn<ListQuoteHistoryQuery['execute']>(),
+  commercialPdf: vi.fn<GenerateCommercialPdfUseCase['execute']>(),
+  productionOrder: vi.fn<GenerateProductionOrderUseCase['execute']>(),
 };
 
 function sampleDetail(
@@ -352,6 +362,14 @@ describe('OrcamentosController (HTTP)', () => {
           provide: ListQuoteHistoryQuery,
           useValue: { execute: mocks.history },
         },
+        {
+          provide: GenerateCommercialPdfUseCase,
+          useValue: { execute: mocks.commercialPdf },
+        },
+        {
+          provide: GenerateProductionOrderUseCase,
+          useValue: { execute: mocks.productionOrder },
+        },
       ],
     }).compile();
 
@@ -420,6 +438,10 @@ describe('OrcamentosController (HTTP)', () => {
         .expect(401);
       await request(server())
         .get(`/orcamentos/${QUOTE_ID}/historico`)
+        .expect(401);
+      await request(server()).get(`/orcamentos/${QUOTE_ID}/pdf`).expect(401);
+      await request(server())
+        .get(`/orcamentos/${QUOTE_ID}/ordem-producao`)
         .expect(401);
     });
 
@@ -1060,6 +1082,139 @@ describe('OrcamentosController (HTTP)', () => {
         .set(COOKIE)
         .expect(404);
     });
+  });
+
+  describe('document routes', () => {
+    const PDF_BYTES = Buffer.from('%PDF-1.7\nrendered document\n%%EOF\n');
+
+    const DOCUMENTS = [
+      {
+        route: 'pdf',
+        mock: mocks.commercialPdf,
+        disposition:
+          'inline; filename="orcamento-ORC-2026-0001.pdf"; ' +
+          "filename*=UTF-8''orcamento-OR%C3%87-2026-0001.pdf",
+      },
+      {
+        route: 'ordem-producao',
+        mock: mocks.productionOrder,
+        disposition:
+          'inline; filename="ordem-de-producao-ORC-2026-0001.pdf"; ' +
+          "filename*=UTF-8''ordem-de-producao-OR%C3%87-2026-0001.pdf",
+      },
+    ] as const;
+
+    it.each(DOCUMENTS)(
+      'GET /orcamentos/:id/$route streams the rendered PDF',
+      async ({ route, mock, disposition }) => {
+        mocks.get.mockResolvedValue(sampleDetail());
+        mock.mockResolvedValue(PDF_BYTES);
+
+        const response = await request(server())
+          .get(`/orcamentos/${QUOTE_ID}/${route}`)
+          .set(COOKIE)
+          .expect(200);
+
+        expect(mocks.get).toHaveBeenCalledWith({ id: QUOTE_ID });
+        expect(mock).toHaveBeenCalledWith({ id: QUOTE_ID });
+        expect(response.headers['content-type']).toBe('application/pdf');
+        expect(response.headers['content-disposition']).toBe(disposition);
+        expect(response.headers['cache-control']).toBe('no-store');
+        expect(response.headers['content-length']).toBe(
+          String(PDF_BYTES.byteLength),
+        );
+        // A raw PDF body, not a JSON envelope.
+        expect(Buffer.isBuffer(response.body)).toBe(true);
+        expect(response.body.toString('ascii').slice(0, 5)).toBe('%PDF-');
+        expect(response.body.equals(PDF_BYTES)).toBe(true);
+      },
+    );
+
+    it.each(['pdf', 'ordem-producao'])(
+      'rejects a malformed id on /%s before reading the quote',
+      async (route) => {
+        await request(server())
+          .get(`/orcamentos/not-a-uuid/${route}`)
+          .set(COOKIE)
+          .expect(400);
+
+        expect(mocks.get).not.toHaveBeenCalled();
+        expect(mocks.commercialPdf).not.toHaveBeenCalled();
+        expect(mocks.productionOrder).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(DOCUMENTS)(
+      'returns 404 on /$route when the quote does not exist',
+      async ({ route, mock }) => {
+        mocks.get.mockRejectedValue(new QuoteNotFoundError());
+
+        const response = await request(server())
+          .get(`/orcamentos/${QUOTE_ID}/${route}`)
+          .set(COOKIE)
+          .expect(404);
+
+        expect(response.body).toMatchObject({
+          statusCode: 404,
+          message: 'Quote not found',
+        });
+        expect(mock).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      [
+        DocumentNotAvailableError,
+        'Document is not available in the current status',
+      ],
+      [BusinessDataNotConfiguredError, 'Business data is not configured'],
+      [DocumentCustomerNotFoundError, 'Document data is incomplete'],
+      [DocumentDataIncompleteError, 'Document data is incomplete'],
+    ])('maps %s to 409', async (ErrorClass, message) => {
+      mocks.get.mockResolvedValue(sampleDetail());
+      mocks.commercialPdf.mockRejectedValue(new ErrorClass());
+
+      const response = await request(server())
+        .get(`/orcamentos/${QUOTE_ID}/pdf`)
+        .set(COOKIE)
+        .expect(409);
+
+      expect(response.body).toMatchObject({ statusCode: 409, message });
+    });
+
+    it('maps a production order conflict to 409', async () => {
+      mocks.get.mockResolvedValue(sampleDetail());
+      mocks.productionOrder.mockRejectedValue(new DocumentNotAvailableError());
+
+      await request(server())
+        .get(`/orcamentos/${QUOTE_ID}/ordem-producao`)
+        .set(COOKIE)
+        .expect(409);
+    });
+
+    it.each([
+      [DocumentRenderError, 'rendering failure'],
+      [DocumentHistoryWriteError, 'history failure'],
+    ])(
+      'maps %s to 500 without exposing technical details',
+      async (ErrorClass, detail) => {
+        mocks.get.mockResolvedValue(sampleDetail());
+        mocks.commercialPdf.mockRejectedValue(
+          new ErrorClass(new Error(detail)),
+        );
+
+        const response = await request(server())
+          .get(`/orcamentos/${QUOTE_ID}/pdf`)
+          .set(COOKIE)
+          .expect(500);
+
+        expect(response.body).toMatchObject({
+          statusCode: 500,
+          message: 'Could not generate the document',
+        });
+        expect(JSON.stringify(response.body)).not.toContain(detail);
+      },
+    );
   });
 
   describe('unexpected failures', () => {

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -11,6 +12,7 @@ import {
   Post,
   Put,
   Query,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '../../auth/presentation/auth.guard.js';
@@ -23,6 +25,8 @@ import { CompleteServiceUseCase } from '../application/use-cases/complete-servic
 import { ConfirmQuoteUseCase } from '../application/use-cases/confirm-quote.use-case.js';
 import { CreateQuoteFromCustomerUseCase } from '../application/use-cases/create-quote-from-customer.use-case.js';
 import { DeleteDraftQuoteUseCase } from '../application/use-cases/delete-draft-quote.use-case.js';
+import { GenerateCommercialPdfUseCase } from '../application/use-cases/generate-commercial-pdf.use-case.js';
+import { GenerateProductionOrderUseCase } from '../application/use-cases/generate-production-order.use-case.js';
 import { MarkQuoteAsSentUseCase } from '../application/use-cases/mark-quote-as-sent.use-case.js';
 import { RemoveInstallationUseCase } from '../application/use-cases/remove-installation.use-case.js';
 import { RenewQuoteUseCase } from '../application/use-cases/renew-quote.use-case.js';
@@ -45,6 +49,8 @@ import { UpdateQuoteDto } from './dto/update-quote.dto.js';
 import { mapQuoteError } from './quote-error-mapper.js';
 import { QuoteRequestMapper } from './quote-request.mapper.js';
 import { QuoteResponseMapper } from './quote-response.mapper.js';
+import { buildContentDisposition } from './document-filename.js';
+import { mapDocumentError } from './document-error-mapper.js';
 
 // Thin HTTP layer (D115): route binding and DTO mapping only; all behavior is
 // delegated to application use cases and queries. Every mutation returns the
@@ -69,6 +75,8 @@ export class OrcamentosController {
     private readonly searchQuotes: SearchQuotesQuery,
     private readonly listCustomerQuotes: ListCustomerQuotesQuery,
     private readonly listQuoteHistory: ListQuoteHistoryQuery,
+    private readonly generateCommercialPdf: GenerateCommercialPdfUseCase,
+    private readonly generateProductionOrder: GenerateProductionOrderUseCase,
   ) {}
 
   @Post('clientes/:customerId/orcamentos')
@@ -255,6 +263,71 @@ export class OrcamentosController {
     );
 
     return entries.map((entry) => QuoteResponseMapper.toHistory(entry));
+  }
+
+  // D189/D192: documents are generated on demand and streamed as bytes. The
+  // quote is read first only to derive the filename from its number; the
+  // document use cases return the rendered bytes.
+  @Get('orcamentos/:id/pdf')
+  @Header('Cache-Control', 'no-store')
+  async commercialPdf(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<StreamableFile> {
+    return this.handleDocumentFile(async () => {
+      const quote = await this.getQuote.execute({ id });
+      const bytes = await this.generateCommercialPdf.execute({ id });
+
+      return {
+        bytes,
+        disposition: buildContentDisposition(
+          'commercial-pdf',
+          quote.quoteNumber,
+        ),
+      };
+    });
+  }
+
+  @Get('orcamentos/:id/ordem-producao')
+  @Header('Cache-Control', 'no-store')
+  async productionOrder(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<StreamableFile> {
+    return this.handleDocumentFile(async () => {
+      const quote = await this.getQuote.execute({ id });
+      const bytes = await this.generateProductionOrder.execute({ id });
+
+      return {
+        bytes,
+        disposition: buildContentDisposition(
+          'production-order',
+          quote.quoteNumber,
+        ),
+      };
+    });
+  }
+
+  private async handleDocumentFile(
+    operation: () => Promise<{ bytes: Uint8Array; disposition: string }>,
+  ): Promise<StreamableFile> {
+    try {
+      const { bytes, disposition } = await operation();
+
+      return new StreamableFile(Buffer.from(bytes), {
+        type: 'application/pdf',
+        disposition,
+        length: bytes.byteLength,
+      });
+    } catch (error) {
+      try {
+        mapDocumentError(error);
+      } catch (mapped) {
+        if (mapped !== error) {
+          throw mapped;
+        }
+      }
+
+      mapQuoteError(error);
+    }
   }
 
   private async readDetail(id: string): Promise<QuoteDetailResponseDto> {

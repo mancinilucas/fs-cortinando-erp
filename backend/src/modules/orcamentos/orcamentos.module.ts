@@ -18,6 +18,8 @@ import { CompleteServiceUseCase } from './application/use-cases/complete-service
 import { ConfirmQuoteUseCase } from './application/use-cases/confirm-quote.use-case.js';
 import { CreateQuoteFromCustomerUseCase } from './application/use-cases/create-quote-from-customer.use-case.js';
 import { DeleteDraftQuoteUseCase } from './application/use-cases/delete-draft-quote.use-case.js';
+import { GenerateCommercialPdfUseCase } from './application/use-cases/generate-commercial-pdf.use-case.js';
+import { GenerateProductionOrderUseCase } from './application/use-cases/generate-production-order.use-case.js';
 import { MarkQuoteAsSentUseCase } from './application/use-cases/mark-quote-as-sent.use-case.js';
 import { RemoveInstallationUseCase } from './application/use-cases/remove-installation.use-case.js';
 import { RenewQuoteUseCase } from './application/use-cases/renew-quote.use-case.js';
@@ -75,6 +77,8 @@ import { OrcamentosController } from './presentation/orcamentos.controller.js';
     SearchQuotesQuery,
     ListCustomerQuotesQuery,
     ListQuoteHistoryQuery,
+    GenerateCommercialPdfUseCase,
+    GenerateProductionOrderUseCase,
   ],
 })
 export class OrcamentosModule {}

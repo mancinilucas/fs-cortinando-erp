@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import type { QuoteRepository } from '../../domain/repositories/quote.repository.js';
+import { QuoteRepository } from '../../domain/repositories/quote.repository.js';
 import { toProductionOrderProjection } from '../documents/build-production-order-projection.js';
 import { assertProductionOrderAvailable } from '../documents/document-availability.js';
-import type { QuoteDocumentRenderer } from '../documents/quote-document-renderer.js';
+import { QuoteDocumentRenderer } from '../documents/quote-document-renderer.js';
 import { DocumentHistoryWriteError } from '../errors/document-history-write.error.js';
 import { QuoteNotFoundError } from '../errors/quote-not-found.error.js';
-import type { Clock } from '../ports/clock.port.js';
-import type { QuoteHistoryWriter } from '../ports/quote-history-writer.port.js';
+import { Clock } from '../ports/clock.port.js';
+import { QuoteHistoryWriter } from '../ports/quote-history-writer.port.js';
 
 export interface GenerateProductionOrderInput {
   id: string;

@@ -3,7 +3,7 @@ import { GetCustomerContactQuery } from '../../../clientes/application/get-custo
 import { BusinessDataNotFoundError } from '../../../dados-do-negocio/application/business-data-not-found.error.js';
 import { GetBusinessDataQuery } from '../../../dados-do-negocio/application/get-business-data.query.js';
 import type { Quote } from '../../domain/entities/quote.js';
-import type { QuoteRepository } from '../../domain/repositories/quote.repository.js';
+import { QuoteRepository } from '../../domain/repositories/quote.repository.js';
 import {
   toCommercialPdfProjection,
   type CommercialPdfProjectionInput,
@@ -12,14 +12,14 @@ import {
   CommercialPdfMode,
   resolveCommercialPdfMode,
 } from '../documents/document-availability.js';
-import type { QuoteDocumentRenderer } from '../documents/quote-document-renderer.js';
+import { QuoteDocumentRenderer } from '../documents/quote-document-renderer.js';
 import { BusinessDataNotConfiguredError } from '../errors/business-data-not-configured.error.js';
 import { DocumentCustomerNotFoundError } from '../errors/document-customer-not-found.error.js';
 import { DocumentDataIncompleteError } from '../errors/document-data-incomplete.error.js';
 import { DocumentHistoryWriteError } from '../errors/document-history-write.error.js';
 import { QuoteNotFoundError } from '../errors/quote-not-found.error.js';
-import type { Clock } from '../ports/clock.port.js';
-import type { QuoteHistoryWriter } from '../ports/quote-history-writer.port.js';
+import { Clock } from '../ports/clock.port.js';
+import { QuoteHistoryWriter } from '../ports/quote-history-writer.port.js';
 
 export interface GenerateCommercialPdfInput {
   id: string;
