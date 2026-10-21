@@ -3411,6 +3411,20 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+#### Registro de execução (2026-10-21)
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → RE-VERIFY → DONE. FRONTEND-19 implementada e árvore limpa no início. D262/D295/D302/D308/D313–D318 conferidas contra PROJECT_SPEC, ARCHITECTURE, DTOs, controllers e mappers públicos. D317 permanece `[P]` material: esta task materializa somente o transporte de documentos e propaga erros, sem implementar sua política visual de links, bloqueios ou recuperação. Nenhuma decisão promovida.
+
+**Entrega:** `features/quotes/schema.ts`, `types.ts`, `api.ts` e `query-keys.ts`. Contratos frontend independentes dos DTOs backend para resumo, detalhe, cortina, componentes/adicionais, desconto, totais, endereço de instalação parcial, histórico opaco, payloads de criação/edição/ciclo/instalação e documentos Blob. Schemas Zod validam a estrutura da fronteira HTTP e excluem campos não públicos. O backend continua responsável por normalização, limites e regras de domínio; nenhum cálculo ou transição local.
+
+**Transporte:** busca com `search`/`status` (incluindo `EXPIRED`) por URLSearchParams; detalhe, histórico, criação na rota de cliente, PATCH, DELETE de rascunho, sete ações explícitas de ciclo, PUT/DELETE de instalação e dois GETs de PDF. Datas ISO, centavos inteiros, decimais e condições derivadas são preservados. Payloads não enviam status, numeração, sequence, totais nem medidas derivadas; PATCH mantém omissão/null, IDs e ordem das coleções, sem diff nem merge implícitos. IDs codificados como segmento; AbortSignal e credentials pelo cliente existente. DELETE 204 e falhas HTTP/rede/422 propagadas. Documentos sob demanda, sem cache, retry, prefetch ou object URLs nesta camada; respostas JSON de erro tratadas antes do Blob e content-type PDF verificado.
+
+**Cache:** chaves próprias para lista/filtros, detalhe e histórico; prefixo `['quotes', 'list']` compatível com invalidação existente de Clientes. Histórico por cliente continua na camada de Clientes. Sem query keys de documentos, hooks de produto ou invalidações antecipadas das tarefas de mutação.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**32 arquivos / 440 testes**), `pnpm build` e `git diff --check` passaram. Testes MSW cobrem endpoints/métodos/payloads, busca literal, ordem e valores do servidor, payloads aninhados, omissão/null/IDs, remoção de derivados, histórico opaco, 204, 404/409/422/500, violações traduzidas, rede, respostas inválidas, documentos sem cache, AbortSignal e codificação de IDs. Chaves conferidas contra o prefixo de invalidação já existente. Revisão semântica contra D303-B e critérios da task concluída; nenhum componente visual alterado.
+
+**Stop:** FRONTEND-21 não iniciada. Backend, telas, rotas, dependências e tarefas posteriores intactos. Commit não criado nesta sessão: `.git` está disponível somente para leitura.
+
 ---
 
 ### FRONTEND-21 — Lista e filtros de Orçamentos
