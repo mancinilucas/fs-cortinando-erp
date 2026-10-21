@@ -36,9 +36,9 @@ material de UX ou arquitetura permanecem `[P]` e estão destacadas em §21.
 | Classificação | Quantidade | Decisões |
 | --- | --- | --- |
 | `[F]` | 30 | D260, D261, D262, D266, D274, D275, D276, D280, D285, D287, D290, D293, D295, D297, D302, D306, D307, D308, D313, D315, D316, D318, D319, D320, D327, D328, D330, D331, D332, D333 |
-| `[P]` | 12 | D279, D283, D284, D291, D309, D310, D311, D312, D317, D321, D323, D329 |
+| `[P]` | 9 | D279, D283, D284, D291, D312, D317, D321, D323, D329 |
 | `[V]` | 0 | — |
-| `[A]` | 33 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D296, D298, D299, D300, D301, D303, D304, D305, D314, D322, D324, D325, D326, D334 |
+| `[A]` | 36 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D296, D298, D299, D300, D301, D303, D304, D305, D309, D310, D311, D314, D322, D324, D325, D326, D334 |
 
 A faixa D260–D333 continua imediatamente após D259, a última decisão da Fase
 9.
@@ -967,7 +967,7 @@ livre de status nem `PATCH` de `status`; cada ação usa a rota explícita.
 
 **Impacto:** `QuoteActions` derivando a matriz de `status` + `expired`.
 
-### D309 — Envio com validade e violações `[P]`
+### D309 — Envio com validade e violações `[A]`
 
 **Decisão:** o envio abre um diálogo com validade opcional; o texto explica
 que, se vazia, o backend aplica 30 dias. Ao confirmar, `POST /enviar`,
@@ -979,7 +979,7 @@ estado atual. Em sucesso, atualizar o detalhe e o histórico.
 
 **Impacto:** `SendQuoteDialog` e mapa de códigos (D322).
 
-### D310 — Confirmar, reabrir, renovar e cancelar `[P]`
+### D310 — Confirmar, reabrir, renovar e cancelar `[A]`
 
 **Decisão:**
 
@@ -993,7 +993,7 @@ estado atual. Em sucesso, atualizar o detalhe e o histórico.
 
 **Impacto:** diálogos e validação de data.
 
-### D311 — Iniciar produção e concluir `[P]`
+### D311 — Iniciar produção e concluir `[A]`
 
 **Decisão:** ambas as ações pedem confirmação. “Concluir” fica desabilitado
 com explicação quando existe instalação futura agendada; se o backend
@@ -1620,6 +1620,8 @@ reabre regra de produto ou backend.
 
 **Aprovação adicional (2026-10-21):** D305 `[A]`, aprovada explicitamente pelo responsável conforme descrita antes da FRONTEND-24. Não antecipa FRONTEND-25 nem promove outras decisões.
 
+**Aprovações adicionais (2026-10-21):** D309/D310/D311 `[A]`, aprovadas explicitamente pelo responsável antes da FRONTEND-27. Não promove D312 nem antecipa FRONTEND-28.
+
 ### 21.3 `[P]` ainda abertas
 
 As decisões abaixo permanecem propostas e podem ser implementadas salvo
@@ -1632,9 +1634,6 @@ da etapa correspondente.
 | D283 | Raiz, títulos e metadados | não |
 | D284 | NotFound, voltar e foco | não |
 | D291 | Debounce da busca | não |
-| D309 | Diálogo de envio | sim (UX) |
-| D310 | Confirmar/reabrir/renovar/cancelar | sim (UX) |
-| D311 | Iniciar produção/concluir | sim (UX) |
 | D312 | Instalação | sim (UX) |
 | D317 | Ordem de produção e `409` | sim (UX) |
 | D321 | Formulário de dados do negócio | sim (UX) |
@@ -3907,6 +3906,24 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 #### Semantic review
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
+
+#### Registro de execução (2026-10-21)
+
+**Estado: IMPLEMENTADA; gates aprovados; conferência visual no navegador pendente.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY. FRONTEND-26 implementada e árvore limpa no início. D309/D310/D311 aprovadas explicitamente pelo responsável e registradas `[A]` nos títulos, sumário e §21. D308/D313/D324 conferidas contra PROJECT_SPEC §8, ARCHITECTURE §18, controllers/DTOs/gates e direção visual. Nenhuma outra decisão promovida.
+
+**Entrega:** `QuoteActions` integrada ao detalhe com matriz baseada em status/expired recebidos do servidor. Enviar, confirmar, reabrir, renovar, cancelar, iniciar produção, concluir e excluir rascunho usam endpoints explícitos já existentes. Todas exigem diálogo de confirmação; nenhuma chamada ao abrir/cancelar diálogo. Sem seletor de status, PATCH de status ou optimistic update. Estados terminais sem ações de ciclo. Reabertura explica perda de confirmação/agendamento e validade possivelmente expirada; produção avisa irreversibilidade e bloqueio de cancelamento; exclusão informa remoção definitiva e não reutilização do número. Confirmação indisponível quando expired.
+
+**Formulários e tempo:** envio aceita validade opcional; vazia envia corpo vazio e delega 30 dias ao backend. Renovação exige nova validade futura. Entrada datetime-local identificada no horário de Brasília e convertida para ISO UTC por Intl usando o fuso compartilhado, sem presumir fuso do host. Cancelamento permite motivo opcional com até 500 caracteres. Conclusão desabilitada com explicação associada quando há instalação futura; timer local libera a ação no instante agendado e foco atualiza o relógio, sem polling de API. Nenhum recálculo local de expired/lateInstallation ou totais.
+
+**Falhas e confirmação:** trava síncrona, campos/controles de confirmação desabilitados durante requisição e fechamento do diálogo impedido enquanto pendente. Falhas mantêm o diálogo/entradas e permitem retry manual; mensagens seguras em português. 409 cancela leitura anterior e recarrega detalhe/histórico, exibe a situação conhecida e impede repetir ação que deixou de ser permitida. Texto não afirma sucesso de recarga quando ela falha. Mensagens específicas de validade/expiração e conclusão antes da instalação traduzidas. Sessão 401 segue limite existente.
+
+**422:** `QuoteGateErrors` agrupa violações por cortina quando identificável e por área/campo nos demais casos, usando somente mensagens traduzidas por código. O contrato real fornece apenas code/message, sem localizador estruturado; parser conserva opcionalmente somente sequência numérica segura extraída do prefixo conhecido “Curtain N …” de códigos conhecidos de cortina/componente. Nomes/textos arbitrários do backend não são exibidos nem usados para reconstruir o gate. Ausência de localizador usa grupo de cortinas/componentes ou dados do orçamento; códigos futuros usam fallback seguro. Backend intacto.
+
+**Cache e exclusão:** `useQuoteLifecycle` reutiliza atualização confirmada/invalidação de detalhe, listas, histórico, histórico do cliente e dashboard, cancelando leituras antigas. Somente resposta bem-sucedida altera dados confirmados. DELETE 204 remove detalhe/histórico, invalida dependentes e navega para `/orcamentos`. DELETE com falha, inclusive 404, não é promovido a sucesso e preserva cache. Nenhuma geração/prefetch de documento.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**46 arquivos / 654 testes**), `pnpm build` e `git diff --check` passaram. Testes cobrem matriz de status/expired, endpoints/payloads, confirmações e avisos, cancelamento de diálogo, validade vazia/explícita/futura e fuso, motivo opcional/limite, bloqueio/liberação temporal da conclusão, 422 agrupado e desconhecido, 409 com estado novo e falha de recarga, duplicidade/fechamento pendente, ausência de optimistic update, retry HTTP/rede, sessão 401, exclusão/navegação/404, atualização de histórico e caches. Testes anteriores continuam aprovados. Build mantém aviso não bloqueante de chunk acima de 500 kB (580,07 kB; gzip 175,58 kB), sem alterar limites para ocultá-lo. Revisão semântica concluída. Conferência visual real em navegador não realizada.
+
+**Stop:** FRONTEND-28 não iniciada. Sem agendamento/alteração/remoção de instalação, documentos, backend, dependências ou rotas novas. D312 permanece proposta material. Commit não criado: `.git` disponível somente para leitura nesta sessão.
 
 ---
 

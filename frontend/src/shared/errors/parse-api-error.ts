@@ -1,6 +1,6 @@
-import { GENERIC_ERROR_MESSAGE, getGateViolationMessage, getHttpErrorMessage, getKnownErrorMessage } from './error-messages'
+import { gateViolationMessages, GENERIC_ERROR_MESSAGE, getGateViolationMessage, getHttpErrorMessage, getKnownErrorMessage } from './error-messages'
 
-export type ApiViolation = { readonly code: string; readonly message: string }
+export type ApiViolation = { readonly code: string; readonly message: string; readonly curtainSequence?: number }
 export type ParsedApiError = {
   readonly messages: readonly string[]
   readonly violations: readonly ApiViolation[]
@@ -26,7 +26,11 @@ export function parseApiError(status: number, payload: unknown): ParsedApiError 
   const rawErrors: readonly unknown[] = Array.isArray(errors) ? errors : []
   for (const error of rawErrors) {
     if (isRecord(error) && Object.hasOwn(error, 'code') && typeof error.code === 'string' && /^[A-Z][A-Z0-9_]*$/.test(error.code)) {
-      violations.push({ code: error.code, message: getGateViolationMessage(error.code) })
+      // Only a numeric locator from the backend's known curtain-message grammar is retained.
+      const match = Object.hasOwn(gateViolationMessages, error.code) && /^(?:CURTAIN_|COMPONENT_INVALID$)/.test(error.code) && Object.hasOwn(error, 'message') && typeof error.message === 'string' ? /^Curtain ([1-9]\d*) (?:must have|opening width|height|border|fabric factor|component )/.exec(error.message) : null
+      const sequence = match ? Number(match[1]) : undefined
+      const locator = sequence !== undefined && Number.isSafeInteger(sequence) ? { curtainSequence: sequence } : {}
+      violations.push({ code: error.code, message: getGateViolationMessage(error.code), ...locator })
     }
   }
 

@@ -21,6 +21,10 @@ const knownMessages: Readonly<Record<string, string>> = {
   'Could not generate the document': 'Não foi possível gerar o documento. Tente novamente.',
   'Quote can only be edited while in DRAFT or SENT status': 'O orçamento só pode ser editado como rascunho ou enviado.',
   'Unknown or duplicated quote item id': 'Um item do orçamento não foi reconhecido ou está duplicado. Atualize os dados.',
+  'Quote has expired': 'O orçamento expirou. Renove a validade antes de confirmar.',
+  'Quote cannot be confirmed without a validity': 'O orçamento precisa de uma validade antes da confirmação.',
+  'Quote cannot be renewed without a validity': 'O orçamento não possui validade para renovação.',
+  'Quote cannot be completed before the scheduled installation': 'A conclusão só é permitida após a instalação agendada.',
   'Quote transition is not allowed in the current status': 'A ação não é permitida na situação atual do orçamento.',
   'Quote does not satisfy the sending requirements': 'O orçamento ainda não atende aos requisitos de envio.',
 }

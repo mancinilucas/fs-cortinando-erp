@@ -10,6 +10,7 @@ import { formatQuantity } from '@/shared/format/decimals'
 import { formatMoney } from '@/shared/format/money'
 import { discountTypeLabels } from '@/shared/format/labels'
 import { useQuote } from './hooks'
+import { QuoteActions } from './QuoteActions'
 import { QuoteHistory } from './QuoteHistory'
 import { DetailFields, FinancialItems, QuoteCurtains, QuoteDates } from './QuoteReadOnlySections'
 import { TotalsSummary } from './TotalsSummary'
@@ -67,6 +68,7 @@ export function QuoteDetailPage() {
           <TotalsSummary totals={quote.totals} />
           <QuoteDates quote={quote} />
           <div data-quote-actions>{(quote.status === 'DRAFT' || quote.status === 'SENT') && <Link to={`/orcamentos/${encodeURIComponent(quote.id)}/editar`} className="inline-flex min-h-11 items-center rounded-sm bg-brand-navy px-4 py-2 text-button font-semibold text-text-inverse">Editar orçamento</Link>}</div>
+          <QuoteActions key={quote.id} quote={quote} />
           <div data-quote-documents />
           <QuoteHistory quoteId={quote.id} />
         </>}

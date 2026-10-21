@@ -69,13 +69,13 @@ test('never derives lateness or expiration locally from old dates', async () => 
   expect(screen.queryByText('Expirado')).not.toBeInTheDocument()
   expect(screen.queryByText('Instalação em atraso')).not.toBeInTheDocument()
 })
-test.each(['DRAFT', 'SENT', 'CONFIRMED', 'IN_PRODUCTION', 'COMPLETED', 'CANCELLED'] as const)('offers only existing editing navigation in %s, without lifecycle or document requests', async (status) => {
+test.each(['DRAFT', 'SENT', 'CONFIRMED', 'IN_PRODUCTION', 'COMPLETED', 'CANCELLED'] as const)('keeps editing navigation and does not request documents in %s', async (status) => {
   const pdf = vi.fn(() => new HttpResponse('unused'))
   server.use(http.get('*/orcamentos/quote-1', () => HttpResponse.json({ ...quoteFixture, status })), http.get('*/orcamentos/quote-1/pdf', pdf))
   mount(); await ready()
   if (status === 'DRAFT' || status === 'SENT') expect(screen.getByRole('link', { name: 'Editar orçamento' })).toHaveAttribute('href', '/orcamentos/quote-1/editar')
   else expect(screen.queryByRole('link', { name: 'Editar orçamento' })).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: /Confirmar|Enviar|Renovar|Gerar PDF|Excluir/ })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Gerar PDF/ })).not.toBeInTheDocument()
   expect(pdf).not.toHaveBeenCalled()
 })
 test('keeps quote and history accessible when customer data returns 404', async () => {

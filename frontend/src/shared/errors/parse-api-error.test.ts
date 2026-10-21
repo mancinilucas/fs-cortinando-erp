@@ -38,3 +38,17 @@ test('does not trust statusCode, error, stack or inherited payload fields', () =
   expect(parseApiError(429, { statusCode: 401, error: 'internal', stack: 'internal', message: 'Too Many Requests' }).messages)
     .toEqual([getHttpErrorMessage(429)])
 })
+
+test('retains only a safe numeric curtain locator from known gate messages', () => {
+  const parsed = parseApiError(422, { errors: [
+    { code: 'CURTAIN_HEIGHT_INVALID', message: 'Curtain 2 height must be greater than zero' },
+    { code: 'COMPONENT_INVALID', message: 'Curtain 3 component "private name" must have quantity and unit price greater than zero' },
+    { code: 'CURTAIN_ROOM_REQUIRED', message: 'private diagnostic' },
+    { code: 'CURTAIN_FUTURE', message: 'Curtain 4 must have private data' },
+  ] })
+  expect(parsed.violations[0]).toMatchObject({ curtainSequence: 2, message: 'Confira a altura da cortina.' })
+  expect(parsed.violations[1]).toMatchObject({ curtainSequence: 3 })
+  expect(parsed.violations[2]).not.toHaveProperty('curtainSequence')
+  expect(parsed.violations[3]).not.toHaveProperty('curtainSequence')
+  expect(JSON.stringify(parsed)).not.toContain('private')
+})

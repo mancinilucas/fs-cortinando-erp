@@ -18,7 +18,7 @@ export function useQuoteHistory(id: string | undefined) {
     return getQuoteHistory(id, signal)
   } })
 }
-function useQuoteCache() {
+export function useQuoteCache() {
   const client = useQueryClient()
   return async (quote: QuoteDetail) => {
     const detail = quoteKeys.detail(quote.id)
