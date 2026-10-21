@@ -1,9 +1,15 @@
+import { http, HttpResponse } from 'msw'
+import { server } from '@/shared/test/server'
 import { useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { expect, test, vi } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vitest'
 import { AppProviders } from './providers'
 import { createAppQueryClient } from './query-client'
+
+beforeEach(() => {
+  server.use(http.get('*/auth/me', () => new HttpResponse(null, { status: 401 })))
+})
 
 function ClientProbe({ clients }: { clients: QueryClient[] }) {
   clients.push(useQueryClient())

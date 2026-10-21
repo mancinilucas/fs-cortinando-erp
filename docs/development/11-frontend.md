@@ -2769,6 +2769,25 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE. FRONTEND-10 concluída e árvore limpa no início. D274–D276/D280 conferidas; D279 permanece proposta não material e somente seu contrato HTTP foi consumido. D277 permanece `[P]` material: nenhum tratamento global de sessão, returnTo ou cooldown foi implementado.
+
+**Implementação:** tipos de identidade, credenciais e união discriminada dos estados `loading`, `authenticated`, `anonymous` e `error`; API de `GET /auth/me`, `POST /auth/login` e `POST /auth/logout` sobre o cliente HTTP existente. Respostas de identidade são validadas em runtime e copiadas somente como `{ id, email }`. Login envia somente email/senha; logout aceita resposta vazia e propaga falhas, sem alterar sessão/cache por conta própria.
+
+**Sessão:** `AuthProvider` integrado ao `AppProviders`, com `useSession`. Bootstrap único por montagem, inclusive no replay de effects do StrictMode; `200` popula identidade, `401` produz estado anônimo, rede/`500`/resposta inválida produzem erro seguro com ação explícita de nova tentativa. Não há retry automático. Desmontagem cancela a chamada; controle de versão impede resposta atrasada de sobrescrever uma atualização explícita de sessão. Identidade somente em memória; nenhum storage, leitura/escrita de cookie, token, CSRF, Origin manual ou renovação.
+
+**Limites:** esta task entrega estado e ações de contexto, sem fluxo visual de login/logout, navegação, limpeza de queries ou interceptor global. Apresentação dos estados de bootstrap e redirecionamento do anônimo serão conectados pelo `RequireAuth` na FRONTEND-13; o ramo de produto continua fechado, sem Outlet, conforme FRONTEND-09. FRONTEND-12 não iniciada. Backend, mapa de rotas, decisões, plano e topologia de produção intactos; pnpm do frontend e backend continuam independentes.
+
+**Testes e reparos:** MSW cobre contratos, sanitização da identidade, credenciais de login, status HTTP e ausência de retries. Provider cobre StrictMode, estados, retry manual, cancelamento/remontagem, resposta atrasada e ausência de acesso a storage/cookies. A verificação de `credentials: include` observa o argumento real de fetch, pois o Request reconstruído pelo MSW nesta versão apresenta `same-origin`; o teste de storage isola fetch para excluir leituras internas de `debugLevel` pelo MSW. Fixtures explícitas de `/auth/me` nos testes de composição evitam acesso ao backend.
+
+**Gates finais:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**19 arquivos / 224 testes**), `pnpm build` e `git diff --check` passaram. Review semântico contra fontes superiores, contratos Auth e escopo da task concluído; `git status --short` revisado. Nenhuma dependência adicionada.
+
+**Commit sugerido:** `feat(FRONTEND-11): add session bootstrap`.
+
+**Stop:** FRONTEND-12 não iniciada.
+
 ---
 
 ### FRONTEND-12 — Login e logout
