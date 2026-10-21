@@ -2692,6 +2692,34 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE. FRONTEND-09 DONE e árvore limpa no início. D267/D275/D276 e D322 `[A]` conferidas. D277 continua `[P]` material: não foram implementados seus comportamentos de sessão, navegação, cache ou cooldown. Classificar HTTP 401/429 em erro tipado/mensagem segura pertence ao parser aprovado em D322 e não promove D277.
+
+**Arquivos:** `src/shared/api/http-client.ts`, `api-error.ts`, `http-client.test.ts`, `src/shared/errors/parse-api-error.ts` e seu teste. Nenhuma dependência, script ou configuração adicional. Código backend lido somente para confirmar contratos efetivos de erro.
+
+**Cliente:** `createHttpClient(baseUrl?)` e instância `httpClient` usam fetch nativo com `credentials: 'include'` fixo, base opcional de FRONTEND-09 e paths relativos por padrão. Métodos `json(path, options?)` e `blob(path, options?)`; opções estreitas de método HTTP, body JSON e AbortSignal, sem possibilidade de sobrescrever credenciais ou fornecer manualmente Origin/CSRF. Content-Type JSON somente quando há body; GET/HEAD com body e JSON não serializável são rejeitados antes da requisição. Headers Accept distintos para JSON/PDF. Sem retry, refresh, interceptors ou estado de sessão.
+
+**URLs:** mantém prefixo de base absoluto HTTP(S) ou root-relative, sem barras finais duplicadas; rejeita base com credenciais/query/fragment e paths absolutos/protocol-relative/com backslash/fragment para não desviar o destino configurado. Base vazia usa mesma origem. Nenhuma credencial ou segredo adicionado a VITE_*. O cliente nunca lê/escreve cookie nem define Origin; envio do cookie é do navegador.
+
+**Respostas e tipagem:** JSON permanece `unknown` na fronteira HTTP; overload com decoder explícito `(unknown) => T` retorna `T | undefined`, sem casts para afirmar contratos não verificados. Falha do decoder é preservada. 204 e HEAD retornam undefined sem chamar parser/decoder. Erro HTTP é processado antes de Blob, impedindo interpretar JSON de erro como PDF. Binário retorna Blob sem object URL, cache, abertura ou download antecipados. JSON malformado em resposta de sucesso rejeita com ApiError/status real e mensagem genérica segura; não retorna sucesso falso. Falhas de rede e AbortError propagam sem wrapping/retry, inclusive cancelamento ao ler body.
+
+**ApiError/parser:** ApiError expõe status HTTP real, message/messages seguros e violations `{ code, message }` traduzidas. `parseApiError` recebe unknown, aceita message string/array heterogêneo e errors opcional; valida estrutura/chaves próprias, deduplica mensagens e usa allowlists de FRONTEND-07. Códigos conhecidos de gate são traduzidos, desconhecidos têm fallback; códigos estruturais inválidos são ignorados. Não confia em statusCode do body nem propaga HTML, mensagem interna, stack ou payload bruto. Erro com corpo vazio, HTML ou JSON inválido mantém o status da resposta e mensagem segura. Sem tradução dinâmica de detalhes desconhecidos de validação.
+
+**Limites:** 401 não redireciona, cancela queries ou limpa sessão/cache; 429 não agenda retry nem impõe cooldown. Não foi criado tratamento especial de login, AuthProvider, função de logout, token, CSRF, cookie em JS ou persistência. Recuperação de estado após 409 e demais efeitos ficam nas respectivas features. FRONTEND-11 não foi iniciado.
+
+**Testes:** 52 novos casos de cliente/parser, com MSW e spies no limite do fetch. Cobrem 200/201, 204 sem body, 400 string/array, 401/403/404/409/422/429/500, gate, Blob, erros JSON de documento, corpo vazio/HTML/JSON inválido, statusCode divergente, campos herdados, fallback, base relativa/absoluta/prefixo, serialização/null, métodos de mutação, credenciais, ausência de headers manuais, unsafe paths/bases, cancelamento prévio/em voo/durante leitura, rede sem retry e decoder explícito. Não há mock de feature ou teste E2E/browser novo.
+
+**Findings/reparos:** o Request observado no handler MSW desta versão mostrou credentials same-origin, apesar de fetch ter recebido include. As asserções de credenciais foram movidas ao limite efetivo `fetch(input, init)`, mantendo os testes MSW de método/body/headers/respostas e sem alterar produção para acomodar o mock. Respostas de erro são verificadas antes da leitura binária; erros de abort não são mascarados pelo fallback de JSON. Nenhum finding pendente.
+
+**Gates finais:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**17 arquivos / 202 testes**), `pnpm build` e `git diff --check` passaram. `git status --short` revisado. Bundle segue idêntico ao da FRONTEND-09, pois o cliente ainda não é consumido pelo bootstrap; nenhum fetch foi conectado à aplicação antes da task de sessão.
+
+**Review semântico:** D260–D334 preservadas, sem consumo implícito de D277/D323/D329. Backend, PROJECT_SPEC, ARCHITECTURE, visual spec, IMPLEMENTATION_PLAN, router, providers, package/lockfile e configurações intactos. Somente fundação HTTP e testes pertinentes ao risco autorizado em D267/D322/FRONTEND-10. Monorepo Git com instalações pnpm independentes e sem workspace raiz/frontend preservado.
+
+**Git:** sem commit; sugerido `feat(FRONTEND-10): add typed HTTP client`.
+
+**Stop:** FRONTEND-11 não iniciado.
+
 ---
 
 ### FRONTEND-11 — API e estado de sessão
