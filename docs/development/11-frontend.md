@@ -36,9 +36,9 @@ material de UX ou arquitetura permanecem `[P]` e estão destacadas em §21.
 | Classificação | Quantidade | Decisões |
 | --- | --- | --- |
 | `[F]` | 30 | D260, D261, D262, D266, D274, D275, D276, D280, D285, D287, D290, D293, D295, D297, D302, D306, D307, D308, D313, D315, D316, D318, D319, D320, D327, D328, D330, D331, D332, D333 |
-| `[P]` | 13 | D279, D283, D284, D291, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
+| `[P]` | 12 | D279, D283, D284, D291, D309, D310, D311, D312, D317, D321, D323, D329 |
 | `[V]` | 0 | — |
-| `[A]` | 32 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D296, D298, D299, D300, D301, D303, D304, D314, D322, D324, D325, D326, D334 |
+| `[A]` | 33 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D296, D298, D299, D300, D301, D303, D304, D305, D314, D322, D324, D325, D326, D334 |
 
 A faixa D260–D333 continua imediatamente após D259, a última decisão da Fase
 9.
@@ -901,7 +901,7 @@ arredondamento e facilita o uso no telefone.
 
 **Impacto:** `DecimalInput`, `MoneyInput` e normalizadores compartilhados.
 
-### D305 — Desconto e ajuste comercial `[P]`
+### D305 — Desconto e ajuste comercial `[A]`
 
 **Decisão:** seletor com “Sem desconto”, “Percentual” e “Valor fixo”; somente
 o campo correspondente fica habilitado. Percentual aceita até 2 casas e no
@@ -1618,6 +1618,8 @@ reabre regra de produto ou backend.
 
 **Aprovações adicionais (2026-10-21):** D301 e D304 `[A]`, aprovadas explicitamente pelo responsável antes da FRONTEND-22. Nenhuma outra decisão promovida; FRONTEND-23 não antecipada.
 
+**Aprovação adicional (2026-10-21):** D305 `[A]`, aprovada explicitamente pelo responsável conforme descrita antes da FRONTEND-24. Não antecipa FRONTEND-25 nem promove outras decisões.
+
 ### 21.3 `[P]` ainda abertas
 
 As decisões abaixo permanecem propostas e podem ser implementadas salvo
@@ -1630,7 +1632,6 @@ da etapa correspondente.
 | D283 | Raiz, títulos e metadados | não |
 | D284 | NotFound, voltar e foco | não |
 | D291 | Debounce da busca | não |
-| D305 | Desconto e ajuste | sim (UX) |
 | D309 | Diálogo de envio | sim (UX) |
 | D310 | Confirmar/reabrir/renovar/cancelar | sim (UX) |
 | D311 | Iniciar produção/concluir | sim (UX) |
@@ -3692,6 +3693,20 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 #### Semantic review
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
+
+#### Registro de execução (2026-10-21)
+
+**Estado: IMPLEMENTADA; gates aprovados; conferência visual no navegador pendente.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → RE-VERIFY. FRONTEND-23 implementada e árvore limpa no início. D305 aprovada explicitamente pelo responsável, registrada `[A]` no título, sumário e §21. D303-B/D304/D325 conferidas contra PROJECT_SPEC §2.5/§2.6/§7.6–§7.9, ARCHITECTURE §3.4, DTOs públicos, direção visual e critérios desta task. Nenhuma outra decisão promovida.
+
+**Entrega:** `GeneralAddOnsEditor`, `DiscountEditor`, `TotalsSummary` e `financial-form` integrados ao `QuoteForm`. Adicionais começam vazios, podem ser adicionados/removidos/reordenados, com nome obrigatório e quantidade/unidade/preço opcionais durante o rascunho. Quantidade até 6 casas, preço positivo quando preenchido, conversão textual exata para centavos, IDs persistidos separados das chaves RHF. Coleção inalterada omitida; coleção alterada enviada completa na ordem editada; remover todos envia array vazio. Novos adicionais não recebem ID local de domínio. Total salvo de adicional associado por ID, sem cálculo local.
+
+**Desconto/ajuste:** seletor com Sem desconto/Percentual/Valor fixo. Apenas o campo correspondente habilitado; valores inativos não participam de validação nem payload. Percentual positivo até 100 com até 2 casas; fixo positivo com até 2 casas em reais; sem validação local contra subtotal. Trocar para sem desconto limpa os valores do contrato com null. Ajuste assinado opcional aceita positivos/negativos dentro do inteiro do contrato; vazio limpa com null. Inputs corrigidos removem erros locais ao editar e suprimem erros locais enquanto desabilitados. Enviados somente discount/commercialAdjustmentCents quando alterados, sem total desejado, desconto calculado ou totais.
+
+**Valores confirmados:** `TotalsSummary` formata os sete campos de totais recebidos do backend; não soma, subtrai nem deriva desconto ou ajuste. No orçamento novo, informa que os totais aparecerão após salvar. Durante edição/salvamento, mantém os valores identificados como salvos; somente o detalhe retornado pelo callback atualiza resumo, inputs e baseline/reset. Falhas preservam entradas e valores confirmados. Integração POST/PATCH e navegação de página permanecem na FRONTEND-25.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**39 arquivos / 550 testes**), `pnpm build` e `git diff --check` passaram. Testes cobrem adicionais vazios, IDs/ordem/remoção completa, quantidade/preço/nomes inválidos, precisão, desconto ativo versus campos inativos, limites do percentual/fixo, valores assinados e extremos monetários, omissão/null, reset, falha, bloqueio durante salvamento e totais que só mudam com resposta do servidor. Schema financeiro composto com safeExtend mantém validações condicionais sem duplicar validação de adicionais. Todos os testes anteriores continuam aprovados. Build mantém o aviso não bloqueante de chunk acima de 500 kB já registrado na FRONTEND-22; nenhuma configuração alterada para ocultá-lo. Revisão semântica concluída. Conferência visual real em navegador não realizada.
+
+**Stop:** FRONTEND-25 não iniciada. Sem novos endpoints, backend, dependências, cálculos locais ou integração antecipada de páginas de criação/edição. Commit não criado: `.git` disponível somente para leitura nesta sessão.
 
 ---
 

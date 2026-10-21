@@ -7,6 +7,9 @@ import { TextArea } from '@/shared/components/FormFields'
 import { ErrorState, Spinner } from '@/shared/components/States'
 import { GENERIC_ERROR_MESSAGE } from '@/shared/errors/error-messages'
 import type { CustomerAddress } from '@/features/customers/types'
+import { GeneralAddOnsEditor } from './GeneralAddOnsEditor'
+import { DiscountEditor } from './DiscountEditor'
+import { TotalsSummary } from './TotalsSummary'
 import { CurtainsEditor } from './CurtainsEditor'
 import { InstallationAddressEditor } from './InstallationAddressEditor'
 import { quoteFormDefaults, quoteFormPayload, quoteFormResolver } from './quote-form'
@@ -48,7 +51,10 @@ export function QuoteForm({ quote, customerAddress, onSave }: {
         </section>
         <InstallationAddressEditor form={form} customerAddress={customerAddress} />
         <CurtainsEditor form={form} confirmed={confirmed?.curtains} />
+        <GeneralAddOnsEditor form={form} confirmed={confirmed?.generalAddOns} />
+        <DiscountEditor form={form} />
       </fieldset>
+      <TotalsSummary totals={confirmed?.totals} />
       <p className="text-caption text-text-secondary">Salve o rascunho para atualizar os valores calculados.</p>
       {error && <ErrorState message={error} />}
       {notice && !isDirty && <p role="status">{notice}</p>}
