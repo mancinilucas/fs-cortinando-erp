@@ -1,0 +1,55 @@
+import { useRef, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { ApiError } from '@/shared/api/api-error'
+import { Button } from '@/shared/components/Button'
+import { Dialog } from '@/shared/components/Dialog'
+import { TextArea } from '@/shared/components/FormFields'
+import { ErrorState, Spinner } from '@/shared/components/States'
+import { GENERIC_ERROR_MESSAGE } from '@/shared/errors/error-messages'
+import type { CustomerAddress } from '@/features/customers/types'
+import { InstallationAddressEditor } from './InstallationAddressEditor'
+import { quoteFormDefaults, quoteFormPayload, quoteFormResolver } from './quote-form'
+import type { QuoteFormPayload, QuoteFormValues } from './quote-form'
+import type { QuoteDetail } from './types'
+import { useUnsavedChanges } from './use-unsaved-changes'
+
+export function QuoteForm({ quote, customerAddress, onSave }: {
+  quote?: QuoteDetail; customerAddress?: CustomerAddress | null
+  onSave: (payload: QuoteFormPayload) => Promise<QuoteDetail>
+}) {
+  const form = useForm<QuoteFormValues>({ defaultValues: quoteFormDefaults(quote), resolver: quoteFormResolver })
+  const { isDirty, isSubmitting, errors } = form.formState
+  const blocker = useUnsavedChanges(isDirty)
+  const locked = useRef(false)
+  const [error, setError] = useState<string>()
+  const [notice, setNotice] = useState<string>()
+  async function submit(values: QuoteFormValues) {
+    if (locked.current) return
+    locked.current = true
+    setError(undefined); setNotice(undefined)
+    try {
+      const saved = await onSave(quoteFormPayload(values))
+      form.reset(quoteFormDefaults(saved))
+      setNotice('Rascunho salvo.')
+    } catch (failure) { setError(failure instanceof ApiError ? failure.message : GENERIC_ERROR_MESSAGE) }
+    finally { locked.current = false }
+  }
+  return <>
+    <form noValidate aria-busy={isSubmitting} onChange={() => setNotice(undefined)} onSubmit={(event) => { void form.handleSubmit(submit)(event) }} className="max-w-190 space-y-6">
+      <fieldset disabled={isSubmitting} className="min-w-0 space-y-6">
+        <section aria-labelledby="quote-general-title" className="space-y-4 rounded-md border border-border-default bg-surface-primary p-4 sm:p-6">
+          <h2 id="quote-general-title" className="text-section-title font-semibold">Dados gerais</h2>
+          <TextArea label="Observações" {...form.register('notes')} error={errors.notes?.message} />
+        </section>
+        <InstallationAddressEditor form={form} customerAddress={customerAddress} />
+      </fieldset>
+      <p className="text-caption text-text-secondary">Salve o rascunho para atualizar os valores calculados.</p>
+      {error && <ErrorState message={error} />}
+      {notice && !isDirty && <p role="status">{notice}</p>}
+      <Button type="submit" disabled={isSubmitting || Boolean(quote && !isDirty)}>{isSubmitting && <Spinner />}{isSubmitting ? 'Salvando…' : 'Salvar rascunho'}</Button>
+    </form>
+    {blocker.state === 'blocked' && <Dialog open title="Descartar alterações?" description="Há alterações não salvas neste orçamento." onClose={() => blocker.reset()}>
+      <div className="flex flex-wrap gap-3"><Button variant="secondary" onClick={() => blocker.reset()}>Continuar editando</Button><Button variant="destructive" onClick={() => blocker.proceed()}>Descartar alterações</Button></div>
+    </Dialog>}
+  </>
+}

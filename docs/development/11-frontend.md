@@ -36,9 +36,9 @@ material de UX ou arquitetura permanecem `[P]` e estão destacadas em §21.
 | Classificação | Quantidade | Decisões |
 | --- | --- | --- |
 | `[F]` | 30 | D260, D261, D262, D266, D274, D275, D276, D280, D285, D287, D290, D293, D295, D297, D302, D306, D307, D308, D313, D315, D316, D318, D319, D320, D327, D328, D330, D331, D332, D333 |
-| `[P]` | 15 | D279, D283, D284, D291, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
+| `[P]` | 13 | D279, D283, D284, D291, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
 | `[V]` | 0 | — |
-| `[A]` | 30 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D296, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
+| `[A]` | 32 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D296, D298, D299, D300, D301, D303, D304, D314, D322, D324, D325, D326, D334 |
 
 A faixa D260–D333 continua imediatamente após D259, a última decisão da Fase
 9.
@@ -815,7 +815,7 @@ criação e edição. A navegação para o primeiro erro deve abrir a seção
 correspondente. A seção de totais exibe apenas valores retornados pelo
 servidor; não há cálculo local (D303-B).
 
-### D301 — Salvamento explícito e alterações não salvas `[P]`
+### D301 — Salvamento explícito e alterações não salvas `[A]`
 
 **Decisão:** não usar autosave. O botão “Salvar rascunho” envia o formulário.
 Rastrear alterações pendentes e pedir confirmação ao navegar para fora, ao
@@ -887,7 +887,7 @@ valores do servidor; o formulário de criação não mostra totais antes do
 primeiro salvamento. O preset “Mão de obra” (D307) só pode usar
 `fabricQuantity` retornado pelo servidor.
 
-### D304 — Entrada de medidas, quantidades e dinheiro `[P]`
+### D304 — Entrada de medidas, quantidades e dinheiro `[A]`
 
 **Decisão:** campos decimais aceitam vírgula ou ponto e exibem no máximo 3
 casas para medidas e 6 para quantidades. Dinheiro é digitado em reais e
@@ -1616,6 +1616,8 @@ reabre regra de produto ou backend.
 
 **Aprovação adicional (2026-10-21):** D296 `[A]`, aprovada explicitamente pelo responsável conforme descrita antes da FRONTEND-21. Não antecipa FRONTEND-22 nem promove outras decisões.
 
+**Aprovações adicionais (2026-10-21):** D301 e D304 `[A]`, aprovadas explicitamente pelo responsável antes da FRONTEND-22. Nenhuma outra decisão promovida; FRONTEND-23 não antecipada.
+
 ### 21.3 `[P]` ainda abertas
 
 As decisões abaixo permanecem propostas e podem ser implementadas salvo
@@ -1628,8 +1630,6 @@ da etapa correspondente.
 | D283 | Raiz, títulos e metadados | não |
 | D284 | NotFound, voltar e foco | não |
 | D291 | Debounce da busca | não |
-| D301 | Alterações não salvas | sim (UX) |
-| D304 | Inputs de medidas e dinheiro | sim (UX) |
 | D305 | Desconto e ajuste | sim (UX) |
 | D309 | Diálogo de envio | sim (UX) |
 | D310 | Confirmar/reabrir/renovar/cancelar | sim (UX) |
@@ -3550,6 +3550,22 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 #### Semantic review
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
+
+#### Registro de execução (2026-10-21)
+
+**Estado: IMPLEMENTADA; gates aprovados; conferência visual no navegador pendente.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY. FRONTEND-21 implementada e árvore limpa no início. D301/D304 aprovadas explicitamente pelo responsável, registradas `[A]` nos títulos, sumário e §21. D268/D300/D303-B/D306 conferidas. Nenhuma outra decisão promovida.
+
+**Fundação:** `QuoteForm` com RHF, resolver Zod de UX, seções de dados gerais/endereço, observações e salvamento explícito por callback `onSave`. Nenhuma chamada HTTP ao montar. Recebe detalhe inicial e substitui os campos editáveis pela resposta de salvamento, via `reset`, limpando o dirty state. Mantém valores em falha e apresenta mensagem segura. Bloqueia edição/envio durante o salvamento. Novo rascunho admite campos vazios; endereço pode ser parcial; opcionais vazios viram null. Payload desta fundação contém somente observações/endereço, sem coleções ou campos derivados. POST/PATCH, carregamento das páginas e navegação pós-criação permanecem em FRONTEND-25.
+
+**Endereço:** `InstallationAddressEditor` com campos estruturados, validação de formato de CEP/UF sem exigir completude de rascunho. “Usar endereço do cliente” copia os campos atuais para estado independente e marca alterações; indisponível quando não há endereço. Não há endpoint de cópia nem sincronização automática com o cadastro.
+
+**Inputs:** `MoneyInput` e `DecimalInput` com entrada textual e inputMode decimal, vírgula ou ponto, sem separador de milhar. Normalizadores de fronteira retornam null para vazio; medidas até 3 casas, quantidades até 6 e suporte de formato de 2 casas para consumidores futuros. Conversão reais → centavos por string/BigInt sem multiplicação float; limites de inteiro do contrato monetário e restrições configuráveis de mínimo/máximo/positividade. Precisão inválida é rejeitada sem arredondamento silencioso. Nenhum cálculo local de total, desconto ou medida derivada. Inputs preparados para os editores das próximas tasks, sem antecipar sua UI.
+
+**Proteção de navegação:** `useUnsavedChanges` usa `useBlocker` para links/navegação programática/voltar e beforeunload para recarga/saída. Diálogo compartilhado permite continuar editando ou descartar. `App` passou de BrowserRouter para createBrowserRouter/RouterProvider, exigido pelo bloqueio suportado do React Router, preservando AppRoutes, providers e mapa de rotas. O formulário ainda não substitui os placeholders de criação/edição, cuja integração pertence à task de persistência; testes usam data router com histórico em memória.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**35 arquivos / 485 testes**), `pnpm build` e `git diff --check` passaram. Build emite aviso não bloqueante de chunk acima de 500 kB após a inclusão do data router (528,86 kB; gzip 164,21 kB); nenhum limite ou configuração foi alterado para ocultá-lo. Testes de formulário/guard cobrem endereço parcial/cópia independente, ausência de endereço, validação/foco, novo rascunho vazio, callback/reset, falha, bloqueio de envio, link/voltar com continuar/descartar e ciclo beforeunload/unmount. Testes numéricos cobrem exatidão em centavos, extremos assinados, precisão, vazios, separadores, inválidos e positividade. Revisão semântica contra PROJECT_SPEC §4/§5, ARCHITECTURE §18, D268/D300/D301/D303-B/D304/D306 e fronteiras de FRONTEND-23/24/25 concluída. Conferência visual real em navegador não realizada.
+
+**Stop:** FRONTEND-23 não iniciada. Sem editores de cortinas/componentes/adicionais/desconto, persistência POST/PATCH de tela, cálculos locais, backend ou dependências novas. Commit não criado: `.git` disponível somente para leitura nesta sessão.
 
 ---
 
