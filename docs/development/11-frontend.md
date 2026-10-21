@@ -36,9 +36,9 @@ material de UX ou arquitetura permanecem `[P]` e estão destacadas em §21.
 | Classificação | Quantidade | Decisões |
 | --- | --- | --- |
 | `[F]` | 30 | D260, D261, D262, D266, D274, D275, D276, D280, D285, D287, D290, D293, D295, D297, D302, D306, D307, D308, D313, D315, D316, D318, D319, D320, D327, D328, D330, D331, D332, D333 |
-| `[P]` | 22 | D277, D278, D279, D283, D284, D286, D288, D291, D292, D294, D296, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
+| `[P]` | 20 | D279, D283, D284, D286, D288, D291, D292, D294, D296, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
 | `[V]` | 0 | — |
-| `[A]` | 23 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D281, D282, D289, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
+| `[A]` | 25 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D289, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
 
 A faixa D260–D333 continua imediatamente após D259, a última decisão da Fase
 9.
@@ -395,7 +395,7 @@ existe CSRF token no backend.
 **Impacto:** cliente HTTP sem lógica de token; mapeamento específico de
 `403`.
 
-### D277 — Tratamento global de `401` e `429` `[P]`
+### D277 — Tratamento global de `401` e `429` `[A]`
 
 **Decisão:**
 
@@ -415,7 +415,7 @@ automático no contrato.
 **Impacto:** interceptor no cliente HTTP e/ou handler global de erro do
 TanStack Query; o `returnTo` só aceita caminho interno.
 
-### D278 — Tela de login `[P]`
+### D278 — Tela de login `[A]`
 
 **Decisão:** rota pública `/login`, com email e senha, `autocomplete`
 adequado, botão desabilitado durante o envio e mensagem genérica para `401`.
@@ -1150,7 +1150,7 @@ exibir confirmação e atualizar o objeto com a resposta. Não exibir ou aceitar
 
 ### D322 — Taxonomia, tradução e parsing de erros `[A]`
 
-**Aprovação humana registrada em 2026-10-21.** D277 permanece sujeita à sua própria confirmação.
+**Aprovação humana registrada em 2026-10-21.** D277 recebeu aprovação própria antes da FRONTEND-12, registrada em §21.2.
 
 **Decisão:** centralizar o tratamento em `ApiError` + `error-messages.ts`:
 
@@ -1606,6 +1606,8 @@ reabre regra de produto ou backend.
 
 **Aprovações adicionais (2026-10-21):** D272 e D281 `[A]`, confirmadas explicitamente com as condições registradas nas próprias decisões. O mapa de rotas permanece idêntico. Isso libera essas pré-condições de FRONTEND-09; a task ainda não foi iniciada. As demais `[P]` permanecem inalteradas.
 
+**Aprovação adicional (2026-10-21):** D277 e D278 `[A]`, aprovadas explicitamente pelo responsável do produto conforme descritas neste documento antes da FRONTEND-12. Não promove D323 nem antecipa FRONTEND-13.
+
 ### 21.3 `[P]` ainda abertas
 
 As decisões abaixo permanecem propostas e podem ser implementadas salvo
@@ -1614,8 +1616,6 @@ da etapa correspondente.
 
 | Decisão | Tema | Material? |
 | --- | --- | --- |
-| D277 | Detalhes de `401`/`429` | sim (UX) |
-| D278 | Composição e mensagens do login | sim (UX) |
 | D279 | Logout sem confirmação | não |
 | D283 | Raiz, títulos e metadados | não |
 | D284 | NotFound, voltar e foco | não |
@@ -2841,6 +2841,27 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 #### Semantic review
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
+
+
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE. FRONTEND-11 concluída e árvore limpa no início. Após a pausa de pré-condição, o responsável aprovou explicitamente D277/D278 conforme descritas; ambas registradas `[A]` nos títulos, sumário e §21, sem promoção de outras decisões. D279 não material consumida no fluxo de logout; D268/D280/D324 preservadas.
+
+**Login:** `/login` agora renderiza `LoginPage`, formulário RHF com resolver Zod local, email e senha obrigatórios, autocomplete e erros acessíveis em português. Nenhuma política de complexidade de senha foi inventada. Bootstrap pendente mostra loading; falha oferece retry manual; usuário já autenticado é redirecionado ao dashboard. Envio real por `POST /auth/login`, estado de envio e trava contra chamadas concorrentes. Credenciais não entram no cache de mutações. Sucesso grava somente identidade em memória e navega com replace ao `returnTo` seguro ou dashboard. `401` usa mensagem genérica de credenciais inválidas; `429` usa mensagem genérica e pausa de cinco segundos, sem retry automático; falhas de origem, servidor e rede permitem tentativa manual.
+
+**Navegação e sessão:** validador de `returnTo` aceita caminhos internos e preserva query/hash, recusando URLs externas, protocol-relative, barras invertidas, caracteres de controle, escapes inválidos e destinos recursivos de login, inclusive após normalização. `SessionErrors` observa falhas das queries/mutações TanStack Query: `401` autenticado limpa sessão, cancela trabalho em voo, remove cache privado e redireciona para login com destino codificado. Login, bootstrap e logout permanecem fora desse tratamento global e possuem semântica própria; nenhum refresh ou persistência foi criado.
+
+**Logout:** `useLogout` realiza POST, impede chamadas simultâneas e, somente após sucesso, cancela queries, limpa cache/sessão e navega para login. Falha mantém sessão e cache e expõe erro seguro. Requests de login/logout são cancelados na desmontagem. A ação visível no shell fica na FRONTEND-13; o hook foi verificado por consumidor de teste, sem antecipar AppShell.
+
+**Visual e limites:** composição mobile em uma coluna, card branco, foco e CTA navy; painel navy e formulário limitado a 440 px no breakpoint desktop. Como não existe asset oficial integrado ao frontend, identificação textual temporária, sem recriar logo. Navegador local conferiu estado de erro de bootstrap, retry, formulário anônimo, validação de vazios e foco no primeiro campo inválido; formulário observado em viewport de 614 px, sem afirmar validação desktop. Foi usado servidor HTTP temporário de teste retornando somente `401` em `/auth/me`, sem credenciais ou alterações no backend; fluxos completos verificados com MSW. Mapa de rotas preservado e ramo de produto continua fechado, sem Outlet. Não foi criado RequireAuth, AppShell ou navegação de produto. Nenhuma dependência adicionada; pnpm independentes, backend, produção e IMPLEMENTATION_PLAN intactos.
+
+**Reparos e review:** teste detectou disputa entre redirect de autenticado e `returnTo` após login; destino passou a ser decidido de forma única no render. Review do validador incluiu caminhos que normalizam para `//`, bloqueados antes da navegação. Lint de refs reparado movendo a criação do handler RHF para o evento; nenhuma regra desabilitada. Testes cobrem contratos, validação, navegação segura, 401/403/429/500/rede, cooldown, loading, duplo envio, desmontagem, logout e cancelamento/limpeza global de queries. D323 não promovida: loading/trava de envio aqui seguem o escopo explícito da task e D277/D278.
+
+**Gates finais:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**21 arquivos / 265 testes**), `pnpm build` e `git diff --check` passaram. `git status --short` revisado; alterações limitadas à task e aprovações solicitadas.
+
+**Commit sugerido:** `feat(FRONTEND-12): implement authentication flows`.
+
+**Stop:** FRONTEND-13 não iniciada.
 
 ---
 

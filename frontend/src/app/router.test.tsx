@@ -1,8 +1,18 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { http, HttpResponse } from 'msw'
+import { server } from '@/shared/test/server'
+import { AppProviders } from './providers'
+import { render as renderView, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Outlet, useLocation } from 'react-router'
-import { expect, test } from 'vitest'
+import { beforeEach, expect, test } from 'vitest'
 import { AppRoutes } from './router'
 import { productRoutes } from './route-definitions'
+
+beforeEach(() => {
+  server.use(http.get('*/auth/me', () => new HttpResponse(null, { status: 401 })))
+})
+
+function render(view: ReactNode) { return renderView(<AppProviders>{view}</AppProviders>) }
 
 function LocationProbe() {
   const location = useLocation()

@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { matchPath, Navigate, Route, Routes, useLocation } from 'react-router'
+import { LoginPage } from '@/features/auth/LoginPage'
+import { SessionErrors } from '@/shared/auth/session-errors'
 import { productRoutes } from './route-definitions'
 
 function RoutePlaceholder({ title }: { title: string }) {
@@ -25,9 +27,10 @@ function RouteMetadata() {
 
 export function AppRoutes({ protectedElement = <ProtectedRoutePlaceholder /> }: { protectedElement?: ReactNode }) {
   return <>
+    <SessionErrors />
     <RouteMetadata />
     <Routes>
-      <Route path="/login" element={<RoutePlaceholder title="Entrar" />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route element={protectedElement}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         {productRoutes.map(({ path, title }) => <Route key={path} path={path} element={<RoutePlaceholder title={title} />} />)}
