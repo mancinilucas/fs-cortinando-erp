@@ -2315,6 +2315,28 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE. FRONTEND-05 DONE e árvore limpa no início. D269 e UI-01–UI-04 aprovadas; nenhuma `[P]` material consumida ou promovida.
+
+**Implementação:** ativado `@tailwindcss/vite` 4.3.3 no Vite 8, sem PostCSS/Autoprefixer diretos ou configuração Tailwind legada. CSS neutro de `src/index.css` substituído por `src/app/styles/index.css`, importado pelo bootstrap. `@import "tailwindcss"` + `@theme static` disponibilizam tokens e utilitários conforme o [mecanismo oficial](https://tailwindcss.com/docs/theme). Não há visual de feature ou componente criado.
+
+**Tokens:** namespace curto de marca (`brand-navy: #203864`, `brand-orange: #EC7C30` e tints), surfaces, texto, bordas, foco e famílias success/warning/error/info com fg/bg/border. Defaults cromáticos, famílias de fonte, tamanhos, pesos, raios e sombras substituídos pelos valores aprovados; sem escala 50–900 de marca. Raios `none/sm/md` = 0/4/6 px; espaçamento em base 4 px e tokens 1/2/3/4/5/6/8/10/12/16. Tipografia sem pesos 300 ou 700/800 como padrão. Títulos mobile-first: page-title 24 → 32 px, display 30 → 40 px e section-title 18 → 20 px no breakpoint desktop 1024 px. Corpo/inputs 16 px, label 13, caption 12, button 14 e números 16/32. Tokens adicionais para layout, safe area, touch target 44 px, foco 2 px/offset 2 px, sombra somente overlay e motion 120/160/200 ms.
+
+**Base:** Montserrat em html/UI operacional; Playfair somente no h1 por padrão (uso futuro de `font-display` restrito a títulos de página/grandes headings). Inputs, botões, selects, textareas, tabelas e labels mantêm Montserrat. Canvas off-white, texto principal e título navy. `:focus-visible` tem outline; foco em superfície navy poderá usar `--focus-color: var(--color-focus-ring-inverse)`. Reduced motion reduz animações/transições e desativa smooth scroll. Primárias futuras usam navy/texto inverso; laranja segue assinatura/acento, distinto de warning/error. Primitivas e estados concretos ficam nas tasks correspondentes.
+
+**Fontes:** adicionados `@fontsource-variable/montserrat` e `@fontsource-variable/playfair-display`, ambos 5.3.0, dependências públicas de assets (OFL-1.1). Dois WOFF2 variáveis normais, subset latin com suporte a pt-BR, servidos localmente pelo Vite com `font-display: swap` e fallbacks de sistema/Georgia; sem serviço externo em runtime, fontes privadas, itálicos ou arquivos base64. Montserrat disponibiliza pesos operacionais 400–600; Playfair 400–500. Licenças redistribuídas intactas em `public/fonts/montserrat-OFL.txt` e `public/fonts/playfair-display-OFL.txt`. Build final emite dois WOFF2, ~37,95 e 38,40 kB, e CSS ~7,53 kB.
+
+**Branding:** inventário de arquivos do repositório não encontrou assets oficiais completos ou símbolo isolado. Pendência de lockup completo disponível para implementação, símbolo, inversa transparente/manual e horizontal se existir permanece registrada. Não foi fabricado, recortado, redesenhado ou incorporado substituto, logo ou favicon. Ausência não bloqueia esta task.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (2 arquivos/5 testes), `pnpm build`, `pnpm install --frozen-lockfile` e `git diff --check` passaram; `git status --short` revisado. Probe temporário com `@source inline` confirmou emissão de `bg-brand-navy`, `text-text-inverse`, `rounded-sm`, `rounded-md`, `p-4` e `font-sans`; probe removido e todos os gates completos repetidos. Bundle final inspecionado: tokens compilados, URLs WOFF2 locais, sem diretivas `@theme` residuais. Nenhum teste de CSS que replique implementação ou teste de produto antecipado foi criado. Não houve validação visual em navegador nesta rodada.
+
+**Review/findings e reparos:** conferidos os nomes/exports reais dos pacotes de fontes antes de criar os imports; usados URLs dos dois arquivos latin em vez de importar subsets desnecessários. Uma primeira cópia de licenças usou caminho relativo duplicado e falhou; corrigida, diretórios vazios transitórios removidos e licenças finais conferidas. Sem finding pendente. Nenhuma regra de negócio, feature, router, cliente HTTP, provider ou cálculo introduzido. D260–D334, spec visual, backend e IMPLEMENTATION_PLAN intocados. pnpm 12.11.2 preservado; monorepo Git com projetos frontend/backend independentes, sem workspace raiz/frontend.
+
+**Git:** sem commit; sugerido `feat(FRONTEND-06): establish visual foundation`.
+
+**Stop:** FRONTEND-07 não iniciado.
+
 ---
 
 ### FRONTEND-07 — Formatadores, labels e utilitários compartilhados
