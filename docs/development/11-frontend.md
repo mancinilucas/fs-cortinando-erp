@@ -29,16 +29,16 @@ material de UX ou arquitetura permanecem `[P]` e estão destacadas em §21.
   §21.3.
 - `[V]` — requer validação humana antes da implementação. Não há decisão
   nesta classificação.
-- `[A]` — aprovada pelo responsável do produto; validações originais em 2026-10-20; D334 e D322 em 2026-10-21.
+- `[A]` — aprovada pelo responsável do produto; validações originais em 2026-10-20; D334, D322, D272 e D281 em 2026-10-21.
 
 ### 1.1 Sumário das decisões
 
 | Classificação | Quantidade | Decisões |
 | --- | --- | --- |
 | `[F]` | 30 | D260, D261, D262, D266, D274, D275, D276, D280, D285, D287, D290, D293, D295, D297, D302, D306, D307, D308, D313, D315, D316, D318, D319, D320, D327, D328, D330, D331, D332, D333 |
-| `[P]` | 24 | D272, D277, D278, D279, D281, D283, D284, D286, D288, D291, D292, D294, D296, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
+| `[P]` | 22 | D277, D278, D279, D283, D284, D286, D288, D291, D292, D294, D296, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
 | `[V]` | 0 | — |
-| `[A]` | 21 | D263, D264, D265, D267, D268, D269, D270, D271, D273, D282, D289, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
+| `[A]` | 23 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D281, D282, D289, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
 
 A faixa D260–D333 continua imediatamente após D259, a última decisão da Fase
 9.
@@ -312,7 +312,9 @@ feature”).
 **Impacto:** todos os arquivos novos seguem essa estrutura. Documentos são
 ações da feature `quotes`, não uma feature separada.
 
-### D272 — Ambiente e proxy de desenvolvimento `[P]`
+### D272 — Ambiente e proxy de desenvolvimento `[A]`
+
+**Aprovação humana registrada em 2026-10-21.** Paths relativos por padrão; `VITE_API_BASE_URL` opcional; nenhuma credencial/segredo em `VITE_*`; não misturar `127.0.0.1` com `localhost`; backend intocado; topologia de produção continua na Fase 12.
 
 **Decisão:**
 
@@ -453,7 +455,9 @@ preenchimento.
 
 ## 4. Navegação e shell
 
-### D281 — Mapa de rotas `[P]`
+### D281 — Mapa de rotas `[A]`
+
+**Aprovação humana registrada em 2026-10-21.** Preservar exatamente o mapa documentado, sem rotas adicionais por conveniência. Todas as rotas de produto são protegidas; `/login` é pública; `/` redireciona para `/dashboard` quando autenticado. Criação de orçamento exclusivamente por `/clientes/:customerId/orcamentos/novo`; lifecycle, instalação e documentos permanecem dentro do detalhe do orçamento.
 
 **Decisão:** adotar o mapa abaixo. Todas as rotas de produto exigem sessão;
 `/login` é pública e `*` é a página de não encontrado.
@@ -1600,6 +1604,8 @@ reabre regra de produto ou backend.
 
 **Aprovação adicional (2026-10-21):** D322 — Taxonomia, tradução e parsing de erros `[A]`, explicitamente confirmada pelo responsável do produto antes de FRONTEND-07. Não promove D277/D323/D329.
 
+**Aprovações adicionais (2026-10-21):** D272 e D281 `[A]`, confirmadas explicitamente com as condições registradas nas próprias decisões. O mapa de rotas permanece idêntico. Isso libera essas pré-condições de FRONTEND-09; a task ainda não foi iniciada. As demais `[P]` permanecem inalteradas.
+
 ### 21.3 `[P]` ainda abertas
 
 As decisões abaixo permanecem propostas e podem ser implementadas salvo
@@ -1608,11 +1614,9 @@ da etapa correspondente.
 
 | Decisão | Tema | Material? |
 | --- | --- | --- |
-| D272 | Proxy de desenvolvimento vs. base URL direta | sim (arquitetura) |
 | D277 | Detalhes de `401`/`429` | sim (UX) |
 | D278 | Composição e mensagens do login | sim (UX) |
 | D279 | Logout sem confirmação | não |
-| D281 | Mapa de rotas | sim (navegação) |
 | D283 | Raiz, títulos e metadados | não |
 | D284 | NotFound, voltar e foco | não |
 | D286 | Cards do dashboard | sim (UX) |
@@ -2525,7 +2529,7 @@ Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos back
 
 #### Precondition
 
-D272 e D281 são `[P]` materiais.
+D272 e D281 são decisões materiais aprovadas `[A]` em 2026-10-21. Suas condições são vinculantes.
 
 Antes da implementação:
 
