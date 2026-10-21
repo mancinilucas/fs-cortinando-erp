@@ -36,9 +36,9 @@ material de UX ou arquitetura permanecem `[P]` e estão destacadas em §21.
 | Classificação | Quantidade | Decisões |
 | --- | --- | --- |
 | `[F]` | 30 | D260, D261, D262, D266, D274, D275, D276, D280, D285, D287, D290, D293, D295, D297, D302, D306, D307, D308, D313, D315, D316, D318, D319, D320, D327, D328, D330, D331, D332, D333 |
-| `[P]` | 20 | D279, D283, D284, D286, D288, D291, D292, D294, D296, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
+| `[P]` | 18 | D279, D283, D284, D291, D292, D294, D296, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
 | `[V]` | 0 | — |
-| `[A]` | 25 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D289, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
+| `[A]` | 27 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
 
 A faixa D260–D333 continua imediatamente após D259, a última decisão da Fase
 9.
@@ -552,7 +552,7 @@ entrega os contadores e as três listas prontos. A semana é civil em
 **Impacto:** uma query key `['dashboard']`; nenhuma fórmula de status ou
 semana no frontend.
 
-### D286 — Cards, navegação e estados `[P]`
+### D286 — Cards, navegação e estados `[A]`
 
 **Decisão:** exibir sempre os cinco cards (`draft`, `sent`, `expired`,
 `confirmed`, `inProduction`), inclusive com valor zero, em português. Cada
@@ -588,7 +588,7 @@ registrada na Fase 9 está encerrada.
 **Impacto:** os contadores e as listas filtradas concordam; não há badge
 “expirado” dentro do filtro `SENT`.
 
-### D288 — Listas de instalação `[P]`
+### D288 — Listas de instalação `[A]`
 
 **Decisão:** renderizar `upcomingInstallations`, `weeklyInstallations` e
 `overdueInstallations` na ordem recebida, sem reordenar nem reclassificar.
@@ -1608,6 +1608,8 @@ reabre regra de produto ou backend.
 
 **Aprovação adicional (2026-10-21):** D277 e D278 `[A]`, aprovadas explicitamente pelo responsável do produto conforme descritas neste documento antes da FRONTEND-12. Não promove D323 nem antecipa FRONTEND-13.
 
+**Aprovação adicional (2026-10-21):** D286 e D288 `[A]`, aprovadas explicitamente pelo responsável do produto conforme descritas neste documento antes da implementação da FRONTEND-15. Nenhuma outra decisão promovida.
+
 ### 21.3 `[P]` ainda abertas
 
 As decisões abaixo permanecem propostas e podem ser implementadas salvo
@@ -1619,8 +1621,6 @@ da etapa correspondente.
 | D279 | Logout sem confirmação | não |
 | D283 | Raiz, títulos e metadados | não |
 | D284 | NotFound, voltar e foco | não |
-| D286 | Cards do dashboard | sim (UX) |
-| D288 | Listas de instalação | sim (UX) |
 | D291 | Debounce da busca | não |
 | D292 | Formulário de cliente e endereço | sim (UX) |
 | D294 | Exclusão, detalhe e histórico | sim (fluxo) |
@@ -3051,6 +3051,27 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 #### Semantic review
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
+
+
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE. FRONTEND-14 concluída e árvore limpa no início. Após a pausa de pré-condição, D286/D288 foram explicitamente aprovadas pelo responsável conforme documentadas; registradas `[A]` nos títulos, sumário e §21. Nenhuma outra decisão promovida; D285/D287/D289 preservadas.
+
+**Tela:** `/dashboard` agora monta `DashboardPage` sob RequireAuth/AppShell e consome exclusivamente `useDashboard` da FRONTEND-14. Cinco cards fixos, inclusive zeros, exibem os contadores recebidos e levam a `/orcamentos?status=DRAFT|SENT|EXPIRED|CONFIRMED|IN_PRODUCTION`. Sem fórmulas, contagem pelo tamanho de listas, gráficos ou filtros novos. Cabeçalho e título principal continuam responsabilidade do shell, sem h1 duplicado.
+
+**Listas:** próximas, semana e atrasadas exibem nome, número do orçamento, data/hora no formatador existente (pt-BR/America/Sao_Paulo) e StatusBadge. Cada item é um link acessível ao detalhe `/orcamentos/:quoteId`, com ID codificado. Ordem, status, datas e pertencimento às listas são preservados; nenhum sort, agrupamento/reclassificação, recorte adicional ou cálculo de atraso. “Atrasada” aparece com ícone/texto warning somente pela lista de origem. A instrução visual de ordenar atrasadas não gera sort local: prevalecem D285/D288 e a ordem entregue pelo backend. Sem telefone, email, documento, endereço, valores ou ação “ver todas”.
+
+**Estados e visual:** skeleton estático e acessível para cinco cards/três blocos; erro seguro com retry manual; três mensagens vazias independentes. Nenhum zero ou vazio fictício durante carregamento/falha. Card branco com borda/raio aprovados, números navy/tabulares, grid de duas colunas no mobile, três intermediárias e cinco no desktop amplo. Listas em blocos brancos, itens separados, sem tabela; duas colunas no desktop e atrasadas em largura total. Após revisão mobile, nome e status passaram a empilhar em telas estreitas para preservar leitura. Nenhuma animação nova ou dependência.
+
+**Testes:** integração de página/rotas com MSW cobre cinco contadores e links/filtros exatos, zeros, vazios, chamada única, ordem e datas antigas, atraso por origem mesmo com data futura, status sem reclassificação, navegação de item por teclado, skeleton, erros rede/500/resposta inválida, retry manual e 401 delegado ao fluxo global existente. Projeção sem campos sensíveis verificada no DOM. Testes do router receberam fixture explícita de dashboard; demais páginas continuam placeholders.
+
+**Review visual:** navegador com fixture HTTP temporária e dados fictícios, sem credenciais/backend real. Conferidos desktop a 1280 px e frames mobile a 320/390 px, incluindo scroll até atrasadas e reserva para bottom nav. Card Enviados abriu `/orcamentos?status=SENT`, com foco no título do destino. Harness/servidores temporários removidos/encerrados. Nenhum mock ou rota de teste permaneceu no produto.
+
+**Gates finais:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**24 arquivos / 316 testes**), `pnpm build` e `git diff --check` passaram após o ajuste de layout. `git status --short` revisado. Review semântico contra PROJECT_SPEC §12.1, ARCHITECTURE, contrato Dashboard, D303-B, D285–D289 e spec visual concluído. Sem alterações no backend, mapa de rotas, dependências, pnpm/workspace, plano ou produção.
+
+**Commit sugerido:** `feat(FRONTEND-15): implement operational dashboard`.
+
+**Stop:** FRONTEND-16 não iniciada.
 
 ---
 

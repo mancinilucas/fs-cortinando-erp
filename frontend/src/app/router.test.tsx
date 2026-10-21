@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, useLocation, useNavigate } from 'react-router'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, expect, test, vi } from 'vitest'
+import { emptyDashboardFixture } from '@/features/dashboard/fixtures.test-support'
 import { server } from '@/shared/test/server'
 import { AppProviders } from './providers'
 import { AppRoutes } from './router'
@@ -10,7 +11,7 @@ import { productRoutes } from './route-definitions'
 const user = { id: 'user-1', email: 'user@example.test' }
 beforeEach(() => {
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
-  server.use(http.get('*/auth/me', () => HttpResponse.json(user)))
+  server.use(http.get('*/auth/me', () => HttpResponse.json(user)), http.get('*/dashboard', () => HttpResponse.json(emptyDashboardFixture)))
 })
 function LocationProbe() {
   const location = useLocation()
@@ -47,7 +48,7 @@ test.each([500, 'network'] as const)('keeps bootstrap failure %s on the current 
   expect(await screen.findByRole('alert')).toBeVisible()
   expect(screen.getByLabelText('Caminho')).toHaveTextContent('/orcamentos')
   expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
-  server.use(http.get('*/auth/me', () => HttpResponse.json(user)))
+  server.use(http.get('*/auth/me', () => HttpResponse.json(user)), http.get('*/dashboard', () => HttpResponse.json(emptyDashboardFixture)))
   fireEvent.click(screen.getByText('Tentar novamente'))
   expect(await screen.findByRole('heading', { name: 'Orçamentos' })).toBeVisible()
 })
