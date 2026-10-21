@@ -1,15 +1,14 @@
-import { ClockAlert } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 import { useCustomer } from '@/features/customers/hooks'
 import { ApiError } from '@/shared/api/api-error'
 import { ErrorState, LoadingState } from '@/shared/components/States'
 import { StatusBadge } from '@/shared/components/StatusBadge'
 import { GENERIC_ERROR_MESSAGE } from '@/shared/errors/error-messages'
-import { formatDateTime } from '@/shared/format/dates'
 import { formatQuantity } from '@/shared/format/decimals'
 import { formatMoney } from '@/shared/format/money'
 import { discountTypeLabels } from '@/shared/format/labels'
 import { useQuote } from './hooks'
+import { InstallationSummary } from './InstallationSummary'
 import { QuoteActions } from './QuoteActions'
 import { QuoteHistory } from './QuoteHistory'
 import { DetailFields, FinancialItems, QuoteCurtains, QuoteDates } from './QuoteReadOnlySections'
@@ -42,15 +41,7 @@ export function QuoteDetailPage() {
             </> : customerMissing ? <p className="text-text-secondary">Cadastro do cliente indisponível. O orçamento foi preservado.</p>
               : <ErrorState message={customer.error instanceof ApiError ? customer.error.message : GENERIC_ERROR_MESSAGE} onRetry={() => { void customer.refetch() }} />}
           </section>
-          <section aria-labelledby="quote-installation-title" className={section}>
-            <h2 id="quote-installation-title" className="text-section-title font-semibold">Instalação</h2>
-            <DetailFields values={[["Data agendada", quote.scheduledInstallationAt ? formatDateTime(quote.scheduledInstallationAt) : null]]} />
-            {quote.lateInstallation && <p role="status" className="flex items-center gap-2 text-warning-fg"><ClockAlert aria-hidden="true" size={20} />Instalação em atraso</p>}
-            {quote.installationAddress ? <DetailFields values={[
-              ['CEP', quote.installationAddress.postalCode], ['Rua', quote.installationAddress.street], ['Número', quote.installationAddress.number],
-              ['Complemento', quote.installationAddress.complement], ['Bairro', quote.installationAddress.neighborhood], ['Cidade', quote.installationAddress.city], ['UF', quote.installationAddress.state],
-            ]} /> : <p className="text-text-secondary">Endereço de instalação não informado.</p>}
-          </section>
+          <InstallationSummary key={`installation-${quote.id}`} quote={quote} />
           <QuoteCurtains curtains={quote.curtains} />
           <section aria-labelledby="quote-additions-title" className={section}>
             <h2 id="quote-additions-title" className="text-section-title font-semibold">Adicionais gerais</h2>

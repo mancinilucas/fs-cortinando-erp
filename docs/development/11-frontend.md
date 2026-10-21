@@ -36,9 +36,9 @@ material de UX ou arquitetura permanecem `[P]` e estão destacadas em §21.
 | Classificação | Quantidade | Decisões |
 | --- | --- | --- |
 | `[F]` | 30 | D260, D261, D262, D266, D274, D275, D276, D280, D285, D287, D290, D293, D295, D297, D302, D306, D307, D308, D313, D315, D316, D318, D319, D320, D327, D328, D330, D331, D332, D333 |
-| `[P]` | 9 | D279, D283, D284, D291, D312, D317, D321, D323, D329 |
+| `[P]` | 8 | D279, D283, D284, D291, D317, D321, D323, D329 |
 | `[V]` | 0 | — |
-| `[A]` | 36 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D296, D298, D299, D300, D301, D303, D304, D305, D309, D310, D311, D314, D322, D324, D325, D326, D334 |
+| `[A]` | 37 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D296, D298, D299, D300, D301, D303, D304, D305, D309, D310, D311, D312, D314, D322, D324, D325, D326, D334 |
 
 A faixa D260–D333 continua imediatamente após D259, a última decisão da Fase
 9.
@@ -1004,7 +1004,7 @@ ação é irreversível e bloqueia cancelamento posterior.
 
 **Impacto:** `ConfirmActionDialog` e estado desabilitado explicado.
 
-### D312 — Instalação `[P]`
+### D312 — Instalação `[A]`
 
 **Decisão:** diálogo com data e hora; enviar `scheduledInstallationAt` em ISO
 UTC. Datas passadas são aceitas. “Remover instalação” pede confirmação. Exibir
@@ -1622,6 +1622,8 @@ reabre regra de produto ou backend.
 
 **Aprovações adicionais (2026-10-21):** D309/D310/D311 `[A]`, aprovadas explicitamente pelo responsável antes da FRONTEND-27. Não promove D312 nem antecipa FRONTEND-28.
 
+**Aprovação adicional (2026-10-21):** D312 `[A]`, aprovada explicitamente pelo responsável conforme descrita antes da FRONTEND-28. Não promove D317 nem antecipa FRONTEND-29.
+
 ### 21.3 `[P]` ainda abertas
 
 As decisões abaixo permanecem propostas e podem ser implementadas salvo
@@ -1634,7 +1636,6 @@ da etapa correspondente.
 | D283 | Raiz, títulos e metadados | não |
 | D284 | NotFound, voltar e foco | não |
 | D291 | Debounce da busca | não |
-| D312 | Instalação | sim (UX) |
 | D317 | Ordem de produção e `409` | sim (UX) |
 | D321 | Formulário de dados do negócio | sim (UX) |
 | D323 | Loading, sucesso e duplo envio | sim (UX) |
@@ -3976,6 +3977,20 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 #### Semantic review
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
+
+#### Registro de execução — FRONTEND-28 (2026-10-21)
+
+**Estado: IMPLEMENTADA; gates aprovados; conferência visual no navegador pendente.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY. D312 aprovada explicitamente pelo responsável e registrada `[A]` no título, sumário e §21. D312/D313/D326 conferidas contra PROJECT_SPEC §9, ARCHITECTURE §18, contratos públicos de instalação e direção visual. Nenhuma outra decisão promovida.
+
+**Entrega:** `InstallationSummary` mantém data, endereço snapshot e aviso com ícone/texto exclusivamente conforme `lateInstallation` do backend. Ações disponíveis somente em CONFIRMED/IN_PRODUCTION. `InstallationDialog` agenda/altera com data/hora obrigatórias em Brasília, aceita passado, preserva segundos/milissegundos ao editar e envia apenas `scheduledInstallationAt` em ISO UTC. Remoção exige confirmação explícita com contexto do orçamento/data; cancelar não envia requisição. Sem status de instalação.
+
+**Integração:** `useInstallation` usa os endpoints existentes PUT/DELETE. PUT substitui o detalhe pela resposta oficial e invalida consultas dependentes. DELETE 204 cancela leituras anteriores e recarrega detalhe, histórico, listas, histórico do cliente e dashboard, sem fabricar data nula ou atraso. Em 409 recarrega detalhe/histórico, traduz o erro e mantém o diálogo com a situação conhecida; estado incompatível bloqueia nova confirmação. Falhas preservam formulário para tentativa manual. Bloqueio síncrono e estado pendente evitam duplicação/fechamento durante a operação; nenhuma atualização otimista. Conversão local/UTC extraída de lifecycle e reutilizada sem impor restrição de futuro ao agendamento.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (48 arquivos, 673 testes) e `pnpm build` aprovados; testes direcionados repetidos após o último reparo. `git diff --check` aprovado e status revisado. Build mantém aviso existente de chunk acima de 500 kB. Testes cobrem matriz de situações, campo obrigatório, passado, UTC, precisão ao editar, remoção confirmada/cancelada, reabilitação de conclusão após refetch, erro/retry, 409 com mudança de situação, pendência/duplicação e flags oficiais mesmo quando divergentes da data.
+
+**Review/findings e reparos:** corrigida chave React duplicada entre a seção extraída e ações do orçamento; conferida preservação do detalhe e do endereço snapshot. Cancelamento, X e Escape respeitam a trava da operação. Sem cálculo de atraso, expiração, totais ou novo estado operacional. Layout usa componentes e tokens existentes; conferência visual no navegador ainda não realizada.
+
+**Stop:** FRONTEND-29 não iniciada. Sem PDFs, backend, dependências ou rotas novas. D317 permanece `[P]`. Commit não criado: `.git` disponível somente para leitura nesta sessão.
 
 ---
 
