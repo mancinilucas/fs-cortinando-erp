@@ -74,13 +74,13 @@ test.each(['create', 'update', 'delete'] as const)('%s invalidates customers, qu
   } else expect(client.getQueryData(customerKeys.detail('customer-1'))).toEqual(updated)
   view.unmount(); client.clear()
 })
-test('failed deletion preserves data and propagates 404 instead of approving future UX policy', async () => {
-  const handler = vi.fn(() => new HttpResponse(null, { status: 404 }))
+test('failed deletion preserves data and propagates server failure', async () => {
+  const handler = vi.fn(() => new HttpResponse(null, { status: 500 }))
   server.use(http.delete('*/clientes/customer-1', handler))
   const { client, wrapper } = setup()
   client.setQueryData(customerKeys.detail('customer-1'), customerFixture)
   const view = renderHook(useDeleteCustomer, { wrapper })
-  await act(async () => { await expect(view.result.current.mutateAsync('customer-1')).rejects.toMatchObject({ status: 404 }) })
+  await act(async () => { await expect(view.result.current.mutateAsync('customer-1')).rejects.toMatchObject({ status: 500 }) })
   expect(client.getQueryData(customerKeys.detail('customer-1'))).toEqual(customerFixture)
   expect(client.getQueryState(customerKeys.detail('customer-1'))?.isInvalidated).toBe(false)
   expect(handler).toHaveBeenCalledOnce()
@@ -115,5 +115,20 @@ test('cancels stale customer, quote-summary and dashboard reads before accepting
   expect(signals).toHaveLength(3)
   expect(signals.every((signal) => signal.aborted)).toBe(true)
   expect(client.getQueryData(customerKeys.detail('customer-1'))).toEqual(customerFixture)
+  view.unmount(); client.clear()
+})
+
+
+test('already removed customer invalidates dependent caches and removes detail and history', async () => {
+  server.use(http.delete('*/clientes/customer-1', () => new HttpResponse(null, { status: 404 })))
+  const { client, wrapper } = setup()
+  for (const key of [customerKeys.list(''), quoteSummariesQueryKey, ['dashboard']]) client.setQueryData(key, [])
+  client.setQueryData(customerKeys.detail('customer-1'), customerFixture)
+  client.setQueryData(customerKeys.history('customer-1'), customerQuotesFixture)
+  const view = renderHook(useDeleteCustomer, { wrapper })
+  await act(async () => { await view.result.current.mutateAsync('customer-1') })
+  for (const key of [customerKeys.list(''), quoteSummariesQueryKey, ['dashboard']]) expect(client.getQueryState(key)?.isInvalidated).toBe(true)
+  expect(client.getQueryData(customerKeys.detail('customer-1'))).toBeUndefined()
+  expect(client.getQueryData(customerKeys.history('customer-1'))).toBeUndefined()
   view.unmount(); client.clear()
 })

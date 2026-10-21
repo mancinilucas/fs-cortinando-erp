@@ -10,7 +10,8 @@ import { customerFixture } from './fixtures.test-support'
 beforeEach(() => {
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   server.use(http.get('*/auth/me', () => HttpResponse.json({ id: 'user-1', email: 'session@example.test' })),
-    http.get('*/clientes/customer-1', () => HttpResponse.json(customerFixture)))
+    http.get('*/clientes/customer-1', () => HttpResponse.json(customerFixture)),
+    http.get('*/clientes/customer-1/orcamentos', () => HttpResponse.json([])))
 })
 function Probe() { const location = useLocation(); return <output aria-label="Location">{location.pathname}</output> }
 function mount(path = '/clientes/novo') {

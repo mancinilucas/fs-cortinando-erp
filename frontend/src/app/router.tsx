@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Link, matchPath, Navigate, Route, Routes, useLocation, useParams } from 'react-router'
+import { CustomerDetailPage } from '@/features/customers/CustomerDetailPage'
 import { CustomerFormPage } from '@/features/customers/CustomerFormPage'
 import { CustomersListPage } from '@/features/customers/CustomersListPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
@@ -51,7 +52,7 @@ export function AppRoutes() {
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          {productRoutes.map(({ path }) => <Route key={path} path={path} element={path === '/dashboard' ? <DashboardPage /> : path === '/clientes' ? <CustomersListPage /> : path === '/clientes/novo' || path === '/clientes/:customerId/editar' ? <CustomerFormPage /> : <RoutePlaceholder path={path} />} />)}
+          {productRoutes.map(({ path }) => <Route key={path} path={path} element={path === '/dashboard' ? <DashboardPage /> : path === '/clientes' ? <CustomersListPage /> : path === '/clientes/:customerId' ? <CustomerDetailPage /> : path === '/clientes/novo' || path === '/clientes/:customerId/editar' ? <CustomerFormPage /> : <RoutePlaceholder path={path} />} />)}
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />

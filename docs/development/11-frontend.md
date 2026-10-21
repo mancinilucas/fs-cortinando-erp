@@ -36,9 +36,9 @@ material de UX ou arquitetura permanecem `[P]` e estão destacadas em §21.
 | Classificação | Quantidade | Decisões |
 | --- | --- | --- |
 | `[F]` | 30 | D260, D261, D262, D266, D274, D275, D276, D280, D285, D287, D290, D293, D295, D297, D302, D306, D307, D308, D313, D315, D316, D318, D319, D320, D327, D328, D330, D331, D332, D333 |
-| `[P]` | 17 | D279, D283, D284, D291, D294, D296, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
+| `[P]` | 16 | D279, D283, D284, D291, D296, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
 | `[V]` | 0 | — |
-| `[A]` | 28 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
+| `[A]` | 29 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
 
 A faixa D260–D333 continua imediatamente após D259, a última decisão da Fase
 9.
@@ -681,7 +681,7 @@ faz merge de endereço campo a campo.
 **Impacto:** formulário com dirty tracking; endereço tratado como um único
 valor.
 
-### D294 — Exclusão, detalhe e histórico `[P]`
+### D294 — Exclusão, detalhe e histórico `[A]`
 
 **Decisão:**
 
@@ -1612,6 +1612,8 @@ reabre regra de produto ou backend.
 
 **Aprovação adicional (2026-10-21):** D292 `[A]`, aprovada explicitamente pelo responsável conforme descrita neste documento antes da implementação da FRONTEND-18. Não promove outras decisões nem antecipa FRONTEND-19.
 
+**Aprovação adicional (2026-10-21):** D294 `[A]`, aprovada explicitamente pelo responsável conforme descrita neste documento antes da implementação da FRONTEND-19. Não antecipa FRONTEND-20 nem promove outras decisões.
+
 ### 21.3 `[P]` ainda abertas
 
 As decisões abaixo permanecem propostas e podem ser implementadas salvo
@@ -1624,7 +1626,6 @@ da etapa correspondente.
 | D283 | Raiz, títulos e metadados | não |
 | D284 | NotFound, voltar e foco | não |
 | D291 | Debounce da busca | não |
-| D294 | Exclusão, detalhe e histórico | sim (fluxo) |
 | D296 | Filtros e linhas de orçamento | sim (UX) |
 | D301 | Alterações não salvas | sim (UX) |
 | D304 | Inputs de medidas e dinheiro | sim (UX) |
@@ -3339,6 +3340,18 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 #### Semantic review
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
+
+#### Registro de execução (2026-10-21)
+
+**Estado: IMPLEMENTADA; gates aprovados; conferência visual no navegador pendente.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY. Árvore limpa no início. D294 aprovada explicitamente pelo responsável e registrada `[A]` no título, sumário e §21. D297/D324 conferidas; nenhuma outra decisão promovida.
+
+**Entrega:** `CustomerDetailPage` integrada à rota existente com dados cadastrais, opcionais ausentes, endereço, observações, edição e link contextual “Novo orçamento”. `CustomerQuoteHistory` consome a API já existente e mantém a ordenação do servidor; apresenta número, data em pt-BR, situação (incluindo `expired` do servidor), total e navegação ao orçamento. Loading, vazio, falha e retry independentes do cadastro. Cliente com GET 404 não apresenta ações nem histórico.
+
+**Exclusão:** `CustomerDeleteDialog` usa o diálogo compartilhado, confirmação com nome e aviso de preservação dos orçamentos. Cancelamento não envia DELETE. Bloqueio síncrono contra envio repetido e fechamento durante a operação. Falha mantém o diálogo e permite nova tentativa. DELETE 204 ou 404 segue a invalidação existente de clientes, resumos de orçamento e dashboard, remove detalhe/histórico do cache e navega para `/clientes`. O cliente HTTP continua propagando 404; a política aprovada fica no hook da feature. Sem restauração ou lixeira.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**31 arquivos / 395 testes**), `pnpm build` e `git diff --check` passaram. Cobertura de detalhe, histórico, opcionais, retry, GET 404, confirmação, cancelamento, DELETE 204/404, falha, duplo envio e invalidação. Testes existentes de formulário/rotas ajustados para a consulta real do histórico. Revisão semântica contra PROJECT_SPEC §3/§12.4, ARCHITECTURE §3.1/§9.4/§18, contratos dos controllers/mappers, D294/D297/D324 e tokens visuais concluída. Testes de diálogo usam polyfill do jsdom; não constituem conferência visual em navegador.
+
+**Stop:** FRONTEND-20 não iniciada. Backend, contratos de Orçamento, dependências e tarefas posteriores intactos.
 
 ---
 

@@ -1,3 +1,4 @@
+import { ApiError } from '@/shared/api/api-error'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { dashboardQueryKey } from '@/features/dashboard/use-dashboard'
 import { createCustomer, deleteCustomer, getCustomer, getCustomerQuotes, searchCustomers, updateCustomer } from './api'
@@ -48,7 +49,11 @@ export function useUpdateCustomer(id: string) {
 export function useDeleteCustomer() {
   const client = useQueryClient()
   const refresh = useCustomerCache()
-  return useMutation({ mutationFn: (id: string) => deleteCustomer(id), onSuccess: async (_data, id) => {
+  return useMutation({ mutationFn: async (id: string) => {
+    try { await deleteCustomer(id) } catch (error) {
+      if (!(error instanceof ApiError && error.status === 404)) throw error
+    }
+  }, onSuccess: async (_data, id) => {
     await client.cancelQueries({ queryKey: customerKeys.detail(id) })
     await client.cancelQueries({ queryKey: customerKeys.history(id) })
     client.removeQueries({ queryKey: customerKeys.detail(id) })

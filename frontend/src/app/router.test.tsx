@@ -12,6 +12,7 @@ import { productRoutes } from './route-definitions'
 const user = { id: 'user-1', email: 'user@example.test' }
 beforeEach(() => {
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  server.use(http.get('*/clientes/customer-1/orcamentos', () => HttpResponse.json([])))
   server.use(http.get('*/auth/me', () => HttpResponse.json(user)), http.get('*/dashboard', () => HttpResponse.json(emptyDashboardFixture)), http.get('*/clientes', () => HttpResponse.json([])), http.get('*/clientes/customer-1', () => HttpResponse.json(customerFixture)))
 })
 function LocationProbe() {
