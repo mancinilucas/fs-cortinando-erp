@@ -2114,6 +2114,34 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** FRONTEND-04 executada exclusivamente. READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE.
+
+**Pré-condições:** `AGENTS.MD` é a grafia real das instruções do repositório. Fontes obrigatórias e estado real conferidos; FRONTEND-03 DONE; pnpm 12.11.2; lockfile pnpm presente e lockfile npm ausente; D263, D271 e D334 `[A]`. D283 é `[P]` não material; nenhum comportamento dependente de `[P]` material foi consumido ou aprovado implicitamente.
+
+**Arquivos migrados/criados:** `src/main.jsx` → `src/main.tsx`; `vite.config.js` → `vite.config.ts`; `src/app/App.tsx` mínimo (somente título, sem feature); `tsconfig.json`, `tsconfig.app.json` e `tsconfig.node.json`. Atualizados `eslint.config.js`, `index.html`, `src/index.css`, `package.json` e `pnpm-lock.yaml`.
+
+**Template removido:** `src/App.jsx`, `src/App.css`, `src/assets/hero.png`, `src/assets/react.svg`, `src/assets/vite.svg`, `public/icons.svg` e `public/favicon.svg`, após conferir suas referências. Removido o link do favicon do template; nenhum asset de marca foi removido ou inventado. Diretórios que ficaram vazios foram removidos.
+
+**TypeScript final:** solution config com referências para app e Node; target/lib ES2022, `module: ESNext`, `moduleResolution: bundler`, `noEmit`, `strict`, `isolatedModules`, `verbatimModuleSyntax`, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch` e `noUncheckedSideEffectImports`. `skipLibCheck` restringe a verificação aos fontes do projeto sem revalidar declarações das dependências; não reduz strict nos fontes. App com DOM/DOM.Iterable, `vite/client`, `jsx: react-jsx` e `paths: { "@/*": ["./src/*"] }`, sem `baseUrl` depreciado. Node com `types: ["node"]`, incluindo somente `vite.config.ts`; caches de build ficam em `node_modules/.tmp`, sem emissão de JS. Alias Vite `@` aponta para `src` por `fileURLToPath(new URL('./src', import.meta.url))`. O import real `@/app/App` é verificado pelo typecheck e pelo build.
+
+**Dependência técnica:** `@types/node` 26.6.5 (dev), necessária para tipar `node:url`, `import.meta` e a configuração Vite no runtime Node 26 disponível. Nenhuma biblioteca de produto ou teste adicionada.
+
+**ESLint final:** flat config com `defineConfig` e `typescript-eslint.configs.recommended`, conforme [guia oficial](https://typescript-eslint.io/getting-started/). Linta `.ts`/`.tsx`, mantém React Hooks e React Refresh nos fontes da aplicação, globals browser em `src` e globals Node na configuração. Config JS lintada pelas regras recomendadas do ESLint; `dist` permanece ignorado. Sem regras estilísticas adicionais ou Prettier.
+
+**Scripts finais:** `dev: vite`; `typecheck: tsc -b`; `lint: eslint .`; `build: tsc -b && vite build`; `preview: vite preview`. Typecheck independente e obrigatório; build executa o mesmo gate incremental antes do bundle, conforme D263. `test` e `test:watch` continuam ausentes, como esperado até FRONTEND-05. Vite apenas transpila TypeScript; a checagem real é feita por `tsc`, conforme [documentação oficial](https://vite.dev/guide/features.html#typescript).
+
+**HTML/CSS:** `lang="pt-BR"`, título Cortinando ERP, viewport preservado e entrada TSX. CSS reduzido a margem zero e fonte de sistema neutra; sem tokens, paleta, fontes Cortinando ou plugin Tailwind ativo.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm build` e `git diff --check` passaram. `git status --short` revisado. Prova negativa temporária: atribuir número a string em fonte TS fez `pnpm typecheck` falhar com TS2322/exit 2; probe removido. Prova negativa por stdin `.tsx`: `any` explícito fez ESLint falhar com `@typescript-eslint/no-explicit-any`/exit 1. São falhas esperadas de verificação dos gates, não findings pendentes. Após limpeza, todos os gates completos foram repetidos e passaram. Nenhuma infraestrutura de testes criada.
+
+**Review/findings e reparos:** o elemento root potencialmente nulo agora é validado com guard explícito antes de `createRoot`, sem cast/non-null assertion. Não há `any`, suppression directive ou cast nos fontes; nenhuma referência a JSX/template removido permanece. Estrutura mínima sem DDD ou pastas vazias. Sem router, QueryClient, HTTP client, sessão, feature, proxy ou foundation visual. Backend, decisões de produto, spec visual e IMPLEMENTATION_PLAN intocados. O repositório continua monorepo Git com dois projetos pnpm independentes; sem workspace na raiz/frontend, sem alteração na configuração preexistente do backend.
+
+**Git:** sem commit nesta rodada. Commit sugerido: `chore(FRONTEND-04): migrate frontend to TypeScript`.
+
+**Stop:** FRONTEND-05 não iniciado.
+
 ---
 
 ### FRONTEND-05 — Configurar testes frontend
