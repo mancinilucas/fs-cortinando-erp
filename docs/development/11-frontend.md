@@ -29,16 +29,16 @@ material de UX ou arquitetura permanecem `[P]` e estão destacadas em §21.
   §21.3.
 - `[V]` — requer validação humana antes da implementação. Não há decisão
   nesta classificação.
-- `[A]` — aprovada pelo responsável do produto; D260–D333 em 2026-10-20 e D334 nesta rodada (2026-10-21).
+- `[A]` — aprovada pelo responsável do produto; validações originais em 2026-10-20; D334 e D322 em 2026-10-21.
 
 ### 1.1 Sumário das decisões
 
 | Classificação | Quantidade | Decisões |
 | --- | --- | --- |
 | `[F]` | 30 | D260, D261, D262, D266, D274, D275, D276, D280, D285, D287, D290, D293, D295, D297, D302, D306, D307, D308, D313, D315, D316, D318, D319, D320, D327, D328, D330, D331, D332, D333 |
-| `[P]` | 25 | D272, D277, D278, D279, D281, D283, D284, D286, D288, D291, D292, D294, D296, D301, D304, D305, D309, D310, D311, D312, D317, D321, D322, D323, D329 |
+| `[P]` | 24 | D272, D277, D278, D279, D281, D283, D284, D286, D288, D291, D292, D294, D296, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
 | `[V]` | 0 | — |
-| `[A]` | 20 | D263, D264, D265, D267, D268, D269, D270, D271, D273, D282, D289, D298, D299, D300, D303, D314, D324, D325, D326, D334 |
+| `[A]` | 21 | D263, D264, D265, D267, D268, D269, D270, D271, D273, D282, D289, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
 
 A faixa D260–D333 continua imediatamente após D259, a última decisão da Fase
 9.
@@ -1144,7 +1144,9 @@ exibir confirmação e atualizar o objeto com a resposta. Não exibir ou aceitar
 
 ## 12. Feedback, erros e estados
 
-### D322 — Taxonomia, tradução e parsing de erros `[P]`
+### D322 — Taxonomia, tradução e parsing de erros `[A]`
+
+**Aprovação humana registrada em 2026-10-21.** D277 permanece sujeita à sua própria confirmação.
 
 **Decisão:** centralizar o tratamento em `ApiError` + `error-messages.ts`:
 
@@ -1596,6 +1598,8 @@ prévia exigirá nova decisão e testes de paridade.
 Nenhuma dessas promoções introduz comportamento novo além do já aprovado nem
 reabre regra de produto ou backend.
 
+**Aprovação adicional (2026-10-21):** D322 — Taxonomia, tradução e parsing de erros `[A]`, explicitamente confirmada pelo responsável do produto antes de FRONTEND-07. Não promove D277/D323/D329.
+
 ### 21.3 `[P]` ainda abertas
 
 As decisões abaixo permanecem propostas e podem ser implementadas salvo
@@ -1626,7 +1630,6 @@ da etapa correspondente.
 | D312 | Instalação | sim (UX) |
 | D317 | Ordem de produção e `409` | sim (UX) |
 | D321 | Formulário de dados do negócio | sim (UX) |
-| D322 | Taxonomia e tradução de erros | sim (UX) |
 | D323 | Loading, sucesso e duplo envio | sim (UX) |
 | D329 | Escopo dos testes | sim (qualidade) |
 
@@ -2394,6 +2397,28 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 #### Semantic review
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
+
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE. FRONTEND-06 DONE; árvore limpa antes da rodada. A execução foi interrompida no precondition check enquanto D322 era `[P]` material. Após confirmação explícita do responsável do produto, D322 foi registrada `[A]`, com atualização do sumário e da lista de pendências. D277/D323/D329 não foram promovidas.
+
+**Arquivos:** `src/shared/format/money.ts`, `decimals.ts`, `dates.ts`, `labels.ts`, `status.ts`, testes colocalizados de money/decimals/dates/labels e `src/shared/errors/error-messages.ts` com seu teste. Nenhuma dependência, script ou configuração adicional.
+
+**Formatadores:** `formatMoney` recebe somente inteiro seguro de centavos e usa `Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })`/`formatToParts`, com divisão e resto BigInt para separar reais/centavos sem perda de precisão ou aritmética monetária float. Inclui negativos menores que um real. `formatMeasure` limita apresentação a 3 casas e `formatQuantity` a 6, sem zeros desnecessários; `formatInteger` exige inteiro seguro. Não há parsing de entrada, pois inputs de D304 ficam na task correspondente. Valores não finitos e centavos fracionários/inseguros são rejeitados com RangeError; zero negativo decimal normalizado. Arredondamento de exibição Intl não altera dados nem replica HALF_UP de negócio.
+
+**Datas:** `formatDate`, `formatTime` e `formatDateTime` usam Intl pt-BR com `America/Sao_Paulo` explícito, relógio 00–23 e saída combinada `dd/mm/aaaa às hh:mm`. Aceitam instantes ISO com Z/offset, rejeitam strings sem fuso, datas de calendário inexistentes e valores inválidos. Datas opcionais ausentes devem ser tratadas pelo consumidor, sem inventar instante. Testes cobrem virada de dia/ano, offsets, ano bissexto e meia-noite. Sem relógio atual, classificação de instalações, cálculo de semana ou expiração.
+
+**Labels/metadata:** mapas centralizados para seis status persistidos e EXPIRED somente como apresentação, três tipos de desconto, 14 eventos reais de histórico e ações. Tipos locais sem importar DTOs/backend. Metadata visual dos sete estados segue §16 da spec visual, com classes Tailwind e nomes de ícones funcionais (componente futuro resolve o ícone); cancelado neutro, expirado warning, confirmado/concluído diferenciados por label/ícone. Nenhuma função deriva status por data nem recalcula `expired`/`lateInstallation`. `getLabel` usa somente chaves próprias e fallback explícito para códigos desconhecidos, sem exibir código cru.
+
+**Mensagens:** textos seguros por HTTP e allowlist de mensagens conhecidas do backend (documentos, origem, recursos, edição e transições), além dos 16 códigos reais do gate. Consultado código backend somente para confirmar strings/códigos; nenhum import ou alteração. Strings desconhecidas, HTML, stack trace, arrays, objetos e chaves herdadas recebem fallback genérico. Não há exposição de erro bruto, enumeração de conta, ação de navegação, retry, recarga ou efeito de sessão. ApiError/parser de corpo HTTP e integração com cliente continuam em FRONTEND-10; aqui foi criada somente a apresentação pura pedida em FRONTEND-07. D277 permanece pendente antes dos comportamentos de sessão.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**7 arquivos / 88 testes**), `pnpm build` e `git diff --check` passaram. Os 10 testes de datas também passaram com TZ do processo `Pacific/Honolulu` e `Asia/Tokyo`, confirmando saída independente do host. `git status --short` revisado: apenas spec e novos utilitários/testes. Sem snapshots. Revisão manual comparou os 16 códigos reais do backend com o mapa, sem gerar contratos compartilhados. Limites monetários testados inclusive ±MAX_SAFE_INTEGER; entradas inválidas, casas decimais, mensagens desconhecidas e protótipos cobertos.
+
+**Review/findings e reparos:** protegida a conversão de datas contra normalização silenciosa de calendário inválido; preservado sinal em valores monetários negativos entre -1 e -99 cents sem converter para float; usadas chaves próprias para impedir que `__proto__`/`toString` sejam mensagens/rótulos. Todos os gates passaram; sem finding pendente. Nenhum total, desconto, ajuste, medida derivada, expiração ou atraso calculado. Sem feature, componente, HTTP client, parser, provider ou estado global. Backend, fontes superiores, IMPLEMENTATION_PLAN, visual spec, pacote/lockfile e projetos pnpm independentes intactos. Testes limitados aos utilitários autorizados em D325/D326/FRONTEND-07, sem ampliar a política de cobertura de produto de D329.
+
+**Git:** sem commit; sugerido `feat(FRONTEND-07): add shared presentation utilities`.
+
+**Stop:** FRONTEND-08 não iniciado.
 
 ---
 
