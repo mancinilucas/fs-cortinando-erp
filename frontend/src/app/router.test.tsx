@@ -11,7 +11,7 @@ import { productRoutes } from './route-definitions'
 const user = { id: 'user-1', email: 'user@example.test' }
 beforeEach(() => {
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
-  server.use(http.get('*/auth/me', () => HttpResponse.json(user)), http.get('*/dashboard', () => HttpResponse.json(emptyDashboardFixture)))
+  server.use(http.get('*/auth/me', () => HttpResponse.json(user)), http.get('*/dashboard', () => HttpResponse.json(emptyDashboardFixture)), http.get('*/clientes', () => HttpResponse.json([])))
 })
 function LocationProbe() {
   const location = useLocation()
@@ -48,7 +48,7 @@ test.each([500, 'network'] as const)('keeps bootstrap failure %s on the current 
   expect(await screen.findByRole('alert')).toBeVisible()
   expect(screen.getByLabelText('Caminho')).toHaveTextContent('/orcamentos')
   expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
-  server.use(http.get('*/auth/me', () => HttpResponse.json(user)), http.get('*/dashboard', () => HttpResponse.json(emptyDashboardFixture)))
+  server.use(http.get('*/auth/me', () => HttpResponse.json(user)), http.get('*/dashboard', () => HttpResponse.json(emptyDashboardFixture)), http.get('*/clientes', () => HttpResponse.json([])))
   fireEvent.click(screen.getByText('Tentar novamente'))
   expect(await screen.findByRole('heading', { name: 'Orçamentos' })).toBeVisible()
 })

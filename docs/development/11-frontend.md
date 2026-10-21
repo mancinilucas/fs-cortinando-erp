@@ -3185,6 +3185,27 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE. FRONTEND-16 concluída e árvore limpa no início. D290 `[F]` conferida contra PROJECT_SPEC §3.3 e API real. D291 permanece proposta não material, implementável sem objeção conforme §21.3; nenhuma decisão promovida. D292/D294 e tarefas posteriores não consumidas.
+
+**Tela:** `/clientes` agora monta `CustomersListPage` sob RequireAuth/AppShell, usando `useCustomers` existente. Lista empilhada no mobile, linhas com nome/telefone/email opcional e link para `/clientes/:customerId`; ID codificado e campos textuais escapados pelo React. Ordem e conteúdo recebidos do servidor preservados sem filtro, paginação, normalização de busca, ordenação ou exclusão lógica locais. Ação “Novo cliente” leva somente à rota documentada `/clientes/novo`, ainda placeholder da próxima task.
+
+**Busca e URL:** campo acessível “Buscar por nome”, debounce de 300 ms desde a última alteração, termo literal enviado ao backend e `?search=` como fonte da query. Demais parâmetros preservados; termo vazio remove search e lista todos. Deep links são lidos imediatamente. Atualizações por digitação usam replace, evitando uma entrada no histórico por termo. Navegação externa/voltar/avançar restaura o campo e cancela draft pendente; desmontagem cancela o timer. Campo mantém foco após atualização de query string e resultados; não foi criado submit ou reload de página.
+
+**Estados:** feedback de busca durante debounce/carregamento, vazio distinto para nenhum cadastro ou nenhum resultado, erro seguro com retry manual. Ação de criar permanece disponível. Sem lista antiga apresentada como resultado do novo draft; nenhuma consulta por tecla. 401 continua delegado ao tratamento global aprovado, preservando a busca em returnTo. Nenhuma confirmação, formulário, exclusão ou detalhe funcional antecipado.
+
+**Testes e reparos:** integração com MSW cobre ordem/projeção, deep link e caracteres reservados, debounce sem requisições intermediárias, parâmetros adicionais, foco, limpar busca, histórico sem entradas por termo, cancelamento ao sair, links/criação, teclado, loading/vazio/erro/retry e 401. Inicialmente timers simulados em testes de integração retinham notificações assíncronas do TanStack ao restaurar o relógio. A verificação exata de 299/300 ms foi isolada no hook, enquanto a integração usa relógio real; nenhum comportamento de produção foi flexibilizado para os testes. Testes de router receberam fixture explícita da lista.
+
+**Visual:** navegador conferiu desktop a 1280 px e frames de 320/390 px, busca real na fixture, URL atualizada e foco preservado. Nome longo e email quebram linha sem tabela/scroll horizontal; CTA navy e navegação inferior permanecem legíveis. Apenas dados fictícios em servidor HTTP temporário, sem credenciais/backend real; harness removido e servidores encerrados.
+
+**Gates finais:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**28 arquivos / 366 testes**), `pnpm build` e `git diff --check` passaram. `git status --short` revisado. Review semântico contra fontes superiores, contrato Clientes, D290/D291/D303-B e spec visual concluído. Backend, dependências, pnpm/workspace, mapa de rotas, plano e produção intactos.
+
+**Commit sugerido:** `feat(FRONTEND-17): implement customer list`.
+
+**Stop:** FRONTEND-18 não iniciada.
+
 ---
 
 ### FRONTEND-18 — Formulário de Cliente
