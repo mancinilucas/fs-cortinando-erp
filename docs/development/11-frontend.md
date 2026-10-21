@@ -36,9 +36,9 @@ material de UX ou arquitetura permanecem `[P]` e estão destacadas em §21.
 | Classificação | Quantidade | Decisões |
 | --- | --- | --- |
 | `[F]` | 30 | D260, D261, D262, D266, D274, D275, D276, D280, D285, D287, D290, D293, D295, D297, D302, D306, D307, D308, D313, D315, D316, D318, D319, D320, D327, D328, D330, D331, D332, D333 |
-| `[P]` | 18 | D279, D283, D284, D291, D292, D294, D296, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
+| `[P]` | 17 | D279, D283, D284, D291, D294, D296, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
 | `[V]` | 0 | — |
-| `[A]` | 27 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
+| `[A]` | 28 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
 
 A faixa D260–D333 continua imediatamente após D259, a última decisão da Fase
 9.
@@ -654,7 +654,7 @@ por tecla sem debounce, para não consumir o limite global de 60 req/min.
 
 **Impacto:** `useDebouncedValue`, estado da URL e query key.
 
-### D292 — Formulário de cliente e endereço `[P]`
+### D292 — Formulário de cliente e endereço `[A]`
 
 **Decisão:** campos `name` e `phone` obrigatórios; `email`, `taxId` e `notes`
 opcionais. Endereço entra por um interruptor “Adicionar endereço”; quando
@@ -1610,6 +1610,8 @@ reabre regra de produto ou backend.
 
 **Aprovação adicional (2026-10-21):** D286 e D288 `[A]`, aprovadas explicitamente pelo responsável do produto conforme descritas neste documento antes da implementação da FRONTEND-15. Nenhuma outra decisão promovida.
 
+**Aprovação adicional (2026-10-21):** D292 `[A]`, aprovada explicitamente pelo responsável conforme descrita neste documento antes da implementação da FRONTEND-18. Não promove outras decisões nem antecipa FRONTEND-19.
+
 ### 21.3 `[P]` ainda abertas
 
 As decisões abaixo permanecem propostas e podem ser implementadas salvo
@@ -1622,7 +1624,6 @@ da etapa correspondente.
 | D283 | Raiz, títulos e metadados | não |
 | D284 | NotFound, voltar e foco | não |
 | D291 | Debounce da busca | não |
-| D292 | Formulário de cliente e endereço | sim (UX) |
 | D294 | Exclusão, detalhe e histórico | sim (fluxo) |
 | D296 | Filtros e linhas de orçamento | sim (UX) |
 | D301 | Alterações não salvas | sim (UX) |
@@ -3263,6 +3264,29 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 #### Semantic review
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
+
+
+#### Registro de execução — 2026-10-21
+
+**Estado: IMPLEMENTADA; gates aprovados; conferência visual no navegador pendente.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY. FRONTEND-17 concluída e árvore limpa no início. D292 explicitamente aprovada pelo responsável conforme documentada; registrada `[A]` nos títulos, sumário e §21. D268/D293 conferidas; nenhuma outra decisão promovida. FRONTEND-19 não iniciada.
+
+**Formulário:** `/clientes/novo` e `/clientes/:customerId/editar` montam `CustomerFormPage` com RHF e resolver Zod local, sem dependência nova. Nome/telefone obrigatórios, email/CPF-CNPJ/observações opcionais; labels textuais de obrigatoriedade, required programático, autocomplete, mensagens acessíveis, foco no primeiro erro e número de endereço textual (`s/n`, `123A`). CPF/CNPJ valida somente formato de 11/14 dígitos após desconsiderar pontuação, sem algoritmo de dígitos verificadores. Não foi inventada validação de formato para telefone.
+
+**Endereço:** interruptor “Adicionar endereço”; quando ativo, `AddressFields` exige rua, número, bairro e cidade, com CEP/complemento/UF opcionais. CEP/UF têm somente feedback de formato compatível com o contrato, sem consulta externa ou normalização autoritativa. Valores não vazios seguem para o backend como digitados; opcionais vazios/whitespace viram null. Desativar endereço envia `address: null`; ao alterar qualquer campo, envia bloco completo. Campos ocultos não exigem validação do endereço desativado.
+
+**Criação e edição:** POST usa payload público; criação bem-sucedida vai com replace para a rota existente de detalhe, ainda placeholder. Edição carrega o cliente antes do formulário, com loading/erro/retry e valores iniciais do detalhe. PATCH compara valores com a referência atual e envia somente diferenças; não envia corpo vazio nem null em campos obrigatórios. Ao salvar edição, os campos e a referência de comparação são resetados para o detalhe efetivamente retornado pelo servidor, mantendo formulário na rota de edição com confirmação inline. Cache/invalidação reutilizam FRONTEND-16. Botão/fieldset bloqueados durante envio, com trava adicional contra chamadas simultâneas. Erro seguro do backend mantém os valores; conclusão após desmontagem não altera formulário nem navegação. Voltar/cancelar usam destinos já documentados. Sem warning de alterações não salvas, confirmação de exclusão, histórico ou detalhe funcional antecipados; D301/D323 não promovidas como padrões globais.
+
+**Testes:** schemas/payloads verificam obrigatoriedade, email, CPF/CNPJ sem checksum, endereço condicional e número textual, null/empty, ausência de normalização indevida, PATCH vazio/parcial e substituição integral de endereço. Integração com MSW cobre validação/foco sem request, POST e destino existente, endereço incompleto/completo, edição inicial, estado atual do servidor após salvar, remoção e atualização de endereço, limpeza de opcional por null, falhas 400/500/rede preservando input, bloqueio de duplo envio e erro de carregamento com retry. Router ganhou fixture explícita do detalhe para suas rotas de edição.
+
+**Reparos/review:** corrigido acesso de ref durante render na inicialização de RHF; nenhuma regra de lint desabilitada. Review semântico contra PROJECT_SPEC §2.8/§3, ARCHITECTURE, plano, DTOs/normalizadores backend e D268/D292/D293/D303-B concluído. Layout adota largura até 760 px, coluna única mobile e campos relacionados em duas colunas desktop, usando tokens/componentes existentes. Esta conferência de código não substitui a revisão visual no navegador.
+
+**Indisponibilidade real:** Vite não conseguiu abrir localhost:5173 no sandbox (`EPERM`). A inicialização autorizada da fixture temporária em localhost:3000, necessária para a revisão visual sem credenciais/backend real, não foi executada porque a revisão automática de aprovação falhou por limite de uso. O retorno distingue falha de revisão de determinação de insegurança; não houve contorno do bloqueio. Nenhuma captura ou revisão visual de FRONTEND-18 é alegada. Retomar a conferência visual quando a revisão automática estiver disponível ou realizar validação local pelo responsável antes do fechamento visual.
+
+**Gates finais:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**30 arquivos / 385 testes**), `pnpm build` e `git diff --check` passaram após ajustes de acessibilidade. `git status --short` revisado. Nenhum commit realizado. Backend, dependências, pnpm/workspace, mapa de rotas, plano e produção intactos.
+
+**Commit sugerido:** `feat(FRONTEND-18): implement customer form`.
+
+**Stop:** FRONTEND-19 não iniciada.
 
 ---
 
