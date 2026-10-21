@@ -3625,6 +3625,20 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+#### Registro de execução (2026-10-21)
+
+**Estado: IMPLEMENTADA; gates aprovados; conferência visual no navegador pendente.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY. FRONTEND-22 implementada e árvore limpa no início. D302/D303-B/D307 conferidas contra PROJECT_SPEC §2.3/§2.4/§6, ARCHITECTURE §3.3/§3.4, contratos HTTP e direção visual. D301/D304 já aprovadas; nenhuma decisão promovida.
+
+**Entrega:** `CurtainsEditor` e `ComponentsEditor` integrados ao `QuoteForm`, com field arrays RHF aninhados. Adicionar, remover e subir/descer cortinas/componentes; rótulos em português e controles adequados ao toque. Ambiente, descrição, material, largura do vão, borda, altura, fator e observações; componentes com nome obrigatório, quantidade opcional até 6 casas, unidade e preço em reais. Rascunho admite campos opcionais vazios; formatos, positividade aplicável e limites do contrato recebem validação Zod no submit, inclusive nos caminhos aninhados, com foco no primeiro erro.
+
+**Identidade e payload:** `serverId` interno preserva IDs persistidos separadamente das chaves geradas pelo RHF. Arrays mantêm a ordem editada. Ao mover uma cortina, seu editor de componentes remonta no novo caminho indexado sem perder valores/IDs. Coleção de cortinas inalterada é omitida do callback; quando alterada, a coleção completa contém todos os filhos remanescentes e IDs existentes. Remover todos envia array vazio; novos itens não enviam ID. Sem sequence, chaves RHF, finalWidth, fabricQuantity ou totais no payload. Conversão monetária exata pelos normalizadores já existentes. Reconciliação HTTP/persistência de página permanece na FRONTEND-25.
+
+**Preset e dados confirmados:** “Adicionar mão de obra” insere nome “Mão de obra”, unidade m, preço R$ 30,00 e a quantidade de tecido confirmada pelo servidor, associada por ID da cortina. Continua editável. Fica indisponível com explicação quando não há quantidade confirmada, inclusive em cortina nova; mudar medidas localmente não recalcula nem altera a base do preset. Largura final, quantidade de tecido e totais existentes são exibidos explicitamente como valores salvos, sem aritmética local. Após salvar, reset e estado confirmado usam a nova resposta, incluindo IDs atribuídos e base atualizada do preset. Cortina nova usa borda 0,15 e fator 3,5 conforme os defaults documentados, sem componentes implícitos.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**37 arquivos / 512 testes**), `pnpm build` e `git diff --check` passaram. Testes cobrem payload sem derivados, IDs persistidos versus chaves RHF, coleções omitidas/vazias, inclusão/remoção/reordenação de pais e filhos, precisão e valores nulos, validação aninhada/foco, preset somente do servidor e editável, indisponibilidade sem quantidade, reset com novas identidades e bloqueio durante salvamento. Testes anteriores de formulário/guard continuam aprovados. Build mantém o aviso não bloqueante de chunk acima de 500 kB já registrado na FRONTEND-22; nenhuma configuração alterada para ocultá-lo. Revisão semântica concluída. Conferência visual real em navegador não realizada.
+
+**Stop:** FRONTEND-24 não iniciada. Sem adicionais gerais, desconto, ajuste comercial, novos endpoints, backend, dependências ou integração antecipada de páginas POST/PATCH. Editor disponível na fundação do formulário; rotas de criação/edição continuam reservadas à FRONTEND-25. Commit não criado: `.git` disponível somente para leitura nesta sessão.
+
 ---
 
 ### FRONTEND-24 — Adicionais, Desconto e Ajuste Comercial

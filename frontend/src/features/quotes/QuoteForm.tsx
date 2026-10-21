@@ -7,6 +7,7 @@ import { TextArea } from '@/shared/components/FormFields'
 import { ErrorState, Spinner } from '@/shared/components/States'
 import { GENERIC_ERROR_MESSAGE } from '@/shared/errors/error-messages'
 import type { CustomerAddress } from '@/features/customers/types'
+import { CurtainsEditor } from './CurtainsEditor'
 import { InstallationAddressEditor } from './InstallationAddressEditor'
 import { quoteFormDefaults, quoteFormPayload, quoteFormResolver } from './quote-form'
 import type { QuoteFormPayload, QuoteFormValues } from './quote-form'
@@ -21,6 +22,8 @@ export function QuoteForm({ quote, customerAddress, onSave }: {
   const { isDirty, isSubmitting, errors } = form.formState
   const blocker = useUnsavedChanges(isDirty)
   const locked = useRef(false)
+  const baseline = useRef(quoteFormDefaults(quote))
+  const [confirmed, setConfirmed] = useState(quote)
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
   async function submit(values: QuoteFormValues) {
@@ -28,8 +31,10 @@ export function QuoteForm({ quote, customerAddress, onSave }: {
     locked.current = true
     setError(undefined); setNotice(undefined)
     try {
-      const saved = await onSave(quoteFormPayload(values))
-      form.reset(quoteFormDefaults(saved))
+      const saved = await onSave(quoteFormPayload(values, baseline.current))
+      baseline.current = quoteFormDefaults(saved)
+      form.reset(baseline.current)
+      setConfirmed(saved)
       setNotice('Rascunho salvo.')
     } catch (failure) { setError(failure instanceof ApiError ? failure.message : GENERIC_ERROR_MESSAGE) }
     finally { locked.current = false }
@@ -42,6 +47,7 @@ export function QuoteForm({ quote, customerAddress, onSave }: {
           <TextArea label="Observações" {...form.register('notes')} error={errors.notes?.message} />
         </section>
         <InstallationAddressEditor form={form} customerAddress={customerAddress} />
+        <CurtainsEditor form={form} confirmed={confirmed?.curtains} />
       </fieldset>
       <p className="text-caption text-text-secondary">Salve o rascunho para atualizar os valores calculados.</p>
       {error && <ErrorState message={error} />}
