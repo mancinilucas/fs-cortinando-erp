@@ -9,6 +9,7 @@ import { server } from '@/shared/test/server'
 import { dashboardFixture, emptyDashboardFixture } from './fixtures.test-support'
 
 beforeEach(() => {
+  server.use(http.get('*/orcamentos', () => HttpResponse.json([])))
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   server.use(
     http.get('*/auth/me', () => HttpResponse.json({ id: 'test-user', email: 'session@example.test' })),

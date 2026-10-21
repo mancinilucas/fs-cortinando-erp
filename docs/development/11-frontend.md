@@ -36,9 +36,9 @@ material de UX ou arquitetura permanecem `[P]` e estão destacadas em §21.
 | Classificação | Quantidade | Decisões |
 | --- | --- | --- |
 | `[F]` | 30 | D260, D261, D262, D266, D274, D275, D276, D280, D285, D287, D290, D293, D295, D297, D302, D306, D307, D308, D313, D315, D316, D318, D319, D320, D327, D328, D330, D331, D332, D333 |
-| `[P]` | 16 | D279, D283, D284, D291, D296, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
+| `[P]` | 15 | D279, D283, D284, D291, D301, D304, D305, D309, D310, D311, D312, D317, D321, D323, D329 |
 | `[V]` | 0 | — |
-| `[A]` | 29 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
+| `[A]` | 30 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D296, D298, D299, D300, D303, D314, D322, D324, D325, D326, D334 |
 
 A faixa D260–D333 continua imediatamente após D259, a última decisão da Fase
 9.
@@ -714,7 +714,7 @@ paginar e não reordenar: usar `createdAt DESC, id DESC`.
 
 **Impacto:** `QuotesListPage`; filtros apenas os documentados.
 
-### D296 — Filtros na URL, linhas e estados `[P]`
+### D296 — Filtros na URL, linhas e estados `[A]`
 
 **Decisão:** `search` e `status` ficam na query string, preservando voltar e
 deep link. A busca é debounced (D291). O filtro de situação é um seletor ou
@@ -1614,6 +1614,8 @@ reabre regra de produto ou backend.
 
 **Aprovação adicional (2026-10-21):** D294 `[A]`, aprovada explicitamente pelo responsável conforme descrita neste documento antes da implementação da FRONTEND-19. Não antecipa FRONTEND-20 nem promove outras decisões.
 
+**Aprovação adicional (2026-10-21):** D296 `[A]`, aprovada explicitamente pelo responsável conforme descrita antes da FRONTEND-21. Não antecipa FRONTEND-22 nem promove outras decisões.
+
 ### 21.3 `[P]` ainda abertas
 
 As decisões abaixo permanecem propostas e podem ser implementadas salvo
@@ -1626,7 +1628,6 @@ da etapa correspondente.
 | D283 | Raiz, títulos e metadados | não |
 | D284 | NotFound, voltar e foco | não |
 | D291 | Debounce da busca | não |
-| D296 | Filtros e linhas de orçamento | sim (UX) |
 | D301 | Alterações não salvas | sim (UX) |
 | D304 | Inputs de medidas e dinheiro | sim (UX) |
 | D305 | Desconto e ajuste | sim (UX) |
@@ -3477,6 +3478,18 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 #### Semantic review
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
+
+#### Registro de execução (2026-10-21)
+
+**Estado: IMPLEMENTADA; gates aprovados; conferência visual no navegador pendente.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → RE-VERIFY. FRONTEND-20 concluída e árvore limpa no início. D296 aprovada explicitamente pelo responsável, registrada `[A]` no título, sumário e §21. D291 permanece proposta não material, consumida conforme §21.3; nenhuma outra decisão promovida.
+
+**Entrega:** `QuotesListPage` integrada à rota `/orcamentos`, com `StatusFilter`, `QuoteRow`, `useQuoteFilters` e `useQuotes`. Busca por cliente ou número com debounce de 300 ms, situações documentadas incluindo `EXPIRED`, parâmetros `search`/`status` na URL e limpeza dos filtros. Parâmetros alheios preservados. Digitação substitui a entrada atual do histórico; mudança de situação e limpeza permitem voltar. Mudança de situação confirma o termo digitado pendente e cancela seu timer. Navegação/unmount cancela debounce; voltar restaura ambos os filtros. Status desconhecido na URL não é enviado à API e pode ser removido por “Limpar filtros”.
+
+**Resultados:** consultas pelo cliente/API e query keys existentes, com AbortSignal; sem filtro, ordenação, paginação ou cálculo local. Número, cliente, situação persistida e indicador separado `expired`, total, criação e instalação quando disponível. Datas/valores formatados pelos utilitários existentes, links para detalhe com ID codificado. Lista empilhada no mobile, grid responsivo e tokens existentes. Loading/debounce, vazio, erro seguro e retry manual; 401 pelo limite de sessão já implementado. Nenhuma criação de orçamento fora do contexto do cliente.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**33 arquivos / 457 testes**), `pnpm build` e `git diff --check` passaram. Testes cobrem resumos/ordem/valores do servidor, expiração sem inferência local, instalação opcional, deep link literal, debounce/foco, mudança de situação com busca pendente, remoção de cada filtro, limpeza, voltar, status inválido, respostas antigas, loading/vazio/falhas/retry, teclado e sessão. Mocks de rotas, Clientes e Dashboard ajustados à consulta real da nova lista. Revisão semântica contra PROJECT_SPEC §12.2/§12.3, ARCHITECTURE §18, D291/D295/D296, D303-B, contrato público e direção visual concluída. Conferência visual real em navegador não realizada.
+
+**Stop:** FRONTEND-22 não iniciada. Backend, contratos, formulários, dependências e tarefas posteriores intactos. Commit não criado nesta sessão: `.git` está disponível somente para leitura.
 
 ---
 

@@ -12,6 +12,7 @@ const customers = [
   { id: 'customer-a', name: 'Ana Souza', phone: '11987654321', email: 'ana@example.test' },
 ]
 beforeEach(() => {
+  server.use(http.get('*/orcamentos', () => HttpResponse.json([])))
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   server.use(http.get('*/auth/me', () => HttpResponse.json({ id: 'user-1', email: 'session@example.test' })),
     http.get('*/clientes', () => HttpResponse.json(customers)), http.get('*/dashboard', () => HttpResponse.json({
