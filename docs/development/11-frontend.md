@@ -3119,6 +3119,25 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → DONE. FRONTEND-15 concluída e árvore limpa no início. D290/D293 `[F]` e D324 `[A]` conferidas contra PROJECT_SPEC §2.8/§3, ARCHITECTURE §7.3/§14, plano, DTOs/mappers/controllers de Clientes e projeção pública do histórico de orçamentos. Nenhuma decisão material pendente consumida; D292/D294 permanecem propostas para os respectivos fluxos visuais.
+
+**Contratos:** feature `customers` com schemas Zod e tipos derivados de resumo, detalhe, endereço, criação, PATCH e resumo de orçamento do cliente. Respostas são validadas e projetadas somente com campos públicos, descartando `deletedAt` e extras. Datas continuam ISO; telefone, documento, busca, dinheiro, status e `expired` são preservados sem normalização/recomputação local. Endereço requer os quatro campos estruturais e admite CEP/complemento/UF opcionais ou nulos, conforme DTO. Nenhuma máscara ou validação de formulário foi criada.
+
+**API:** busca `GET /clientes?search=`, detalhe, histórico `GET /clientes/:id/orcamentos`, POST/PATCH e DELETE pelos contratos reais. Busca usa URLSearchParams, preservando texto literal e delegando acentos, comparação, exclusão lógica e ordenação ao servidor. IDs codificados como um segmento. Cliente HTTP existente fornece credentials include, erros seguros e AbortSignal. Payloads descartam campos de sistema; PATCH contém somente campos fornecidos/alterados pelo consumidor, admite null nos opcionais, recusa null nos obrigatórios, corpo vazio e endereço parcial. Não há diff implícito nem merge de endereço; dirty tracking pertence à futura tela. POST/PATCH retornam o detalhe do servidor. DELETE aceita resposta vazia e propaga falhas, inclusive 404, sem promover a política visual de D294.
+
+**Queries e cache:** `customerKeys` separa listas por busca, detalhe e histórico por ID; hooks de detalhe/histórico ficam desabilitados sem ID. TanStack Query fornece loading/erro/refetch, deduplicação e cancelamento, mantendo defaults sem retry automático, polling ou persistência. Hooks de criação/edição/exclusão invalidam Clientes, resumos de orçamento e Dashboard apenas após sucesso. Leituras antigas são canceladas antes de atualizar o detalhe com a resposta atual; exclusão remove detalhe/histórico em cache. Prefixo de resumos de orçamento definido como `['quotes', 'list']` em `quoteSummariesQueryKey` para os consumidores futuros; não há hook/tela de Orçamentos antecipado.
+
+**Testes:** MSW cobre busca com caracteres reservados e acentos, ordem do servidor, lista vazia, detalhe, histórico sem recalcular expiração/centavos, projeção fechada, POST/PATCH, omissão/null/endereço completo, rejeição prévia de payload inválido, DELETE 204, falhas HTTP/rede, resposta inválida/204 e codificação de IDs. Hooks cobrem deduplicação e buscas distintas, chaves por ID, queries inativas sem ID, cancelamento, falha sem retry/refetch manual, invalidação de três recursos após sucesso, preservação de cache em falha e cancelamento de respostas antigas antes de armazenar o detalhe atual.
+
+**Gates finais:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**26 arquivos / 351 testes**), `pnpm build` e `git diff --check` passaram. `git status --short` revisado. Review semântico contra contratos públicos e D290/D293/D324 concluído. Somente camada de dados e testes, sem integração de tela/rota, confirmação de exclusão ou navegação. Backend, dependências, pnpm/workspace, plano e produção intactos.
+
+**Commit sugerido:** `feat(FRONTEND-16): add customer data layer`.
+
+**Stop:** FRONTEND-17 não iniciada.
+
 ---
 
 ### FRONTEND-17 — Lista e busca de Clientes
