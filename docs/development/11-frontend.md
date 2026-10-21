@@ -2213,6 +2213,28 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE. FRONTEND-04 DONE e árvore limpa no início. D270 `[A]`, D330 e D331 autorizam a fundação; D329 continua `[P]` material e não foi promovida. Esta task não amplia cobertura de produto nem cria features.
+
+**Dependências dev instaladas por pnpm 12.11.2:** Vitest 5.0.5, jsdom 30.1.3, Testing Library React 16.3.3, user-event 14.6.8, jest-dom 7.0.1 e MSW 3.0.3. Versões resolvidas em instalação real, compatíveis com React 19/Vite 8/Node 26; lockfile atualizado, sem workspace raiz/frontend.
+
+**Implementação:** `vitest.config.ts` herda plugins e alias da configuração Vite por `mergeConfig`, usa ambiente jsdom, setup global, `clearMocks` e `restoreMocks`. Configuração incluída no tsconfig Node e ESLint; import explícito `.ts` com `allowImportingTsExtensions` (config Node já usa `noEmit`). `.vitest/` ignorado. Scripts `test: vitest run` e `test:watch: vitest --watch`, sem flags de sucesso vazio ou supressão de falhas.
+
+**Setup/MSW:** `src/shared/test/setup.ts` importa matchers jest-dom/Vitest, registra cleanup DOM explícito e lifecycle beforeAll/afterEach/afterAll. `server.ts` exporta `setupServer()` sem handlers de produto; requisições sem handler falham (`onUnhandledFrame: 'error'` no MSW 3), handlers locais são resetados após cada teste e interceptação encerrada ao final. Nenhum service worker no browser ou backend necessário. Não foi criado render helper: o bootstrap atual não possui providers e o `render` nativo é suficiente.
+
+**Testes:** `src/app/App.test.tsx` renderiza o App real e consulta heading/landmark por papel. `src/shared/test/foundation.test.tsx` verifica foco/Enter com user-event, fetch interceptado em URL reservada `.test`, limpeza de DOM/handlers e rejeição de requisição sem handler. Total: **2 arquivos, 5 testes**, sem snapshots e sem mockar contratos de produto. Fixtures de infraestrutura existem somente nos testes.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` e `git diff --check` passaram após reparos. `pnpm test:watch` executou os cinco testes, entrou em “Waiting for file changes” e foi encerrado com `q`. `pnpm install --frozen-lockfile` passou com acesso autorizado ao store (tentativa no sandbox falhou por filesystem somente leitura). `git status --short` revisado. O bundle de produção mantém os mesmos arquivos/hash da FRONTEND-04: nenhuma ferramenta de teste importada pelo bootstrap.
+
+**Findings e reparos:** a opção histórica `onUnhandledRequest` não existe no MSW 3 e foi rejeitada por typecheck/build; substituída por `onUnhandledFrame`, confirmada nos tipos/fontes instalados e pelo teste de requisição não tratada. Corrigido aviso do loader Vite com extensão explícita no import de configuração. Nesta execução, `vitest` sem flag encerrou após uma rodada; o script watch foi tornado explícito com `--watch` e validado. Gates completos repetidos após os reparos; sem finding pendente.
+
+**Review semântico:** somente fundação de testes, sem antecipar cobertura material de D329, Tailwind, router, HTTP client, providers, feature ou testes E2E. Sem Playwright/Cypress. Backend, decisões D260–D334, spec visual e IMPLEMENTATION_PLAN intactos. Monorepo Git preservado com frontend/backend pnpm independentes.
+
+**Git:** sem commit; sugerido `test(FRONTEND-05): establish frontend test foundation`.
+
+**Stop:** FRONTEND-06 não iniciado.
+
 ---
 
 ### FRONTEND-06 — Configurar Tailwind e tokens visuais
