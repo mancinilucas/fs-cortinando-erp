@@ -26,7 +26,7 @@ export function useLogout() {
       await client.cancelQueries()
       if (controller.signal.aborted) return
       client.clear()
-      clearSession()
+      clearSession('logout')
       navigate('/login', { replace: true })
     } catch (failure) {
       if (!controller.signal.aborted) setError(failure instanceof ApiError ? getHttpErrorMessage(failure.status) : GENERIC_ERROR_MESSAGE)

@@ -5,7 +5,7 @@ export type SessionContextValue = {
   state: AuthState
   retryBootstrap: () => void
   setAuthenticated: (user: AuthUser) => void
-  clearSession: () => void
+  clearSession: (reason?: 'logout') => void
 }
 
 export const AuthContext = createContext<SessionContextValue | undefined>(undefined)

@@ -4,5 +4,5 @@ export type LoginCredentials = { readonly email: string; readonly password: stri
 export type AuthState =
   | { readonly status: 'loading' }
   | { readonly status: 'authenticated'; readonly user: AuthUser }
-  | { readonly status: 'anonymous' }
+  | { readonly status: 'anonymous'; readonly reason?: 'logout' }
   | { readonly status: 'error'; readonly message: string }

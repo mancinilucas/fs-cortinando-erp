@@ -56,9 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ status: 'authenticated', user: { id: user.id, email: user.email } })
   }, [invalidateBootstrap])
 
-  const clearSession = useCallback(() => {
+  const clearSession = useCallback((reason?: 'logout') => {
     invalidateBootstrap()
-    setState({ status: 'anonymous' })
+    setState({ status: 'anonymous', reason })
   }, [invalidateBootstrap])
 
   const value = useMemo(() => ({ state, retryBootstrap, setAuthenticated, clearSession }),

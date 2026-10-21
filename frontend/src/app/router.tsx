@@ -1,41 +1,57 @@
 import { useEffect } from 'react'
-import type { ReactNode } from 'react'
-import { matchPath, Navigate, Route, Routes, useLocation } from 'react-router'
+import { Link, matchPath, Navigate, Route, Routes, useLocation, useParams } from 'react-router'
 import { LoginPage } from '@/features/auth/LoginPage'
+import { RequireAuth } from '@/shared/auth/RequireAuth'
 import { SessionErrors } from '@/shared/auth/session-errors'
+import { useSession } from '@/shared/auth/use-session'
+import { AppShell } from './AppShell'
+import { NotFoundPage } from './NotFoundPage'
 import { productRoutes } from './route-definitions'
 
-function RoutePlaceholder({ title }: { title: string }) {
-  return <main className="p-4"><h1>{title}</h1></main>
+function RoutePlaceholder({ path }: { path: string }) {
+  const { customerId, quoteId } = useParams()
+  const backTo = path === '/clientes/novo' || path === '/clientes/:customerId' ? '/clientes'
+    : path.startsWith('/clientes/:customerId/') ? `/clientes/${customerId}`
+      : path === '/orcamentos/:quoteId' ? '/orcamentos'
+        : path === '/orcamentos/:quoteId/editar' ? `/orcamentos/${quoteId}` : undefined
+  return <>
+    {backTo && <Link to={backTo} className="mb-4 inline-flex min-h-11 items-center text-brand-navy underline">Voltar</Link>}
+    <p className="text-text-secondary">Esta página será implementada nas próximas etapas.</p>
+  </>
 }
 
-function ProtectedRoutePlaceholder() {
-  // No Outlet: product pages stay inaccessible until the real session boundary exists.
-  return <RoutePlaceholder title="Cortinando ERP" />
-}
-
-function RouteMetadata() {
+function RouteEffects() {
   const { pathname } = useLocation()
+  const { state } = useSession()
   const title = pathname === '/login' ? 'Entrar'
     : pathname === '/' ? undefined
       : productRoutes.find((route) => matchPath(route.path, pathname))?.title ?? 'Página não encontrada'
   useEffect(() => {
     document.title = title ? `${title} | Cortinando ERP` : 'Cortinando ERP'
   }, [title])
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+      document.querySelector<HTMLElement>('[data-page-title]')?.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [pathname, state.status])
   return null
 }
 
-export function AppRoutes({ protectedElement = <ProtectedRoutePlaceholder /> }: { protectedElement?: ReactNode }) {
+export function AppRoutes() {
   return <>
     <SessionErrors />
-    <RouteMetadata />
+    <RouteEffects />
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route element={protectedElement}>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        {productRoutes.map(({ path, title }) => <Route key={path} path={path} element={<RoutePlaceholder title={title} />} />)}
+      <Route element={<RequireAuth />}>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          {productRoutes.map(({ path }) => <Route key={path} path={path} element={<RoutePlaceholder path={path} />} />)}
+        </Route>
       </Route>
-      <Route path="*" element={<RoutePlaceholder title="Página não encontrada" />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   </>
 }

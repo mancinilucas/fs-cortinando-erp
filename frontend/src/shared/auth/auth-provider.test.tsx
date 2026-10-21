@@ -16,7 +16,7 @@ function Probe() {
     {state.status === 'error' && <p>{state.message}</p>}
     <button onClick={retryBootstrap}>Retry</button>
     <button onClick={() => setAuthenticated(user)}>Authenticate</button>
-    <button onClick={clearSession}>Clear</button>
+    <button onClick={() => clearSession()}>Clear</button>
   </>
 }
 function mount() { return render(<AuthProvider><Probe /></AuthProvider>) }

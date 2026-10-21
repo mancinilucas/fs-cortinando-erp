@@ -2915,6 +2915,27 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE. FRONTEND-12 concluída e árvore limpa no início. D261/D274/D281/D282 e UI-04 conferidas; D284 permanece proposta não material, implementável conforme §21.3. D277/D278 já aprovadas. Nenhuma outra decisão promovida.
+
+**Proteção e rotas:** `RequireAuth` controla todo o ramo de produto. Bootstrap pendente não monta shell/páginas; erros de rede/servidor permanecem na rota com mensagem segura e retry manual; estado anônimo redireciona com replace para login e `returnTo` interno preservando query/hash. Raiz anônima vai diretamente ao login; raiz autenticada vai ao dashboard. Login e NotFound continuam públicos. Removido o ponto de injeção de guard usado pelos testes de skeleton: agora os testes exercitam sessão real via MSW. Mapa D281 preservado exatamente, sem novas rotas de conveniência ou ações de orçamento.
+
+**Shell:** quatro destinos (Dashboard, Clientes, Orçamentos, Configurações), navegação inferior fixa abaixo de 1024 px e sidebar clara de 248 px no desktop. NavLink indica rota ativa com `aria-current`, navy e indicador de borda; rotas filhas preservam o destino pai, inclusive orçamento novo dentro de Clientes. Cabeçalho com título e logout visível; identidade da sessão no rodapé desktop. Conteúdo até 1240 px, padding inferior reservado à barra e safe area. Link de pular para conteúdo, ícones decorativos e alvos de toque de pelo menos 44 px. Em 320 px, rótulo visual mobile “Config.” evita quebra de palavra, mantendo nome acessível completo “Configurações”.
+
+**Navegação e feedback:** NotFound em português com link para dashboard; detalhes/formulários ainda placeholders ganham destinos explícitos de voltar, sem criar fluxos de negócio. Metadados preservados. Mudança de página e conclusão do bootstrap rolam ao topo e focam o título com `tabIndex=-1`, também no login e NotFound; busca/query permanece preservada no histórico. Logout usa o hook existente, mostra envio/erro e protege contra duplo envio. Sucesso cancela queries, limpa cache/sessão e vai a `/login`; falha mantém shell e página.
+
+**Reparo de integração:** teste mais estrito encontrou corrida entre o redirect do guard e o destino do logout. Estado anônimo agora pode carregar o motivo voluntário `logout`, somente em memória; o guard respeita esse motivo e não acrescenta `returnTo` à saída explícita, inclusive ao voltar no histórico. Ausência/expiração de sessão continua preservando destino conforme D277. Nenhum cookie, token ou credencial foi armazenado ou inspecionado.
+
+**Branding e review visual:** não foram encontrados assets oficiais utilizáveis no repositório nem nos anexos disponíveis. Mantida identificação textual temporária na sidebar e ícones funcionais, sem recortar/redesenhar/inventar símbolo; integrar lockup/símbolo oficial permanece pendência visual não bloqueante de UI-04. Conferidos no navegador desktop a 1280 px e mobile em frames de 320/390 px: navegação, título, ativo e legibilidade. O rótulo estreito foi reparado após inspeção. Fixture HTTP temporária com identidade fictícia permitiu revisar o shell sem credenciais; falha de comunicação no logout preservou a página e exibiu erro. Sucesso/logout/histórico e demais estados foram verificados com MSW. Harness visual temporário removido; nenhum mock de sessão integra a aplicação.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**21 arquivos / 281 testes**), `pnpm build` e `git diff --check` passaram após os reparos. Testes cobrem todas as rotas protegidas, loading, erros/retry, raiz, login público, NotFound, seleção ativa, deep links, foco/scroll, voltar explícito/histórico e logout. `git status --short` revisado. Review semântico contra PROJECT_SPEC/ARCHITECTURE, contratos Auth, D303-B, mapa aprovado e spec visual concluído. Sem dependências novas, alteração de backend, workspace pnpm ou topologia de produção; funcionalidades de produto continuam placeholders.
+
+**Commit sugerido:** `feat(FRONTEND-13): implement protected app shell`.
+
+**Stop:** FRONTEND-14 não iniciada.
+
 ---
 
 ### FRONTEND-14 — Camada de dados do Dashboard

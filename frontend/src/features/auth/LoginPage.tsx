@@ -59,7 +59,7 @@ export function LoginPage() {
       <div className="w-full max-w-110">
         <p className="mb-6 font-display text-page-title text-brand-navy lg:hidden">Cortinando</p>
         <div className="rounded-md border border-border-default bg-surface-primary p-6">
-          <h1 className="mb-6 font-display text-page-title text-brand-navy">Entrar</h1>
+          <h1 data-page-title tabIndex={-1} className="mb-6 font-display text-page-title text-brand-navy">Entrar</h1>
           {state.status === 'loading' ? <LoadingState label="Verificando sessão…" />
             : state.status === 'error' ? <ErrorState message={state.message} onRetry={retryBootstrap} />
               : <form noValidate onSubmit={(event) => { void handleSubmit(submit)(event) }} className="flex flex-col gap-4" aria-busy={isSubmitting}>
