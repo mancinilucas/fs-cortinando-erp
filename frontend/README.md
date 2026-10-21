@@ -1,3 +1,24 @@
+# Execução local
+
+Dentro de `frontend/`, use `pnpm install` e `pnpm dev`. A SPA usa
+`http://localhost:5173`; a API local deve estar em `http://localhost:3000`.
+Não misture `localhost` e `127.0.0.1`, pois cookie e CSRF dependem da origem.
+O frontend e o backend têm instalações pnpm e lockfiles independentes.
+
+`.env.example` documenta `VITE_API_BASE_URL`, opcional e vazia por padrão.
+Sem valor, o cliente futuro usará paths relativos. O proxy preserva `Origin`
+e encaminha `/auth`, `/clientes`, `/orcamentos`, `/dashboard` e
+`/dados-do-negocio` para a API. Navegações HTML nesses caminhos recebem a SPA.
+Variáveis `VITE_*` são públicas: nunca inclua credenciais ou segredos.
+A topologia de produção será definida na Fase 12.
+
+Nesta fundação, as rotas de produto ficam fechadas por um placeholder que
+não renderiza o Outlet; o bootstrap real da sessão e o guard entram nas tasks
+11–13. `/login` e a rota de não encontrado têm apenas títulos provisórios.
+Não há login, sessão simulada ou funcionalidade de produto nesta etapa.
+
+---
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

@@ -2587,6 +2587,32 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE. FRONTEND-08 DONE; árvore limpa no início. D272 e D281 `[A]` conferidas, D264/D265/D271 obrigatórias; D283 `[P]` não material aplicada sem promoção. Nenhuma outra decisão material promovida.
+
+**Router:** `src/app/route-definitions.ts` centraliza os dez paths de produto exatamente como D281, sem rotas de lifecycle/instalação/documentos ou criação alternativa de orçamento. `router.tsx` usa React Router 7 declarativo, `/login` e `*` públicos, ramo de produto contendo `/` e os dez paths. `/` tem Navigate replace para `/dashboard` dentro desse ramo. Páginas são somente placeholders com título, sem formulários, dados ou features. Busca/query string preservada. Metadados definem document.title por caminho, incluindo deep links e não encontrado; HTML mantém pt-BR/viewport e adiciona theme-color navy aprovado.
+
+**Proteção nesta etapa:** o elemento padrão do ramo protegido é um placeholder fechado, sem Outlet; ele não assume sessão anônima ou autenticada e não faz requisições. Assim, nenhuma página de produto é exposta enquanto não há sessão real. O ponto de composição `protectedElement` permite integrar o guard nas tasks 11–13. Nos testes, somente, um Outlet libera o ramo para verificar destinos, placeholders e redirecionamento raiz. Não foi criado flag de autenticação, mock de sessão, AuthProvider, RequireAuth, returnTo ou redirect de 401. A raiz autenticada e o redirecionamento de anônimos serão conectados ao estado real nas tasks de sessão/rotas protegidas; a regra de destino já está declarada. O login atual é somente um heading público, não fluxo funcional.
+
+**Providers:** `query-client.ts` cria QueryClient por instância, queries/mutations sem retry automático; refetch de foco desativado por padrão, sem polling ou persistência. `providers.tsx` mantém cliente estável com inicialização lazy em useState. `App.tsx` compõe AppProviders → BrowserRouter → AppRoutes. Não há cache singleton compartilhado entre raízes, estado de produto global ou efeitos de sessão.
+
+**Ambiente:** `src/shared/config/env.ts` lê `VITE_API_BASE_URL` opcional, vazia por padrão e normalizada sem barras finais; `vite-env.d.ts` tipa a variável. Não há cliente HTTP ainda; o futuro client consumirá essa configuração em FRONTEND-10. `.env.example` contém somente variável pública opcional, sem credencial/token/segredo. README recebeu instruções locais com pnpm e localhost, mantendo o restante do template para limpeza futura. Frontend/backend continuam com instalação e lockfiles independentes. Produção permanece na Fase 12.
+
+**Proxy Vite:** host localhost, porta 5173 e strictPort impedem mudança silenciosa de origem. Os cinco prefixos `/auth`, `/clientes`, `/orcamentos`, `/dashboard`, `/dados-do-negocio` apontam para `http://localhost:3000`, sem rewrite e com changeOrigin false. Como os caminhos de UI coincidem com a API, bypass de GET/HEAD que aceitam text/html devolve index.html; fetch/JSON e mutações continuam na API. Origin não é definido nem reescrito pelo frontend. Não foi usado 127.0.0.1 nesta task nem alterado backend.
+
+**Testes:** router/MemoryRouter cobre ramo fechado em todos os destinos, placeholders públicos, rota raiz com Outlet de integração, dez caminhos documentados, query string e ausência de rotas adicionais de ação. Provider cobre estabilidade, isolamento de cache e falhas sem retry. Ambiente cobre ausência/valor vazio/base explícita. `vite.config.test.ts`, incluído na configuração TypeScript Node/ESLint, verifica host/porta, cinco proxies, bypass HTML e manutenção de requisições JSON/POST. Mantidos todos os testes anteriores.
+
+**Gates finais:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**15 arquivos / 150 testes**), `pnpm build` e `git diff --check` passaram. `git status --short` revisado. Checagem adicional temporária com Vite real e stub HTTP isolado: cinco deep links devolveram HTML da SPA; cinco paths de API e POST preservaram método/path/Origin. O alvo localhost:3000 foi conferido na configuração; no teste de integração foi substituído somente em memória por stub em porta temporária. Backend real não foi acessado. Servidores temporários encerrados. Sem novas dependências ou alteração de package/lockfile.
+
+**Findings/reparos:** evitado proxy encaminhar navegações HTML para API; feita distinção por método/Accept. O teste de configuração inicialmente falhou no typecheck por campos opcionais/unions do defineConfig; corrigido por guards explícitos, sem casts/suppressions. A primeira análise automática de permissão para a checagem de rede local expirou; a única repetição autorizada passou. Gates e verificação de proxy concluídos sem pendência.
+
+**Review semântico:** mapa D281 preservado, todas as páginas de produto sob ramo fechado, criação de orçamento somente no cliente e ações dentro de detalhe futuro; sem sessão falsa, features, cliente HTTP, AuthProvider, AppShell ou retorno ao login antecipado. D260–D334, spec visual, fontes superiores e IMPLEMENTATION_PLAN intactos. Nenhuma mudança backend, workspace ou infraestrutura de produção.
+
+**Git:** sem commit; sugerido `feat(FRONTEND-09): configure app routing and providers`.
+
+**Stop:** FRONTEND-10 não iniciado.
+
 ---
 
 ### FRONTEND-10 — Cliente HTTP e ApiError
