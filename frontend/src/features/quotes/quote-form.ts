@@ -15,7 +15,7 @@ export const quoteFormSchema = financialFormSchema.safeExtend({
   if (value.state.trim() && !/^[a-zA-Z]{2}$/.test(value.state.trim())) context.addIssue({ code: 'custom', path: ['state'], message: 'Informe uma UF com 2 letras.' })
 })
 export type QuoteFormValues = z.infer<typeof quoteFormSchema>
-export type QuoteFormPayload = { notes: string | null; installationAddress: InstallationAddressPayload | null; curtains?: UpdateCurtainPayload[]; generalAddOns?: UpdateFinancialItemPayload[]; discount?: QuoteDiscountPayload; commercialAdjustmentCents?: number | null }
+export type QuoteFormPayload = { notes?: string | null; installationAddress?: InstallationAddressPayload | null; curtains?: UpdateCurtainPayload[]; generalAddOns?: UpdateFinancialItemPayload[]; discount?: QuoteDiscountPayload; commercialAdjustmentCents?: number | null }
 export const quoteFormResolver: Resolver<QuoteFormValues> = (values) => {
   const result = quoteFormSchema.safeParse(values)
   if (result.success) return { values: result.data, errors: {} }
@@ -45,5 +45,9 @@ export function quoteFormPayload(values: QuoteFormValues, baseline?: QuoteFormVa
   const discountFields = !baseline || JSON.stringify(discount) !== JSON.stringify(discountFormPayload(baseline)) ? { discount } : {}
   const adjustment = parseMoneyInput(values.commercialAdjustment)
   const adjustmentFields = !baseline || adjustment !== parseMoneyInput(baseline.commercialAdjustment) ? { commercialAdjustmentCents: adjustment } : {}
-  return { ...curtains, ...generalAddOns, ...discountFields, ...adjustmentFields, notes: optional(values.notes), installationAddress: Object.values(address).some((value) => value !== null) ? address : null }
+  const notes = optional(values.notes)
+  const notesFields = !baseline || notes !== optional(baseline.notes) ? { notes } : {}
+  const installationAddress = Object.values(address).some((value) => value !== null) ? address : null
+  const addressChanged = !baseline || addressFields.some((key) => optional(values[key]) !== optional(baseline[key]))
+  return { ...curtains, ...generalAddOns, ...discountFields, ...adjustmentFields, ...notesFields, ...(addressChanged ? { installationAddress } : {}) }
 }

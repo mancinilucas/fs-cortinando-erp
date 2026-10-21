@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { ApiError } from '@/shared/api/api-error'
 import { Button } from '@/shared/components/Button'
@@ -17,9 +17,10 @@ import type { QuoteFormPayload, QuoteFormValues } from './quote-form'
 import type { QuoteDetail } from './types'
 import { useUnsavedChanges } from './use-unsaved-changes'
 
-export function QuoteForm({ quote, customerAddress, onSave }: {
+export function QuoteForm({ quote, customerAddress, onSave, onSaved }: {
   quote?: QuoteDetail; customerAddress?: CustomerAddress | null
   onSave: (payload: QuoteFormPayload) => Promise<QuoteDetail>
+  onSaved?: (quote: QuoteDetail) => void
 }) {
   const form = useForm<QuoteFormValues>({ defaultValues: quoteFormDefaults(quote), resolver: quoteFormResolver })
   const { isDirty, isSubmitting, errors } = form.formState
@@ -29,12 +30,26 @@ export function QuoteForm({ quote, customerAddress, onSave }: {
   const [confirmed, setConfirmed] = useState(quote)
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
+  const savedForNavigation = useRef<QuoteDetail | undefined>(undefined)
+  useEffect(() => {
+    if (isDirty || isSubmitting || !savedForNavigation.current) return
+    const saved = savedForNavigation.current
+    savedForNavigation.current = undefined
+    onSaved?.(saved)
+  }, [isDirty, isSubmitting, onSaved])
   async function submit(values: QuoteFormValues) {
     if (locked.current) return
     locked.current = true
     setError(undefined); setNotice(undefined)
     try {
-      const saved = await onSave(quoteFormPayload(values, baseline.current))
+      const payload = quoteFormPayload(values, baseline.current)
+      if (quote && Object.keys(payload).length === 0) {
+        form.reset(baseline.current)
+        setNotice('Não há alterações para salvar.')
+        return
+      }
+      const saved = await onSave(payload)
+      if (onSaved) savedForNavigation.current = saved
       baseline.current = quoteFormDefaults(saved)
       form.reset(baseline.current)
       setConfirmed(saved)
@@ -58,7 +73,9 @@ export function QuoteForm({ quote, customerAddress, onSave }: {
       <p className="text-caption text-text-secondary">Salve o rascunho para atualizar os valores calculados.</p>
       {error && <ErrorState message={error} />}
       {notice && !isDirty && <p role="status">{notice}</p>}
-      <Button type="submit" disabled={isSubmitting || Boolean(quote && !isDirty)}>{isSubmitting && <Spinner />}{isSubmitting ? 'Salvando…' : 'Salvar rascunho'}</Button>
+      <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-10 flex justify-end border-t border-border-default bg-surface-primary p-3 lg:bottom-0">
+        <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting || Boolean(quote && !isDirty)}>{isSubmitting && <Spinner />}{isSubmitting ? 'Salvando…' : 'Salvar rascunho'}</Button>
+      </div>
     </form>
     {blocker.state === 'blocked' && <Dialog open title="Descartar alterações?" description="Há alterações não salvas neste orçamento." onClose={() => blocker.reset()}>
       <div className="flex flex-wrap gap-3"><Button variant="secondary" onClick={() => blocker.reset()}>Continuar editando</Button><Button variant="destructive" onClick={() => blocker.proceed()}>Descartar alterações</Button></div>

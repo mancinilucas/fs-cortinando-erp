@@ -3764,6 +3764,22 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+#### Registro de execução (2026-10-21)
+
+**Estado: IMPLEMENTADA; gates aprovados; conferência visual no navegador pendente.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY. FRONTEND-24 implementada e árvore limpa no início. D293/D297–D299/D302/D303-B/D324 conferidas contra PROJECT_SPEC §3.4/§3.5/§4, ARCHITECTURE §14/§18, DTOs/controllers/mappers públicos, direção visual e critérios desta task. Nenhuma decisão material pendente consumida ou promovida.
+
+**Criação:** `QuoteCreatePage` integrada à rota de cliente existente. Carrega e exibe nome/telefone atuais em contexto somente leitura, sem seletor de cliente. Cliente inexistente/excluído impede a criação e oferece retorno à lista. Abrir a página não envia POST; “Salvar rascunho” executa POST na rota do cliente, inclusive com corpo vazio para novo rascunho sem dados. Payload de criação passa pelo schema público, sem IDs de filhos nem campos de sistema/derivados. Após 201, usa o ID retornado e substitui a rota pela edição. Callback de navegação executado somente após reset e término da submissão, evitando bloqueio indevido de descarte. Falha mantém entradas e permite retry manual, sem número ou ID inventado.
+
+**Edição:** `QuoteEditPage` integrada à rota existente, consulta por ID e reutiliza o formulário. Exibe cliente atual quando disponível; indisponibilidade cadastral não apaga o orçamento histórico nem impede sua edição permitida. Mantém cópia de endereço indisponível sem cadastro acessível. DRAFT/SENT editáveis conforme contrato; demais situações mostram orientação e retorno ao detalhe, sem ações de ciclo. Loading/404/falhas de leitura com retry conforme aplicável. Em conflito 409, recarrega detalhe; se o status mudou para não editável, retira o formulário. Sessão 401 segue o limite existente, inclusive com formulário alterado.
+
+**PATCH e reconciliação:** notas/endereço também passam a respeitar baseline; apenas campos alterados enviados, opcionais podem ser limpos com null e endereço alterado é bloco completo. Não envia PATCH vazio após alterações semanticamente vazias. Coleções inalteradas omitidas; coleções alteradas completas preservam IDs, ordem e irmãos remanescentes. Remoção explícita do último filho envia array vazio. Sem sequence, chaves RHF, cálculos ou totais no payload. Resposta de sucesso substitui inputs, valores confirmados e baseline via reset; salvamentos seguintes continuam usando PATCH. Barra de salvamento sticky acima da navegação mobile, conforme direção visual.
+
+**Cache:** `useQuote`, `useCreateQuote` e `useUpdateQuote` sobre API/query keys já existentes. Antes de aceitar sucesso, cancela leituras antigas de detalhe, listas, histórico, histórico do cliente e dashboard. Armazena detalhe retornado pelo servidor e invalida os recursos dependentes. Detalhe é marcado stale sem refetch imediato redundante sobre a resposta recém-confirmada; montagem seguinte pode consultá-lo normalmente. Sem optimistic update ou retry automático. Falhas não substituem dados confirmados nem invalidam dependentes, exceto o refetch de detalhe necessário em 409.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**41 arquivos / 578 testes**), `pnpm build` e `git diff --check` passaram. Testes cobrem ausência de POST ao abrir, contexto fixo, primeiro POST/201/edição/PATCH, draft vazio, filhos novos sem IDs, preservação de irmãos/IDs, remoção explícita, endereço completo/null, PATCH vazio evitado, submissão repetida, falhas HTTP/rede, leitura/retry/404, cliente removido, SENT expirado editável, conflito de status, sessão 401, guard de descarte e invalidação/cancelamento de caches. Testes de rotas migrados para data router em memória para exercer o guard real; todos os anteriores continuam aprovados. Build passou com o aviso já conhecido de chunk acima de 500 kB (agora 559,01 kB; gzip 170,20 kB), sem alterar limites para ocultá-lo. Revisão semântica concluída. Conferência visual real em navegador não realizada.
+
+**Stop:** FRONTEND-26 não iniciada. Detalhe/histórico e ações futuras não antecipados; sem backend, dependências ou rotas novas. Commit não criado: `.git` disponível somente para leitura nesta sessão.
+
 ---
 
 ### FRONTEND-26 — Detalhe e histórico do Orçamento

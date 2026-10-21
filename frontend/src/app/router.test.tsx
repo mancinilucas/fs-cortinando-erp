@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, useLocation, useNavigate } from 'react-router'
+import { createMemoryRouter, RouterProvider, useLocation, useNavigate } from 'react-router'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, expect, test, vi } from 'vitest'
+import { quoteFixture } from '@/features/quotes/fixtures.test-support'
 import { customerFixture } from '@/features/customers/fixtures.test-support'
 import { emptyDashboardFixture } from '@/features/dashboard/fixtures.test-support'
 import { server } from '@/shared/test/server'
@@ -11,7 +12,7 @@ import { productRoutes } from './route-definitions'
 
 const user = { id: 'user-1', email: 'user@example.test' }
 beforeEach(() => {
-  server.use(http.get('*/orcamentos', () => HttpResponse.json([])))
+  server.use(http.get('*/orcamentos', () => HttpResponse.json([])), http.get('*/orcamentos/quote-1', () => HttpResponse.json(quoteFixture)))
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   server.use(http.get('*/clientes/customer-1/orcamentos', () => HttpResponse.json([])))
   server.use(http.get('*/auth/me', () => HttpResponse.json(user)), http.get('*/dashboard', () => HttpResponse.json(emptyDashboardFixture)), http.get('*/clientes', () => HttpResponse.json([])), http.get('*/clientes/customer-1', () => HttpResponse.json(customerFixture)))
@@ -23,7 +24,8 @@ function LocationProbe() {
     <button onClick={() => { void navigate(-1) }}>Browser back</button></>
 }
 function mount(path = '/dashboard') {
-  return render(<AppProviders><MemoryRouter initialEntries={[path]}><AppRoutes /><LocationProbe /></MemoryRouter></AppProviders>)
+  const router = createMemoryRouter([{ path: '*', element: <><AppRoutes /><LocationProbe /></> }], { initialEntries: [path] })
+  return render(<AppProviders><RouterProvider router={router} /></AppProviders>)
 }
 const productPaths = productRoutes.map(({ path }) => path.replace(':customerId', 'customer-1').replace(':quoteId', 'quote-1'))
 

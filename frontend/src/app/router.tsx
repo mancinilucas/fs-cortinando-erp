@@ -1,3 +1,5 @@
+import { QuoteCreatePage } from '@/features/quotes/QuoteCreatePage'
+import { QuoteEditPage } from '@/features/quotes/QuoteEditPage'
 import { QuotesListPage } from '@/features/quotes/QuotesListPage'
 import { useEffect } from 'react'
 import { Link, matchPath, Navigate, Route, Routes, useLocation, useParams } from 'react-router'
@@ -53,7 +55,7 @@ export function AppRoutes() {
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          {productRoutes.map(({ path }) => <Route key={path} path={path} element={path === '/dashboard' ? <DashboardPage /> : path === '/orcamentos' ? <QuotesListPage /> : path === '/clientes' ? <CustomersListPage /> : path === '/clientes/:customerId' ? <CustomerDetailPage /> : path === '/clientes/novo' || path === '/clientes/:customerId/editar' ? <CustomerFormPage /> : <RoutePlaceholder path={path} />} />)}
+          {productRoutes.map(({ path }) => <Route key={path} path={path} element={path === '/clientes/:customerId/orcamentos/novo' ? <QuoteCreatePage /> : path === '/orcamentos/:quoteId/editar' ? <QuoteEditPage /> : path === '/dashboard' ? <DashboardPage /> : path === '/orcamentos' ? <QuotesListPage /> : path === '/clientes' ? <CustomersListPage /> : path === '/clientes/:customerId' ? <CustomerDetailPage /> : path === '/clientes/novo' || path === '/clientes/:customerId/editar' ? <CustomerFormPage /> : <RoutePlaceholder path={path} />} />)}
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />

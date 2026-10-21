@@ -114,5 +114,5 @@ test('allows an empty new draft and maps blank optional fields to null', async (
   render(<RouterProvider router={router} />)
   save()
   await screen.findByText('Rascunho salvo.')
-  expect(onSave).toHaveBeenCalledWith({ notes: null, installationAddress: null })
+  expect(onSave).toHaveBeenCalledWith({})
 })
