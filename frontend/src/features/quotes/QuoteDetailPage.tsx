@@ -10,6 +10,7 @@ import { discountTypeLabels } from '@/shared/format/labels'
 import { useQuote } from './hooks'
 import { InstallationSummary } from './InstallationSummary'
 import { QuoteActions } from './QuoteActions'
+import { QuoteDocuments } from './QuoteDocuments'
 import { QuoteHistory } from './QuoteHistory'
 import { DetailFields, FinancialItems, QuoteCurtains, QuoteDates } from './QuoteReadOnlySections'
 import { TotalsSummary } from './TotalsSummary'
@@ -60,7 +61,7 @@ export function QuoteDetailPage() {
           <QuoteDates quote={quote} />
           <div data-quote-actions>{(quote.status === 'DRAFT' || quote.status === 'SENT') && <Link to={`/orcamentos/${encodeURIComponent(quote.id)}/editar`} className="inline-flex min-h-11 items-center rounded-sm bg-brand-navy px-4 py-2 text-button font-semibold text-text-inverse">Editar orçamento</Link>}</div>
           <QuoteActions key={quote.id} quote={quote} />
-          <div data-quote-documents />
+          <QuoteDocuments key={`documents-${quote.id}`} quote={quote} />
           <QuoteHistory quoteId={quote.id} />
         </>}
   </div>

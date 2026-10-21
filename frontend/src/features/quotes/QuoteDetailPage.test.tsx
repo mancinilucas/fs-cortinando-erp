@@ -75,7 +75,7 @@ test.each(['DRAFT', 'SENT', 'CONFIRMED', 'IN_PRODUCTION', 'COMPLETED', 'CANCELLE
   mount(); await ready()
   if (status === 'DRAFT' || status === 'SENT') expect(screen.getByRole('link', { name: 'Editar orçamento' })).toHaveAttribute('href', '/orcamentos/quote-1/editar')
   else expect(screen.queryByRole('link', { name: 'Editar orçamento' })).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: /Gerar PDF/ })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Gerar PDF' }) !== null).toBe(status !== 'DRAFT' && status !== 'CANCELLED')
   expect(pdf).not.toHaveBeenCalled()
 })
 test('keeps quote and history accessible when customer data returns 404', async () => {

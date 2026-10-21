@@ -36,9 +36,9 @@ material de UX ou arquitetura permanecem `[P]` e estão destacadas em §21.
 | Classificação | Quantidade | Decisões |
 | --- | --- | --- |
 | `[F]` | 30 | D260, D261, D262, D266, D274, D275, D276, D280, D285, D287, D290, D293, D295, D297, D302, D306, D307, D308, D313, D315, D316, D318, D319, D320, D327, D328, D330, D331, D332, D333 |
-| `[P]` | 8 | D279, D283, D284, D291, D317, D321, D323, D329 |
+| `[P]` | 7 | D279, D283, D284, D291, D321, D323, D329 |
 | `[V]` | 0 | — |
-| `[A]` | 37 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D296, D298, D299, D300, D301, D303, D304, D305, D309, D310, D311, D312, D314, D322, D324, D325, D326, D334 |
+| `[A]` | 38 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D296, D298, D299, D300, D301, D303, D304, D305, D309, D310, D311, D312, D314, D317, D322, D324, D325, D326, D334 |
 
 A faixa D260–D333 continua imediatamente após D259, a última decisão da Fase
 9.
@@ -1078,7 +1078,7 @@ URL permanente. Cada clique gera novamente.
 **Impacto:** nenhuma feature `documents`; componente `QuoteDocuments` dentro de
 `quotes`.
 
-### D317 — Ordem de produção e `409` de documentos `[P]`
+### D317 — Ordem de produção e `409` de documentos `[A]`
 
 **Decisão:** exibir “Ordem de produção” apenas em `CONFIRMED`,
 `IN_PRODUCTION` e `COMPLETED`. Mapear os `409`:
@@ -1624,6 +1624,8 @@ reabre regra de produto ou backend.
 
 **Aprovação adicional (2026-10-21):** D312 `[A]`, aprovada explicitamente pelo responsável conforme descrita antes da FRONTEND-28. Não promove D317 nem antecipa FRONTEND-29.
 
+**Aprovação adicional (2026-10-21):** D317 `[A]`, aprovada explicitamente pelo responsável antes da FRONTEND-29. Não promove D321 nem antecipa FRONTEND-30.
+
 ### 21.3 `[P]` ainda abertas
 
 As decisões abaixo permanecem propostas e podem ser implementadas salvo
@@ -1636,7 +1638,6 @@ da etapa correspondente.
 | D283 | Raiz, títulos e metadados | não |
 | D284 | NotFound, voltar e foco | não |
 | D291 | Debounce da busca | não |
-| D317 | Ordem de produção e `409` | sim (UX) |
 | D321 | Formulário de dados do negócio | sim (UX) |
 | D323 | Loading, sucesso e duplo envio | sim (UX) |
 | D329 | Escopo dos testes | sim (qualidade) |
@@ -4047,6 +4048,22 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 #### Semantic review
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
+
+#### Registro de execução — FRONTEND-29 (2026-10-21)
+
+**Estado: IMPLEMENTADA; gates aprovados; conferência visual no navegador pendente.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY. D317 aprovada explicitamente pelo responsável e registrada `[A]` no título, sumário e §21. D314–D317/D324 conferidas contra PROJECT_SPEC §10, ARCHITECTURE §18, disponibilidade/projeções/controllers de documentos do backend e direção visual. Nenhuma outra decisão promovida.
+
+**Entrega:** `QuoteDocuments` ocupa a seção de documentos no detalhe, com prévia em DRAFT, geração comercial nas demais situações permitidas e ordem de produção somente em CONFIRMED/IN_PRODUCTION/COMPLETED. CANCELLED não oferece documentos. Opções de abrir em nova aba ou baixar usam exclusivamente os PDFs do backend; não criam representação alternativa da ordem nem expõem seus dados em HTML. Texto explica prévia sem evento e geração com registro no histórico.
+
+**Transporte e recursos:** `useQuoteDocument` chama os endpoints existentes apenas por clique, sem prefetch/retry/cache de PDF ou mutation data. Após resposta PDF válida, cria URL temporária e entrega por âncora; abertura usa `noopener noreferrer`, download tem nome seguro. Nenhuma aba vazia é aberta antes da resposta. A alternativa de baixar continua disponível se o navegador bloquear a nova aba. A URL anterior é revogada na próxima solicitação e a atual na desmontagem; requisição pendente é abortada ao sair. Não há lista, último PDF, armazenamento, versionamento ou URL permanente. Trava síncrona e botões desabilitados impedem duplicação durante a operação.
+
+**Consistência e erros:** gerações comercial/produção invalidam histórico e detalhe, cancelando leituras anteriores; a prévia não cria evento nem invalida histórico. Conflito de situação recarrega detalhe e atualiza ações. Erro de dados do negócio oferece o link existente para configurações somente no comercial. Dados incompletos indicam seções prováveis, sem inventar validações/gates locais; erros de geração e rede ficam na aplicação e permitem nova tentativa explícita. JSON de erro e respostas não PDF nunca são abertos. Sem retry automático, inclusive em 409/500.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test --maxWorkers=2` (49 arquivos, 691 testes), `pnpm build` e `git diff --check` aprovados; status revisado. A primeira execução com concorrência padrão teve três falhas de espera em testes existentes de formulário/lista/dashboard; a repetição com dois workers passou, sem alterar esses testes. Após o reparo de invalidação, gates repetidos. Build mantém aviso existente de chunk acima de 500 kB. Testes novos cobrem matriz de disponibilidade, entrega apenas após sucesso, download, revogação/substituição/desmontagem, ausência de cache de bytes/prefetch/retry, prévia sem evento, invalidação de geração, 409 com refetch, link exclusivo comercial, erros incompletos/500/rede, resposta inválida e bloqueio/aborto durante pendência. Teste do detalhe atualizado para as ações agora implementadas, preservando a garantia de nenhuma geração na montagem.
+
+**Review/findings e reparos:** contemplada invalidação de detalhe além do histórico conforme D324; tratamento de falha de entrega preserva a invalidação da geração já realizada. URLs e Blob não entram no cache de queries/mutations. Componentes/tokens existentes e layout flexível; conferência visual e abertura/download reais no navegador ainda não realizados.
+
+**Stop:** FRONTEND-30 não iniciada. Link usa rota já existente, sem implementar formulário de dados do negócio. Sem backend, dependências, novas rotas ou infraestrutura de Fase 12. D321 permanece `[P]`. Commit não criado: `.git` disponível somente para leitura nesta sessão.
 
 ---
 
