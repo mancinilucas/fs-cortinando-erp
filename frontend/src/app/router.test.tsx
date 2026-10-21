@@ -12,6 +12,7 @@ import { productRoutes } from './route-definitions'
 
 const user = { id: 'user-1', email: 'user@example.test' }
 beforeEach(() => {
+  server.use(http.get('*/orcamentos/quote-1/historico', () => HttpResponse.json([])))
   server.use(http.get('*/orcamentos', () => HttpResponse.json([])), http.get('*/orcamentos/quote-1', () => HttpResponse.json(quoteFixture)))
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   server.use(http.get('*/clientes/customer-1/orcamentos', () => HttpResponse.json([])))

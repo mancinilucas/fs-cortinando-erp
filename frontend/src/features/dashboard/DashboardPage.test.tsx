@@ -1,3 +1,5 @@
+import { quoteFixture } from '@/features/quotes/fixtures.test-support'
+import { customerFixture } from '@/features/customers/fixtures.test-support'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router'
@@ -9,6 +11,9 @@ import { server } from '@/shared/test/server'
 import { dashboardFixture, emptyDashboardFixture } from './fixtures.test-support'
 
 beforeEach(() => {
+  server.use(http.get('*/orcamentos/:id', ({ params }) => HttpResponse.json({ ...quoteFixture, id: params.id })),
+    http.get('*/orcamentos/:id/historico', () => HttpResponse.json([])),
+    http.get('*/clientes/customer-1', () => HttpResponse.json(customerFixture)))
   server.use(http.get('*/orcamentos', () => HttpResponse.json([])))
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   server.use(

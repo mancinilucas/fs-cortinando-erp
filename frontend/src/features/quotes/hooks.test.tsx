@@ -9,7 +9,7 @@ import { dashboardQueryKey } from '@/features/dashboard/use-dashboard'
 import { server } from '@/shared/test/server'
 import { quoteFixture } from './fixtures.test-support'
 import { quoteKeys } from './query-keys'
-import { useCreateQuote, useQuote, useUpdateQuote } from './hooks'
+import { useCreateQuote, useQuote, useQuoteHistory, useUpdateQuote } from './hooks'
 
 function setup() {
   const client = createAppQueryClient()
@@ -71,5 +71,19 @@ test('cancels stale reads before accepting the mutation detail', async () => {
   expect(signals).toHaveLength(5)
   expect(signals.every((signal) => signal.aborted)).toBe(true)
   expect(client.getQueryData(quoteKeys.detail('quote-1'))).toEqual(saved)
+  view.unmount(); client.clear()
+})
+
+
+test('deduplicates history reads using the invalidation key and disables reads without an id', async () => {
+  const entries = [{ id: 'e', eventType: 'QUOTE_CREATED', occurredAt: quoteFixture.createdAt, details: { quoteNumber: quoteFixture.quoteNumber, unknown: 'opaque' } }]
+  const handler = vi.fn(() => HttpResponse.json(entries))
+  server.use(http.get('*/orcamentos/quote-1/historico', handler))
+  const { client, wrapper } = setup()
+  const view = renderHook(() => [useQuoteHistory('quote-1'), useQuoteHistory('quote-1'), useQuoteHistory(undefined)], { wrapper })
+  await waitFor(() => expect(view.result.current[0].isSuccess).toBe(true))
+  expect(handler).toHaveBeenCalledOnce()
+  expect(client.getQueryData(quoteKeys.history('quote-1'))).toEqual(entries)
+  expect(view.result.current[2].fetchStatus).toBe('idle')
   view.unmount(); client.clear()
 })

@@ -3835,6 +3835,20 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+#### Registro de execução (2026-10-21)
+
+**Estado: IMPLEMENTADA; gates aprovados; conferência visual no navegador pendente.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY. FRONTEND-25 implementada e árvore limpa no início. D262/D308/D313/D318/D326 conferidas contra PROJECT_SPEC §3.5/§11, ARCHITECTURE §18, projeções públicas, eventos/diff de histórico e direção visual. Nenhuma decisão material pendente consumida ou promovida.
+
+**Detalhe:** `QuoteDetailPage` integrada à rota existente, com cabeçalho/número, situação persistida e indicação separada de expired. Cliente atual por consulta independente; 404 cadastral não bloqueia o orçamento histórico. Exibe observações gerais, endereço de instalação próprio do orçamento, agendamento e lateInstallation recebido do servidor. Sem inferência de expiração/atraso por relógio ou datas. Loading, 404 e falha/retry de detalhe; falha/retry de cliente independente. Formato pt-BR e fuso dos utilitários compartilhados.
+
+**Composição somente leitura:** `QuoteReadOnlySections` apresenta cortinas na ordem recebida, com sequence do servidor, ambiente, descrição, material, medidas informadas/derivadas, notas, componentes e total. Adicionais com quantidade/unidade/preço/total, condições comerciais, sete totais por `TotalsSummary` e datas do ciclo. Campos nulos/coleções vazias explícitos; sem inputs nem cálculos locais. Endereço cadastral do cliente não substitui o snapshot de instalação. Áreas de ações/documentos reservadas no DOM, com link de edição existente apenas em DRAFT/SENT; sem botões fictícios, operações de ciclo, geração/prefetch de PDF ou escolhas materiais das próximas tasks.
+
+**Histórico:** `QuoteHistory` e `useQuoteHistory` consomem GET /orcamentos/:id/historico com AbortSignal e a query key já invalidada pelos salvamentos. Eventos na ordem recebida, sem ordenar no cliente; rótulos dos 14 eventos em português, data/hora local, loading/vazio/erro/retry independentes do detalhe. `history-details` interpreta somente campos conhecidos de cada evento e alterações de D109, com valores anteriores/novos e localizadores conhecidos. Valores monetários, medidas, quantidades, desconto e datas recebem formatação de apresentação; details continua opaco no contrato. Campos futuros, objetos desconhecidos e metadados malformados são ignorados sem renderizar JSON bruto ou provocar falha da tela. Nenhuma escrita de histórico.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**43 arquivos / 611 testes**), `pnpm build` e `git diff --check` passaram. Testes cobrem valores do servidor sem recálculo, sequência/ordem reais, dados atuais do cliente versus snapshot, opcionais/vazios, indicadores deliberadamente divergentes das datas, situações e link de edição, cliente removido, histórico em ordem recebida e detalhes conhecidos/desconhecidos/malformados, retry independente, loading, 404, sessão 401 de detalhe/histórico e deduplicação/query key. Mocks de rotas, Dashboard e lista ajustados às consultas reais ao navegar para o detalhe. Build mantém aviso não bloqueante de chunk acima de 500 kB (571,09 kB; gzip 173,24 kB), sem alterar limites para ocultá-lo. Revisão semântica concluída. Conferência visual real em navegador não realizada.
+
+**Stop:** FRONTEND-27 não iniciada. Sem lifecycle, diálogos de instalação, geração/abertura de documentos, backend, dependências ou rotas novas. Commit não criado: `.git` disponível somente para leitura nesta sessão.
+
 ---
 
 ### FRONTEND-27 — Ações de lifecycle

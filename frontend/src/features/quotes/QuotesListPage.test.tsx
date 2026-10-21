@@ -1,3 +1,5 @@
+import { quoteFixture } from '@/features/quotes/fixtures.test-support'
+import { customerFixture } from '@/features/customers/fixtures.test-support'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router'
@@ -11,6 +13,9 @@ import { quoteSummaryFixture } from './fixtures.test-support'
 const quotes = [{ ...quoteSummaryFixture, id: 'z', scheduledInstallationAt: '2026-10-21T15:00:00Z' },
   { ...quoteSummaryFixture, id: 'a', quoteNumber: 'ORC-2026-002', expired: false }]
 beforeEach(() => {
+  server.use(http.get('*/orcamentos/:id', ({ params }) => HttpResponse.json({ ...quoteFixture, id: params.id })),
+    http.get('*/orcamentos/:id/historico', () => HttpResponse.json([])),
+    http.get('*/clientes/customer-1', () => HttpResponse.json(customerFixture)))
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   server.use(http.get('*/auth/me', () => HttpResponse.json({ id: 'user-1', email: 'session@example.test' })),
     http.get('*/orcamentos', () => HttpResponse.json(quotes)))

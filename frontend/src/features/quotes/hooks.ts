@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '@/shared/api/api-error'
 import { customerKeys } from '@/features/customers/query-keys'
 import { dashboardQueryKey } from '@/features/dashboard/use-dashboard'
-import { createQuote, getQuote, updateQuote } from './api'
+import { createQuote, getQuote, getQuoteHistory, updateQuote } from './api'
 import { quoteKeys } from './query-keys'
 import type { CreateQuotePayload, QuoteDetail, UpdateQuotePayload } from './types'
 
@@ -10,6 +10,12 @@ export function useQuote(id: string | undefined) {
   return useQuery({ queryKey: quoteKeys.detail(id), enabled: Boolean(id), queryFn: ({ signal }) => {
     if (!id) throw new TypeError('Quote ID is required')
     return getQuote(id, signal)
+  } })
+}
+export function useQuoteHistory(id: string | undefined) {
+  return useQuery({ queryKey: quoteKeys.history(id), enabled: Boolean(id), queryFn: ({ signal }) => {
+    if (!id) throw new TypeError('Quote ID is required')
+    return getQuoteHistory(id, signal)
   } })
 }
 function useQuoteCache() {
