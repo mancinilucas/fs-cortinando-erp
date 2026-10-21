@@ -2495,6 +2495,30 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE. FRONTEND-07 DONE e árvore limpa no início. D261/D269 e UI-01–UI-04 confirmadas. D323 permanece `[P]` material: nenhum Toast, biblioteca de notificações, política global de mutação ou feedback de produto foi implementado. O escopo explícito autoriza as primitivas de loading/empty/error e os testes de interação desta task, sem promover D323/D329.
+
+**Componentes:** `Button.tsx` (Button/IconButton), `FormFields.tsx` (TextField/TextArea/Select/FieldError), `StatusBadge.tsx`, `Surface.tsx`, `States.tsx` (Spinner/LoadingState/EmptyState/ErrorState) e `Dialog.tsx`, em `src/shared/components`. Sem novas dependências, barrel especulativo, router, API, provider ou feature.
+
+**Botões/controles:** botão padrão `type="button"`, variante primária navy/branco, secundária, destrutiva semântica e texto; disabled nativo e distinguível sem baixa opacidade; min-height 44 px. IconButton tem nome acessível obrigatório e alvo mínimo 44 × 44 px; ícone decorativo oculto da árvore acessível. Campos preservam atributos/eventos/ref nativos (React 19), label explícito associado, IDs únicos com useId, hint/error via `aria-describedby` e erro por `aria-invalid`/role alert. Textarea redimensionável com altura mínima 96 px; Select nativo. Tokens 4 px nos controles, bordas de contraste aprovado, inputs 16 px, Montserrat e foco global visível.
+
+**Apresentação/estados:** badge usa labels e metadata aprovados em FRONTEND-07, com texto + ícone e raios 4 px, sem recalcular status/expiração. Surface branca, borda e raio 6 px, sem sombra. Spinner decorativo respeita reduced motion; LoadingState fornece uma única região status. EmptyState informa ausência sem anúncio de erro. ErrorState anuncia mensagem textual com ícone e só executa retry por ação explícita do usuário; não há fetch/retry automático ou parser de erro. Nenhuma política de estado de produto criada.
+
+**Dialog:** elemento HTML nativo `<dialog>` acionado por `showModal()` e prop open controlada; título/descrição associados; foco inicial no título; botão explícito de fechar; cancel nativo de Escape; restauração do foco ao elemento de origem no fechamento/unmount. Modalidade/top layer e isolamento do restante da página vêm do navegador. Guard de lifecycle distingue fechamento interno de solicitação externa e tolera replay de effects em StrictMode. Layout com margem mobile 16 px, largura máxima 520 px, altura limitada ao viewport, scroll interno, raio 6 px, sombra overlay e backdrop aprovado. Sem Radix ou implementação manual de focus trap.
+
+**Testes:** quatro novos arquivos de Testing Library/user-event cobrem teclado/Enter, ausência de submit involuntário, submit explícito, disabled, refs, labels/IDs/descrições, remoção de erro, textarea/select nativos, sete badges, status loading, empty/error e retry manual, modal/control state, cancel e restauração de foco/StrictMode. A simulação de showModal/close existe somente em `Dialog.test.tsx` e é restaurada ao fim; jsdom não implementa modalidade nativa, portanto não foi tratada como prova de focus trap real.
+
+**Verificação em navegador:** usada prévia temporária local com os componentes reais. Conferidos visual, backdrop, tipografia, foco visível, estados disabled e badges. Abrir diálogo focou o título, o conteúdo de fundo ficou fora da árvore acessível modal, Tab percorreu os controles do diálogo, Escape fechou e devolveu foco ao botão “Abrir diálogo”. Captura em `/tmp/frontend-08-dialog.png`. Prévia removida e servidor encerrado; nenhum showcase/tela de produto ficou no código. Não houve teste de viewport 320 px ou zoom 200% nesta rodada; o layout usa larguras fluidas e min-width zero.
+
+**Findings e reparos:** primeira suite falhou por `showModal` ausente no jsdom; adicionada simulação local de API, sem polyfill de produção. O teste StrictMode revelou callback de fechamento durante cleanup; corrigido com guard de lifecycle e repetidos os testes direcionados. Tentativa de servidor no sandbox foi negada por EPERM; Vite local iniciado com acesso autorizado e encerrado após a verificação. Sem finding pendente.
+
+**Gates finais:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**11 arquivos / 108 testes**), `pnpm build` e `git diff --check` passaram após remover a prévia. `git status --short` revisado. Nenhum código/backend, fonte superior, spec visual, IMPLEMENTATION_PLAN, package.json ou lockfile mudou. D260–D334 preservadas. Sem Toast, branding inventado, cálculo local, armazenamento ou sessão. Monorepo Git com pnpm independente no frontend/backend preservado.
+
+**Git:** sem commit; sugerido `feat(FRONTEND-08): add shared UI primitives`.
+
+**Stop:** FRONTEND-09 não iniciado.
+
 ---
 
 ### FRONTEND-09 — Router, providers e ambiente
