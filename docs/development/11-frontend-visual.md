@@ -5,6 +5,12 @@
 **Task:** FRONTEND-02B — Consolidar direção visual, identidade e tokens da Cortinando
 **Data:** 2026-10-20
 **Status:** VALIDADA — direção visual aprovada
+
+```text
+Estado visual: VALIDADO
+UI abertas: 0
+```
+
 **Validação humana:** 2026-10-20 — UI-01 a UI-04 aprovadas; `UI abertas = 0`
 **Escopo desta rodada:** análise e documentação. Nenhum código, configuração, asset ou dependência foi alterado.
 
@@ -19,7 +25,7 @@ Consolidar a direção visual do ERP da Cortinando antes da implementação da F
 - a tipografia, o espaçamento, os raios e a estratégia de bordas/elevação;
 - a direção do shell, do dashboard, dos formulários e dos componentes operacionais;
 - os tokens conceituais que orientarão a implementação;
-- as decisões visuais que ainda dependem de validação humana.
+- as decisões visuais aprovadas e as pendências de asset não bloqueantes.
 
 Este documento **não implementa** nada. Ele não cria CSS, configuração Tailwind, tokens em TypeScript, fontes, componentes, mockups, screenshots, favicon ou qualquer alteração no PDF. Também não altera `frontend/`, `backend/`, `package.json`, lockfiles, imagens, testes, configurações ou `docs/IMPLEMENTATION_PLAN.md`.
 
@@ -308,7 +314,7 @@ Usar apenas em:
 
 - título principal de página;
 - título de bloco editorial/institucional;
-- eventual número de destaque muito grande, se a legibilidade se mantiver.
+- nenhum dado ou número operacional; estes usam Montserrat, conforme UI-01 `[A]`.
 
 Nunca usar em:
 
