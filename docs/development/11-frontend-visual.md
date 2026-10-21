@@ -4,7 +4,8 @@
 **Fase:** 11 — Frontend
 **Task:** FRONTEND-02B — Consolidar direção visual, identidade e tokens da Cortinando
 **Data:** 2026-10-20
-**Status:** proposta visual para validação humana
+**Status:** VALIDADA — direção visual aprovada
+**Validação humana:** 2026-10-20 — UI-01 a UI-04 aprovadas; `UI abertas = 0`
 **Escopo desta rodada:** análise e documentação. Nenhum código, configuração, asset ou dependência foi alterado.
 
 ---
@@ -31,6 +32,12 @@ A direção aqui registrada é subordinada às fontes de verdade do projeto:
 5. este documento, para a camada visual.
 
 Em caso de conflito, prevalece a fonte de maior prioridade. Este documento não altera D260–D333 e não introduz regra de negócio.
+
+As decisões visuais UI-01 a UI-04 foram aprovadas em 2026-10-20. A direção visual da Fase 11 está validada e não há decisão visual aberta:
+
+```text
+UI abertas = 0
+```
 
 ---
 
@@ -315,7 +322,7 @@ Nunca usar em:
 - números financeiros pequenos;
 - navegação.
 
-Playfair é uma serifada de contraste alto; em tamanhos pequenos e em telas móveis ela perde legibilidade. Se houver problema de desempenho ou de leitura, a decisão UI-01 pode reduzir seu uso ou removê-la.
+Playfair é uma serifada de contraste alto; em tamanhos pequenos e em telas móveis ela perde legibilidade. A decisão UI-01 `[A]` aprovou o uso restrito descrito acima; qualquer redução ou remoção futura exigirá nova decisão.
 
 ### 7.5 Números e dados
 
@@ -403,7 +410,7 @@ Base de 4 px. A escala é intencionalmente curta.
 - Não arredondar tudo com o mesmo valor; a escala deve refletir hierarquia.
 - Não usar cantos arredondados para “suavizar” uma interface que precisa ser precisa.
 
-A decisão UI-02 permanece aberta: 0 px total, 4–6 px discreto (recomendado) ou arredondamento alto.
+A decisão UI-02 `[A]` aprovou a alternativa B: escala 0/4/6 px, com 4 px em botões e inputs e até 6 px em cards e superfícies. Elementos editoriais podem permanecer retos; pill não é linguagem padrão; arredondamentos de 12–24 px não são adotados.
 
 ---
 
@@ -464,21 +471,21 @@ Regras:
 
 - **Login e telas institucionais:** lockup completo. Em desktop, pode ser usado no painel navy do login; em mobile, acima do formulário.
 - **Header desktop:** lockup completo na sidebar, no topo. Não repetir a logo no header de conteúdo.
-- **Sidebar compacta / mobile:** símbolo isolado, quando houver asset oficial. Enquanto não houver, usar o lockup completo em tamanho reduzido, sem recortar ou redesenhar.
+- **Sidebar compacta / mobile:** símbolo isolado somente quando existir asset oficial. Enquanto não houver, usar ícone funcional de navegação; não recortar o lockup nem tentar simular a marca.
 - **Fundo navy:** usar a versão fornecida ou, preferencialmente, um arquivo oficial com transparência. Não recolorir a logo para “combinar”.
 - **Favicon:** símbolo isolado, em versão oficial. Não criar a partir de recorte caseiro. A alteração de favicon não faz parte desta rodada.
 
 ### 11.3 Espaço de respiro e tamanho mínimo
 
 - Manter ao redor da logo um espaço livre equivalente à altura do símbolo.
-- Tamanho mínimo do lockup completo: 120 px de largura em tela; abaixo disso, usar o símbolo isolado.
+- Tamanho mínimo do lockup completo: 120 px de largura em tela. Abaixo disso, usar o símbolo isolado somente quando houver asset oficial; caso contrário, não aplicar a logo em espaço tão compacto.
 - Não posicionar a logo sobre fundo de baixo contraste, imagem ou padrão.
 - Não competir com a logo: evitar títulos, badges ou botões laranja imediatamente ao lado.
 
 ### 11.4 Pendências de asset
 
 - **Não existe lockup horizontal oficial.** O briefing menciona “logo horizontal completa”, mas o arquivo fornecido é vertical empilhado. Este documento usa o lockup empilhado como assinatura completa disponível.
-- **Não existe símbolo isolado oficial.** Para sidebar compacta, mobile nav e favicon, será necessário solicitar o arquivo oficial.
+- **Não existe símbolo isolado oficial.** Para sidebar compacta, mobile nav e favicon, será necessário solicitar o arquivo oficial. Até lá, a navegação compacta usa ícone funcional e não recorta o lockup.
 - **Não existe versão inversa com transparência** para aplicar sobre qualquer fundo navy; o JPG fornecido tem fundo navy fixo.
 - Não recortar, redesenhar, distorcer, recolorir ou “recriar” a logo para suprir essas lacunas.
 
@@ -515,7 +522,7 @@ O shell deve sumir quando o usuário está trabalhando. A identidade aparece no 
 - Item ativo: ícone preenchido ou traço mais forte + label navy + indicador superior de 2 px. Não usar laranja como único sinal de ativo.
 - Itens inativos: `text.secondary`.
 - Superfície: branca ou off-white, com borda superior de 1 px.
-- Marca pequena no header mobile; não usar o lockup completo ocupando largura.
+- Marca no header mobile apenas com asset oficial; até lá, priorizar o título da página e não recortar o lockup para simular a marca.
 - Header mobile: 56–64 px, título da página, ação principal quando fizer sentido, acesso a perfil/“sair” em menu.
 - Evitar dois níveis de navegação simultâneos.
 - O conteúdo deve ter padding inferior suficiente para não ficar sob a bottom nav.
@@ -720,7 +727,7 @@ Não usar accordions para esconder seções essenciais. Não usar tabs para o fl
 
 Regras:
 
-- Laranja não é a cor padrão do botão primário (UI-03).
+- Navy é a cor padrão do botão primário (UI-03 `[A]`: alternativa A). Laranja não é CTA primário universal.
 - Laranja pode ser usado em uma ação comercial específica, com texto `#1E2433`, desde que não haja dois CTAs laranja na mesma tela.
 - Não usar botões com gradiente, sombra ou efeito 3D.
 - Não usar botões pill.
@@ -1105,7 +1112,7 @@ motion.easing.standard     cubic-bezier(0.2, 0, 0, 1)
 ### 20.7 Observações
 
 - Estes tokens são conceituais e não implicam nomes finais de classes, variáveis CSS ou chaves de tema.
-- A configuração Tailwind só será criada na implementação, após validação das decisões abertas.
+- A configuração Tailwind só será criada na implementação, respeitando as decisões UI-01 a UI-04 aprovadas.
 - Não criar uma escala 50–900 de marca; a paleta é intencionalmente curta.
 - Tokens semânticos devem ser usados por papel, não por aparência.
 
@@ -1128,107 +1135,164 @@ motion.easing.standard     cubic-bezier(0.2, 0, 0, 1)
 | Usar 44 × 44 px como alvo mínimo | Criar controles pequenos “elegantes” |
 | Usar movimento curto e funcional | Usar animação decorativa ou parallax |
 | Manter a logo intacta | Recriar, recolorir ou distorcer a logo |
+| Usar ícone funcional na navegação compacta até existir símbolo oficial | Recortar o lockup para simular a marca |
 | Tratar Pierre Frey como inspiração | Copiar paleta, layout ou textos da referência |
 | Usar o lockup empilhado como assinatura disponível | Inventar um lockup horizontal que não foi fornecido |
 | Deixar o conteúdo dominar | Repetir a marca em cada tela |
 
 ---
 
-## 22. Decisões abertas
+## 22. Decisões visuais validadas
 
-As decisões abaixo são **exclusivamente visuais** e não alteram D260–D333. Enquanto não houver validação humana, as recomendações deste documento são a direção de trabalho.
+**Validação humana:** 2026-10-20
 
-### UI-01 — Fonte display
+```text
+UI abertas = 0
+```
 
-**Status:** aberta
-**Pergunta:** usar apenas Montserrat ou Montserrat + Playfair Display?
+As quatro decisões visuais da Fase 11 foram aprovadas. Elas são exclusivamente visuais, não alteram D260–D333 e não introduzem regra de negócio. As alternativas consideradas permanecem registradas como histórico de decisão.
 
-| Alternativa | Descrição | Prós | Contras |
-|---|---|---|---|
-| A | Montserrat apenas | Consistência total, uma única fonte, carregamento mais simples | Menos contraste editorial; risco de aparência mais genérica |
-| B | Montserrat + Playfair Display, com Playfair restrita a títulos | Contraste sofisticado, alinhado à referência premium; reforça a identidade | Duas fontes, mais peso de carregamento; exige disciplina de uso |
+### UI-01 — Fonte display `[A]`
 
-**Recomendação:** B, com Playfair limitada a títulos de página e grandes títulos. Não usar em nenhum componente operacional.
+**Status:** `[A]` — aprovada em 2026-10-20
+**Decisão aprovada:** alternativa B — Montserrat + Playfair Display.
 
-**Motivo:** o contraste serifada/sem serifa é o principal recurso editorial da referência e ajuda a afastar a interface do “SaaS genérico” sem custo de usabilidade, desde que a serifada fique restrita a tamanhos grandes.
+**Regra vinculante:**
 
-**Impacto se aprovada:** duas famílias; necessidade de definir carregamento e fallback; nenhuma mudança de layout.
+- Montserrat é a fonte principal da interface.
+- Playfair Display é usada apenas em títulos de página e grandes headings editoriais.
+- Playfair não é usada em inputs, tabelas, botões, labels, dados, mensagens ou componentes operacionais.
+- A serifada é um recurso de identidade e hierarquia, não uma fonte geral de UI.
 
-**Impacto se rejeitada (A):** interface 100% Montserrat; a hierarquia passa a depender só de tamanho e peso; mais simples e mais rápida.
+**Alternativas consideradas:**
 
----
+| Alternativa | Descrição | Resultado |
+|---|---|---|
+| A | Montserrat apenas | Não adotada |
+| B | Montserrat + Playfair Display, com Playfair restrita a títulos | **Adotada** |
 
-### UI-02 — Radius
+**Motivo:** o contraste serifada/sem serifa reforça a identidade editorial e ajuda a afastar a interface do “SaaS genérico”, desde que a serifada fique restrita a tamanhos grandes.
 
-**Status:** aberta
-**Pergunta:** qual grau de arredondamento adotar?
-
-| Alternativa | Descrição | Prós | Contras |
-|---|---|---|---|
-| A | 0 px em tudo | Máxima precisão arquitetônica, alinhada ao lado editorial | Pode parecer dura em mobile e em botões; pouco acolhedora |
-| B | Escala 0/4/6 px, com 4 px em botões e inputs e 6 px em cards | Discreta, moderna, precisa; mantém a sensação arquitetônica | Exige consistência para não parecer “meio arredondada” |
-| C | Arredondamento alto (12–24 px, pill) | Aparência amigável e macia | Genérica, “cute”, conflita com a identidade sóbria |
-
-**Recomendação:** B.
-
-**Motivo:** 4–6 px dá acabamento sem transformar a interface em um produto lúdico. Mantém a geometria reta predominante e acomoda bem botões e cards no mobile.
-
-**Impacto se aprovada:** tokens `radius.none/sm/md`; nenhum componente pill.
-
-**Impacto se rejeitada (A ou C):** revisar todos os componentes; A exige mais cuidado com foco e bordas; C conflita com os princípios da seção 3.
+**Impacto:** duas famílias; necessidade de definir carregamento e fallback; nenhuma mudança de layout.
 
 ---
 
-### UI-03 — Cor do CTA primário
+### UI-02 — Radius `[A]`
 
-**Status:** aberta
-**Pergunta:** qual cor usar no botão primário padrão?
+**Status:** `[A]` — aprovada em 2026-10-20
+**Decisão aprovada:** alternativa B — escala 0/4/6 px.
 
-| Alternativa | Descrição | Prós | Contras |
-|---|---|---|---|
-| A | Navy como padrão; laranja como acento comercial específico | Contraste excelente (11,60:1), sobriedade, hierarquia clara; laranja ganha força quando aparece | Menos “quente” que a marca; exige disciplina para o laranja não desaparecer |
-| B | Laranja como padrão de CTA | Marca mais presente; botões quentes | Laranja com branco reprova (2,80:1); exige texto escuro; muitos CTAs laranja cansam e banalizam a marca |
-| C | Variar por contexto, sem regra fixa | Flexibilidade | Inconsistência; o usuário perde a leitura de “qual é a ação principal” |
+**Regra vinculante:**
 
-**Recomendação:** A — navy como padrão; laranja apenas em ações comerciais específicas, com texto escuro.
+```text
+radius.none = 0px
+radius.sm   = 4px
+radius.md   = 6px
+```
 
-**Motivo:** navy garante contraste, seriedade e previsibilidade. O laranja permanece assinatura, não ruído. A regra também evita depender de texto branco sobre laranja, que reprova em AA.
+- Botões: 4 px.
+- Inputs: 4 px.
+- Cards e superfícies: até 6 px.
+- Elementos editoriais podem permanecer retos.
+- Não usar pill como linguagem padrão.
+- Evitar arredondamentos altos de 12–24 px.
 
-**Impacto se aprovada:** botão primário navy; laranja reservado a exceções documentadas; nenhuma ação primária laranja por padrão.
+**Alternativas consideradas:**
 
-**Impacto se rejeitada (B):** todos os CTAs passam a exigir texto escuro e revisão de contraste; a interface fica mais quente e menos sóbria.
+| Alternativa | Descrição | Resultado |
+|---|---|---|
+| A | 0 px em tudo | Não adotada |
+| B | Escala 0/4/6 px, com 4 px em botões e inputs e 6 px em cards | **Adotada** |
+| C | Arredondamento alto (12–24 px, pill) | Não adotada |
+
+**Motivo:** 4–6 px dá acabamento sem transformar a interface em um produto lúdico, mantendo a geometria reta predominante.
+
+**Impacto:** tokens `radius.none/sm/md`; nenhum componente pill; revisão de qualquer arredondamento de 12–24 px.
 
 ---
 
-### UI-04 — Uso da logo no shell
+### UI-03 — Cor do CTA primário `[A]`
 
-**Status:** aberta
-**Pergunta:** como usar a logo no shell?
+**Status:** `[A]` — aprovada em 2026-10-20
+**Decisão aprovada:** alternativa A — navy como cor padrão da ação primária.
 
-| Alternativa | Descrição | Prós | Contras |
-|---|---|---|---|
-| A | Lockup completo sempre, inclusive em espaços compactos | Marca sempre completa | Ocupa espaço; fica ilegível em sidebar compacta e mobile nav; depende de um lockup horizontal que não foi fornecido |
-| B | Lockup completo em login/header desktop e símbolo em espaços compactos | Hierarquia e legibilidade; marca presente sem excesso | Exige símbolo isolado oficial, que ainda não existe |
-| C | Sem logo após o login, apenas wordmark textual | Interface mais limpa | Perde identidade; não aproveita a marca; pouco premium |
+**Regra vinculante:**
 
-**Recomendação:** B, com a ressalva de asset: usar o lockup completo onde houver espaço e, em espaços compactos, usar o símbolo oficial quando ele existir. Até lá, usar o lockup completo reduzido, sem recortar.
+- Navy é a cor padrão da ação primária.
+- Texto branco sobre navy.
+- Laranja permanece cor de assinatura/acento.
+- Laranja não é CTA primário universal.
+- Laranja não é warning/error.
+- Ação laranja só pode existir quando houver motivo comercial/visual específico e contraste adequado.
+- Não criar telas com múltiplos CTAs concorrentes.
 
-**Motivo:** a marca precisa estar presente, mas não competir com o conteúdo. O símbolo é mais legível em áreas pequenas e evita repetição do wordmark.
+**Alternativas consideradas:**
 
-**Impacto se aprovada:** necessidade de solicitar o símbolo isolado oficial; definir tamanhos e clear space; nenhuma alteração de layout estrutural.
+| Alternativa | Descrição | Resultado |
+|---|---|---|
+| A | Navy como padrão; laranja como acento comercial específico | **Adotada** |
+| B | Laranja como padrão de CTA | Não adotada |
+| C | Variar por contexto, sem regra fixa | Não adotada |
 
-**Impacto se rejeitada (A):** o shell fica mais pesado e a logo pode ficar ilegível em mobile; (C) reduz a identidade e não é recomendada.
+**Motivo:** navy garante contraste, seriedade e previsibilidade; o laranja permanece assinatura, não ruído. A regra também evita depender de texto branco sobre laranja, que reprova em AA.
+
+**Impacto:** botão primário navy; laranja reservado a exceções documentadas; nenhuma ação primária laranja por padrão.
+
+---
+
+### UI-04 — Uso da logo no shell `[A]`
+
+**Status:** `[A]` — aprovada em 2026-10-20
+**Decisão aprovada:** alternativa B, com ressalva de asset.
+
+**Regra vinculante:**
+
+- Usar o lockup completo disponível em login e em contextos com espaço suficiente.
+- Usar símbolo isolado em áreas compactas somente quando existir um asset oficial.
+- Não recortar, redesenhar ou recriar o símbolo atual.
+- Não inventar lockup horizontal.
+- Não distorcer proporção nem recolorir arbitrariamente.
+
+**Enquanto o símbolo isolado oficial não estiver disponível:**
+
+- Não bloquear toda a Fase 11.
+- Usar o lockup completo apenas onde houver espaço adequado.
+- Em navegação compacta, priorizar ícone funcional de navegação sem tentar simular a marca.
+- Registrar a substituição pelo símbolo oficial como pendência visual.
+
+**Alternativas consideradas:**
+
+| Alternativa | Descrição | Resultado |
+|---|---|---|
+| A | Lockup completo sempre, inclusive em espaços compactos | Não adotada |
+| B | Lockup completo em login/header desktop e símbolo em espaços compactos | **Adotada, com ressalva de asset** |
+| C | Sem logo após o login, apenas wordmark textual | Não adotada |
+
+**Motivo:** a marca precisa estar presente sem competir com o conteúdo; o símbolo é mais legível em áreas pequenas e evita repetição do wordmark.
+
+**Impacto:** solicitar o símbolo isolado oficial; definir tamanhos e clear space; nenhuma alteração de layout estrutural.
 
 ---
 
 ### 22.1 Pendências de asset (não são decisões UI)
 
-- Símbolo isolado oficial da Cortinando.
-- Lockup horizontal oficial, caso a marca possua uma versão aprovada.
-- Versão inversa com transparência para fundos navy arbitrários.
-- Manual de marca com valores de cor oficiais (Pantone/CMYK/RGB) e regras de aplicação.
+Manter registradas:
 
-Essas pendências não bloqueiam a documentação, mas bloqueiam a implementação fiel do shell e do favicon. Não criar substitutos por recorte ou redesenho.
+- símbolo isolado oficial;
+- lockup horizontal oficial, se existir;
+- versão inversa transparente;
+- manual de marca oficial.
+
+Essas pendências não bloqueiam a fundação técnica ou as telas funcionais. Também não bloqueiam o início da implementação visual: a direção está validada e os componentes podem ser construídos com o lockup completo onde houver espaço e com ícones funcionais na navegação compacta.
+
+Elas bloqueiam apenas a aplicação final e fiel da marca nos pontos específicos que dependem desses assets:
+
+- favicon;
+- símbolo em navegação compacta;
+- versão inversa em fundos navy arbitrários;
+- eventuais peças institucionais que exijam a marca em versão horizontal.
+
+Não criar substitutos por recorte, redesenho ou recriação.
 
 ---
 
@@ -1239,12 +1303,20 @@ A direção visual da Cortinando para a Fase 11 é:
 - **premium e calma**, com espaço, tipografia hierarquizada e geometria contida;
 - **navy como estrutura** e **laranja como assinatura**, sem transformar a interface em um painel azul ou em uma marca laranja onipresente;
 - **off-white e branco** como base de leitura, com bordas finas e sombra apenas em overlays;
-- **Montserrat** na operação e **Playfair Display** restrita a títulos, se UI-01 for aprovada como recomendado;
-- **raio 4–6 px** e espaçamento em múltiplos de 4, se UI-02 for aprovada como recomendado;
+- **Montserrat** na operação e **Playfair Display** restrita a títulos, conforme UI-01 `[A]`;
+- **raio 4–6 px** e espaçamento em múltiplos de 4, conforme UI-02 `[A]`;
 - **mobile-first**, com bottom nav, formulários em coluna única e tabelas convertidas em listas;
 - **acessibilidade AA** desde o início, com foco visível, status não dependentes de cor e alvos de toque adequados;
 - **Pierre Frey apenas como inspiração estética**, nunca como fonte de paleta, layout, textos ou marca.
 
 A identidade da Cortinando prevalece sobre o `design.md`. A referência externa foi usada para calibrar composição, tipografia, espaço, hierarquia e sensação premium; não para copiar.
 
-Nenhum código, configuração, asset, dependência ou arquivo de `frontend/` e `backend/` foi alterado nesta rodada. As decisões UI-01 a UI-04 permanecem abertas para validação humana. A implementação visual só deve começar depois da validação dessas decisões e da resolução das pendências de asset que afetam o shell.
+Nenhum código, configuração, asset, dependência ou arquivo de `frontend/` e `backend/` foi alterado nesta rodada documental.
+
+As decisões UI-01 a UI-04 foram aprovadas em 2026-10-20. A direção visual da Fase 11 está validada e não há decisão visual aberta:
+
+```text
+UI abertas = 0
+```
+
+A implementação visual está autorizada. As pendências de asset não bloqueiam a fundação técnica, as telas funcionais ou o início da implementação; bloqueiam apenas a aplicação final e fiel da marca nos pontos que dependem desses arquivos. Até a chegada dos assets oficiais, usar o lockup completo onde houver espaço e ícones funcionais na navegação compacta, sem recortar, redesenhar ou recriar a marca.
