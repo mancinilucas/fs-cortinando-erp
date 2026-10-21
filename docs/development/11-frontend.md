@@ -2983,6 +2983,23 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+
+#### Registro de execução — 2026-10-21
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → DONE. FRONTEND-13 concluída e árvore limpa no início. D265 `[A]`, D285/D287 `[F]` conferidas com PROJECT_SPEC §12.1, ARCHITECTURE §7.3/§14, plano e contrato backend real. Nenhuma decisão material pendente consumida; D286/D288 permanecem propostas para a tela futura.
+
+**Implementação:** feature `dashboard` com tipos próprios dos cinco contadores, item de instalação e resposta agregada. `getDashboard` usa exclusivamente GET relativo `/dashboard`, sem parâmetros, sobre o cliente HTTP com credentials include e AbortSignal. Schema Zod valida formato da resposta, contadores inteiros não negativos, listas, status reais do contrato e datas ISO; retorna apenas campos públicos, descartando extras. Resposta vazia/204 ou inválida falha com ApiError seguro, sem fabricar dashboard vazio. Falhas HTTP e rede são propagadas.
+
+**Query:** chave única `['dashboard']` e `useDashboard` com TanStack Query, consumindo signal da query e defaults já aprovados do QueryClient (sem retry automático, foco ou persistência de cache). Consumidores simultâneos compartilham a leitura; refetch explícito e cancelamento ficam disponíveis pelo ciclo normal do TanStack. Nenhuma regra de semana, expiração, limite, ordenação, agrupamento ou contador foi recalculada. `EXPIRED` permanece contador separado; não foi adicionado ao status persistido dos itens.
+
+**Testes:** MSW verifica endpoint único sem parâmetros, credentials no fetch real, contrato completo/vazio, projeção fechada sem contato/valores financeiros, resposta inválida/204, 401/403/429/500 e rede. Fixtures com contadores independentes do tamanho das listas, datas antigas e ordem não cronológica demonstram ausência de recomputação/reclassificação. Hook verifica loading/sucesso, cache na chave aprovada, deduplicação, erro sem retry automático, refetch manual e aborto ao desmontar. Fixtures somente de teste, sem integração ao runtime.
+
+**Gates:** `pnpm typecheck`, `pnpm lint`, `pnpm test` (**23 arquivos / 301 testes**), `pnpm build` e `git diff --check` passaram. `git status --short` revisado. Bundle de produção permanece idêntico ao da FRONTEND-13 porque a nova camada ainda não é consumida pela página. Nenhuma dependência nova, alteração de backend, rotas, providers, storage, workspace pnpm, plano ou topologia de produção. Review semântico concluído contra escopo, contrato público e D285/D287; sem achados pendentes.
+
+**Commit sugerido:** `feat(FRONTEND-14): add dashboard data layer`.
+
+**Stop:** FRONTEND-15 não iniciada.
+
 ---
 
 ### FRONTEND-15 — DashboardPage
