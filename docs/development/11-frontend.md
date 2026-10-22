@@ -5,8 +5,8 @@ contratos da Fase 11
 **Data:** 2026-10-20
 **Branch:** `feat/11-frontend`
 **Auditoria:** `docs/development/11-frontend-audit.md`
-**Natureza:** decisões de arquitetura, UX e contrato; decomposição definitiva e registro da execução de FRONTEND-03 em 2026-10-21.
-**Estado:** VALIDADA — implementação da Fase 11 autorizada.
+**Natureza:** decisões de arquitetura, UX e contrato; decomposição definitiva e registros de execução/fechamento da Fase 11.
+**Estado:** CONCLUÍDA — FRONTEND-32 fechou a implementação após auditoria final em 2026-10-21.
 
 Esta spec fecha a fundação técnica, a navegação, os contratos consumidos e as
 decisões de UX da Fase 11. Ela **não** implementa telas, componentes, cliente
@@ -1396,7 +1396,7 @@ FRONTEND-03 instalou somente a fundação aprovada. A tabela consolida as decis�
 | Ícones | `lucide-react` | instalado, FRONTEND-03 | D269 `[A]` |
 | Classes | `clsx` | instalado, FRONTEND-03 | D269 `[A]` |
 | Testes | `vitest`, `jsdom`, `@testing-library/react`, `@testing-library/user-event`, `msw` | novo (dev) | D270 `[A]` |
-| Notificações | `sonner` | novo | D323 `[P]` |
+| Notificações | implementação própria com React | sem dependência nova | D323 `[A]` |
 | Datas | `Intl` nativo | sem dependência | D326 `[A]` |
 | Dinheiro | `Intl` nativo | sem dependência | D325 `[A]` |
 
@@ -4214,6 +4214,18 @@ Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos back
 **Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test --maxWorkers=2` (52 arquivos, 702 testes), `pnpm build` e `git diff --check` aprovados. O build mantém aviso não bloqueante de chunk acima de 500 kB. As primeiras execuções revelaram testes que ainda esperavam feedback inline, renderizavam `QuoteForm` sem o provider e dependiam do texto acessível dos skeletons; harnesses/asserções foram ajustados e os skeletons mantiveram um rótulo anunciado além das formas decorativas ocultas. Os testes direcionados passaram (79 testes nos cinco arquivos afetados) e a repetição completa passou. Testes cobrem toast/deduplicação/limite/dispensa, skeleton, feedback contextual D309 e bloqueio de salvamento duplicado. A responsividade foi revisada contra breakpoints e regras da spec visual; conferência visual em navegador não realizada.
 
 **Stop:** FRONTEND-32 não iniciada. Sem alteração de backend, dependências, plano de implementação ou infraestrutura da Fase 12.
+
+---
+
+### FRONTEND-32 — Registro de execução (2026-10-21)
+
+**Estado: DONE.** READ → PRECONDITION → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE. Iniciada em modo somente leitura. D260–D334, decisão pnpm, UI-01–UI-04, PROJECT_SPEC, ARCHITECTURE, contratos backend e critérios de aceitação revisados. D279, D283, D284 e D291 permanecem `[P]`, todas classificadas como não materiais em §21.3; seus usos existentes correspondem às propostas e não houve promoção implícita. Nenhuma decisão material pendente foi consumida.
+
+**Auditoria técnica e visual:** TypeScript está em strict; pnpm fica isolado em `frontend/`, sem lockfile npm nem workspace na raiz. A organização é por feature; não há Redux/Zustand; chamadas `fetch` passam pelo cliente HTTP compartilhado; TanStack Query gerencia estado de servidor; formulários usam RHF + Zod. Totais e flags `expired`/`lateInstallation` vêm das respostas do backend; não há persistência local de sessão. Frontend e escopo Git desta revisão não alteram backend, schema, migrations, seed ou endpoints. Tokens e componentes conferidos contra UI-01–UI-04: identidade Cortinando, navy estrutural, laranja de acento, canvas off-white, Montserrat na UI, Playfair em títulos, raios 4/6 px e layout mobile-first; sem logo inventada ou padrões visuais genéricos conflitantes.
+
+**Verificação e reparos:** `pnpm typecheck`, `pnpm lint`, `pnpm test --maxWorkers=2` (52 arquivos/702 testes), `pnpm build` e `git diff --check` passaram. Build mantém aviso não bloqueante de chunk acima de 500 kB. A suíte cobre os riscos de contrato e comportamento já definidos nas tasks; não foi ampliado escopo de testes nem iniciado E2E da Fase 12. A documentação e o plano foram atualizados após os gates. O status inicial já continha as implementações não commitadas de FRONTEND-30/31; elas foram preservadas, sem incluir backend. `.git` está disponível somente para leitura nesta sessão, então nenhum commit foi criado.
+
+**Stop:** Fase 11 fechada. Fase 12 não iniciada.
 
 ---
 
