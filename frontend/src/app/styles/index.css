@@ -1,0 +1,175 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Montserrat";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("@fontsource-variable/montserrat/files/montserrat-latin-wght-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Playfair Display";
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url("@fontsource-variable/playfair-display/files/playfair-display-latin-wght-normal.woff2") format("woff2");
+}
+
+@theme static {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-brand-navy: #203864;
+  --color-brand-orange: #EC7C30;
+  --color-brand-navy-tint: #E9EDF3;
+  --color-brand-orange-tint: #FBEEE5;
+
+  --color-surface-canvas: #F9F7F6;
+  --color-surface-primary: #FFFFFF;
+  --color-surface-alt: #F2EEEA;
+  --color-surface-overlay: rgba(20, 28, 45, 0.48);
+
+  --color-text-primary: #1E2433;
+  --color-text-secondary: #5F6470;
+  --color-text-inverse: #FFFFFF;
+  --color-text-on-orange: #1E2433;
+  --color-text-disabled: #7C7874;
+
+  --color-border-default: #E3DEDA;
+  --color-border-strong: #C9C3BD;
+  --color-border-control: #8A8782;
+  --color-focus-ring: #203864;
+  --color-focus-ring-inverse: #F9F7F6;
+
+  --color-success-fg: #2F6B4F;
+  --color-success-bg: #EAF2ED;
+  --color-success-border: #C9DED2;
+  --color-warning-fg: #8A5A12;
+  --color-warning-bg: #F7EFE2;
+  --color-warning-border: #E6D3B3;
+  --color-error-fg: #A23B36;
+  --color-error-bg: #F7E9E7;
+  --color-error-border: #E6C7C3;
+  --color-info-fg: #3C6E8F;
+  --color-info-bg: #EAF0F4;
+  --color-info-border: #C9DAE4;
+
+  --font-*: initial;
+  --font-sans: "Montserrat", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-weight-*: initial;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  --text-*: initial;
+  --text-display: 1.875rem;
+  --text-display--line-height: 1.1;
+  --text-page-title: 1.5rem;
+  --text-page-title--line-height: 1.2;
+  --text-section-title: 1.125rem;
+  --text-section-title--line-height: 1.3;
+  --text-body: 1rem;
+  --text-body--line-height: 1.55;
+  --text-label: 0.8125rem;
+  --text-label--line-height: 1.4;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+  --text-button: 0.875rem;
+  --text-button--line-height: 1.2;
+  --text-numeric: 1rem;
+  --text-numeric--line-height: 1.1;
+  --text-numeric-large: 2rem;
+  --text-numeric-large--line-height: 1.1;
+
+  --spacing: 0.25rem;
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+
+  --radius-*: initial;
+  --radius-none: 0px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --shadow-*: initial;
+  --shadow-overlay: 0 12px 32px rgba(20, 28, 45, 0.16);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+:root {
+  --layout-gutter-mobile: 1rem;
+  --layout-gutter-desktop: 2rem;
+  --layout-content-max: 77.5rem;
+  --layout-form-max: 47.5rem;
+  --layout-sidebar-width: 15.5rem;
+  --layout-header-height: 4rem;
+  --layout-bottom-nav-height: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  --layout-touch-target: 2.75rem;
+  --focus-width: 2px;
+  --focus-offset: 2px;
+  --focus-color: var(--color-focus-ring);
+  --motion-duration-fast: 120ms;
+  --motion-duration-base: 160ms;
+  --motion-duration-slow: 200ms;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+    background-color: var(--color-surface-canvas);
+    font-synthesis: none;
+  }
+
+  body {
+    margin: 0;
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: var(--text-page-title);
+    line-height: var(--text-page-title--line-height);
+    font-weight: var(--font-weight-regular);
+    color: var(--color-brand-navy);
+  }
+
+  button, input, select, textarea, table, label {
+    font-family: var(--font-sans);
+  }
+
+  input, select, textarea {
+    font-size: 1rem;
+  }
+
+  :focus-visible {
+    outline: var(--focus-width) solid var(--focus-color);
+    outline-offset: var(--focus-offset);
+  }
+
+  @media (min-width: 64rem) {
+    :root {
+      --text-display: 2.5rem;
+      --text-page-title: 2rem;
+      --text-section-title: 1.25rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

@@ -45,12 +45,12 @@ A numeração histórica das fases é preservada; a ordem de execução recomend
 - [x] Fase 10 — Dados do Negócio.
 - [x] Fase 8 — Documentos.
 - [x] Fase 9 — Dashboard e consultas operacionais restantes.
-- [ ] Fase 11 — Frontend.
+- [x] Fase 11 — Frontend (concluída em 2026-10-21; fechamento em `11-frontend.md`, FRONTEND-32).
 - [ ] Fase 12 — Hardening e entrega.
 
-**Próxima task esperada:** abrir a Fase 11 (Frontend) — criar `docs/development/11-frontend.md`.
+**Próxima task esperada:** abrir a Fase 12 — Hardening e entrega, em rodada própria.
 
-A Fase 9 foi concluída em 2026-10-20: `docs/development/09-queries-dashboard.md` registra DASHBOARD-03 a DASHBOARD-11, os gates finais e o fechamento na seção 19. A próxima frente recomendada é a Fase 11.
+A Fase 9 foi concluída em 2026-10-20: `docs/development/09-queries-dashboard.md` registra DASHBOARD-03 a DASHBOARD-11, os gates finais e o fechamento na seção 19. A Fase 11 foi fechada em 2026-10-21; a próxima fase é a 12, em rodada própria.
 
 ### 2.3 Classificação das fases
 
@@ -66,8 +66,8 @@ A Fase 9 foi concluída em 2026-10-20: `docs/development/09-queries-dashboard.md
 | 8 — Documentos | Todos os itens `[x]` | **CONCLUÍDA** | `08-documentos.md` (D143–D209; DOCUMENTOS-03 a -21); projeções fechadas, use cases, renderers `pdf-lib` restritos à Infrastructure, rotas `GET /orcamentos/:id/pdf` e `GET /orcamentos/:id/ordem-producao`, histórico append-only, testes unitários, de conteúdo, integração e E2E. Gates finais: build, lint, 1066 testes unitários, 80 E2E, `prisma validate` e `migrate status`. Pendência exclusivamente visual do PNG da logo (D150). |
 | 9 — Consultas e dashboard | Todos os itens `[x]` | **CONCLUÍDA** | `09-queries-dashboard.md` (D210–D259; DASHBOARD-03 a DASHBOARD-11) concluída em 2026-10-20. Consultas básicas herdadas de `04-orcamentos.md` (D113) e `GET /dashboard` com cinco contadores e três listas operacionais; read model, query, repositório Prisma, DTO, mapper, rota e testes unitários, de integração e E2E. Gates finais: build, lint, 1091 testes unitários, 83 E2E, `prisma validate` e `migrate status`. |
 | 10 — Dados do negócio | Todos os itens `[x]` | **CONCLUÍDA** | `10-dados-negocio.md` (D125–D142); módulo `backend/src/modules/dados-do-negocio/` com store Prisma, query, use case, DTOs, controller `GET`/`PUT /dados-do-negocio`, testes unitários, integração e E2E (DADOS-DO-NEGOCIO-03 a -12). |
-| 11 — Frontend | Todos os itens `[ ]` | **PENDENTE** | `frontend/src` contém apenas `App.jsx`, `main.jsx`, CSS e assets do template Vite; nenhuma feature de Auth, Clientes, Orçamento, Documentos, Dashboard ou Dados do Negócio. |
-| 12 — Hardening e entrega | Todos os itens `[ ]` | **PENDENTE** | Existe baseline de Auth (CSRF, rate limiting, cookie) e 9 arquivos E2E cobrindo Auth/Clientes/Orçamentos/Documentos/Dashboard/Dados do Negócio; revisão final, produção, `trust proxy`, HTTPS, deploy, backup e smoke tests continuam pendentes. |
+| 11 — Frontend | Tasks FRONTEND-03 a FRONTEND-32 concluídas | **CONCLUÍDA** | `docs/development/11-frontend.md` registra decisões, execução e auditoria final. `frontend/src` contém SPA React/TypeScript por feature para Auth, Clientes, Orçamentos, Documentos, Dashboard e Dados do Negócio. FRONTEND-32 verificou contratos, arquitetura, decisões, direção visual e gates: typecheck, lint, 52 arquivos/702 testes, build e `git diff --check`. Build mantém aviso não bloqueante de chunk acima de 500 kB. |
+| 12 — Hardening e entrega | Todos os itens `[ ]` | **PENDENTE** | Existe baseline de Auth (CSRF, rate limiting, cookie) e cobertura E2E do backend; revisão de segurança, produção, `trust proxy`, HTTPS, deploy, backup e smoke tests continuam pendentes. FRONTEND-32 não iniciou esta fase. |
 
 ### 2.4 Rastreabilidade das fases absorvidas
 
@@ -96,8 +96,8 @@ A Fase 9 foi concluída em 2026-10-20: `docs/development/09-queries-dashboard.md
 | PDF comercial (Fase 8) | Fase 10 (identidade do negócio), aggregate e queries de Orçamento, enum de histórico | Sim: projeção, consulta de contato, use case, renderer e rota implementados e testados. Fase 8 concluída em 2026-10-20. | Nenhum bloqueio funcional. Pendência visual do PNG da logo (D150). |
 | Ordem de produção (Fase 8) | Aggregate de Orçamento, status `CONFIRMED`/`IN_PRODUCTION`/`COMPLETED`, dados técnicos da cortina, enum de histórico | Sim: projeção, use case, renderer e rota implementados e testados, sem `ProductionOrder` por decisão de arquitetura. Fase 8 concluída em 2026-10-20. | Nenhum. |
 | Dashboard (Fase 9) | `QuoteStatus`, condições derivadas `EXPIRED`/instalação atrasada, `scheduledInstallationAt`, queries de leitura | Sim: read model, query, repositório Prisma, DTO, mapper e `GET /dashboard` implementados e testados. Fase concluída em 2026-10-20. | Nenhum. |
-| Frontend (Fase 11) | Contratos HTTP de Auth, Clientes, Orçamento, Documentos, Dashboard e Dados do Negócio | Sim: todos os contratos backend necessários estão disponíveis, incluindo `GET /dashboard`. | Spec `11-frontend.md`. |
-| Hardening e entrega (Fase 12) | Escopo funcional completo (Fases 8–11), topologia de produção, decisões de backup e hosting | Parcialmente: Auth, CSRF, rate limiting, cookie, migrations e 9 arquivos E2E existem. | Conclusão das Fases 8–11; definição de hosting/topologia/backup (`ARCHITECTURE.md` §20 e §22); número de hops confiáveis para `trust proxy`. |
+| Frontend (Fase 11) | Contratos HTTP de Auth, Clientes, Orçamento, Documentos, Dashboard e Dados do Negócio | Sim; Fase 11 concluída em 2026-10-21. | Nenhum bloqueio funcional. Evidência em `docs/development/11-frontend.md`, FRONTEND-32. |
+| Hardening e entrega (Fase 12) | Escopo funcional completo (Fases 8–11), topologia de produção, decisões de backup e hosting | Parcialmente: Fases 8–11 concluídas; Auth, CSRF, rate limiting, cookie, migrations e testes E2E existem. | Definição de hosting/topologia/backup (`ARCHITECTURE.md` §20 e §22); número de hops confiáveis para `trust proxy`. |
 
 ### 2.7 Ordem de execução recomendada
 
@@ -106,7 +106,7 @@ A Fase 9 foi concluída em 2026-10-20: `docs/development/09-queries-dashboard.md
 | 1 | Fase 10 — Dados do Negócio | O PDF comercial exige a identidade do negócio (`PROJECT_SPEC` §10.2). O schema/tabela já existem; é a menor dependência pendente e não depende de documentos. **Concluída em 2026-10-20.** |
 | 2 | Fase 8 — Documentos | O PDF comercial consome os dados da Fase 10; a ordem de produção depende apenas do núcleo de Orçamento. Ambos são gerados sob demanda e não persistidos (`ARCHITECTURE.md` §16). **Concluída em 2026-10-20.** |
 | 3 | Fase 9 — Dashboard e consultas restantes | Lê dados já produzidos pelo núcleo de Orçamento e não depende de documentos. A posição após a Fase 8 segue a ordem de entrega definida neste plano; não há dependência técnica. **Concluída em 2026-10-20.** |
-| 4 | Fase 11 — Frontend | Deve ser construído sobre contratos backend estáveis, incluindo documentos, dashboard e dados do negócio. |
+| 4 | Fase 11 — Frontend | Deve ser construído sobre contratos backend estáveis, incluindo documentos, dashboard e dados do negócio. **Concluída em 2026-10-21.** |
 | 5 | Fase 12 — Hardening e entrega | Revisão final, configuração de produção, backup, deploy e smoke tests exigem o escopo funcional e o frontend concluídos. |
 
 Esta ordem não conflita com `PROJECT_SPEC` nem com `ARCHITECTURE`: as fontes não fixam sequência de implementação, e a antecipação da Fase 10 apenas satisfaz a exigência de identidade do negócio no PDF. A numeração histórica das fases permanece inalterada.
@@ -351,38 +351,15 @@ negócio permanece concluído.
 
 ### Fase 11 — Frontend
 
-**Estado:** PENDENTE — somente boilerplate Vite/React.
+**Estado:** CONCLUÍDA em 2026-10-21 após FRONTEND-32 (auditoria final, reparos e fechamento).
 
-**Objetivo:** implementar os fluxos UI sobre contratos backend já estabilizados.
+**Entrega:** SPA mobile-first em React, Vite e TypeScript, organizada por feature, com autenticação/sessão, Clientes e histórico, criação/edição e ciclo de vida de Orçamentos, instalação, documentos, Dashboard e Dados do Negócio. O frontend segue os contratos existentes; o backend permanece fonte de verdade para cálculos e estados derivados.
 
-| Área | Estado atual |
-|---|---|
-| Autenticação (login, sessão, logout) | inexistente |
-| Clientes | inexistente |
-| Orçamento (formulário, cortinas, composição financeira) | inexistente |
-| Ciclo de estados | inexistente |
-| Instalação | inexistente |
-| Documentos (prévia, PDF, ordem de produção) | inexistente |
-| Dashboard | inexistente |
-| Dados do negócio (settings) | inexistente |
+**Decisões e direção:** decisões da Fase 11 registradas em `docs/development/11-frontend.md`; direção UI-01–UI-04 em `docs/development/11-frontend-visual.md`. Sem alteração de backend, schema, migration, seed ou endpoint.
 
-- [ ] Login e sessão.
-- [ ] Clientes.
-- [ ] Detalhes do cliente e histórico.
-- [ ] Formulário de orçamento mobile-first.
-- [ ] Cortinas e composição financeira.
-- [ ] Ciclo de estados.
-- [ ] Instalação.
-- [ ] Prévia/geração de documentos.
-- [ ] Dashboard.
-- [ ] Dados do negócio.
-- [ ] Tratamento uniforme de loading, sucesso e erro.
+**Gates de fechamento:** `pnpm typecheck`, `pnpm lint`, `pnpm test --maxWorkers=2` (52 arquivos/702 testes), `pnpm build` e `git diff --check` aprovados em 2026-10-21. Build conserva aviso não bloqueante de chunk acima de 500 kB. No início da auditoria havia alterações de implementação anteriores de FRONTEND-30/31 na árvore de trabalho; foram preservadas, e esta rodada só atualizou a documentação de fechamento.
 
-**Evidência do estado atual:** `frontend/src` contém apenas `App.jsx`, `main.jsx`, CSS e assets do template; não há features, rotas ou cliente HTTP de domínio.
-
-**Dependência:** contratos backend das Fases 8, 9 e 10; Auth, Clientes e Orçamento já estão disponíveis.
-
-**Spec:** `docs/development/11-frontend.md` (a criar na abertura da fase).
+**Spec:** `docs/development/11-frontend.md`, FRONTEND-03 a FRONTEND-32 concluídas.
 
 ---
 
