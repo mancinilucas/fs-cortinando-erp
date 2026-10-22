@@ -136,6 +136,8 @@ test('422 gates group safe translated violations by curtain without exposing raw
   const group = await within(dialog).findByRole('region', { name: 'Cortina 2' })
   expect(group).toHaveTextContent('Confira a altura da cortina.')
   expect(group).toHaveTextContent('Informe o material da cortina.')
+  expect(screen.getAllByRole('alert')).toHaveLength(1)
+  expect(screen.queryByText('Confira os dados e requisitos da operação.')).not.toBeInTheDocument()
   expect(dialog).not.toHaveTextContent('private diagnostic')
   expect(dialog).not.toHaveTextContent('sensitive trace')
   expect(screen.getByRole('region', { name: 'Resumo do orçamento' })).toHaveTextContent('Rascunho')

@@ -6,6 +6,7 @@ import { Dialog } from '@/shared/components/Dialog'
 import { TextArea } from '@/shared/components/FormFields'
 import { ErrorState, Spinner } from '@/shared/components/States'
 import { GENERIC_ERROR_MESSAGE } from '@/shared/errors/error-messages'
+import { useToast } from '@/shared/components/toast-context'
 import type { CustomerAddress } from '@/features/customers/types'
 import { GeneralAddOnsEditor } from './GeneralAddOnsEditor'
 import { DiscountEditor } from './DiscountEditor'
@@ -23,6 +24,7 @@ export function QuoteForm({ quote, customerAddress, onSave, onSaved }: {
   onSaved?: (quote: QuoteDetail) => void
 }) {
   const form = useForm<QuoteFormValues>({ defaultValues: quoteFormDefaults(quote), resolver: quoteFormResolver })
+  const toast = useToast()
   const { isDirty, isSubmitting, errors } = form.formState
   const blocker = useUnsavedChanges(isDirty)
   const locked = useRef(false)
@@ -53,8 +55,12 @@ export function QuoteForm({ quote, customerAddress, onSave, onSaved }: {
       baseline.current = quoteFormDefaults(saved)
       form.reset(baseline.current)
       setConfirmed(saved)
-      setNotice('Rascunho salvo.')
-    } catch (failure) { setError(failure instanceof ApiError ? failure.message : GENERIC_ERROR_MESSAGE) }
+      toast.success('Rascunho salvo.')
+    } catch (failure) {
+      if (failure instanceof ApiError && failure.status === 401) return
+      if (failure instanceof ApiError && [400, 409, 422].includes(failure.status)) setError(failure.message)
+      else toast.error(failure instanceof ApiError ? failure.message : GENERIC_ERROR_MESSAGE)
+    }
     finally { locked.current = false }
   }
   return <>

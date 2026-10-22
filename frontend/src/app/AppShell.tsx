@@ -4,7 +4,6 @@ import { matchPath, NavLink, Outlet, useLocation } from 'react-router'
 import { useLogout } from '@/features/auth/use-logout'
 import { useSession } from '@/shared/auth/use-session'
 import { Button } from '@/shared/components/Button'
-import { FieldError } from '@/shared/components/FormFields'
 import { Spinner } from '@/shared/components/States'
 import { productRoutes } from './route-definitions'
 
@@ -32,7 +31,7 @@ function Navigation({ mobile = false }: { mobile?: boolean }) {
 export function AppShell() {
   const { pathname } = useLocation()
   const { state } = useSession()
-  const { signOut, pending, error } = useLogout()
+  const { signOut, pending } = useLogout()
   const title = productRoutes.find((route) => matchPath(route.path, pathname))?.title ?? 'Cortinando ERP'
   return <div className="min-h-dvh lg:pl-62">
     <a href="#main-content" className="sr-only fixed left-4 top-4 z-50 rounded-sm bg-surface-primary p-3 focus:not-sr-only">Ir para o conteúdo</a>
@@ -48,7 +47,6 @@ export function AppShell() {
       </Button>
     </header>
     <main id="main-content" tabIndex={-1} className="mx-auto max-w-310 px-4 pt-6 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:p-8">
-      {error && <div className="mb-4"><FieldError>{error}</FieldError></div>}
       <Outlet />
     </main>
     <div className="fixed inset-x-0 bottom-0 border-t border-border-default bg-surface-primary pb-[env(safe-area-inset-bottom)] lg:hidden">

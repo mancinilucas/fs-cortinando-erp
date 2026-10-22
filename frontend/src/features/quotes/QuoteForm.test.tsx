@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { createMemoryRouter, Link, RouterProvider } from 'react-router'
 import { afterAll, beforeAll, expect, test, vi } from 'vitest'
 import { QuoteForm } from './QuoteForm'
+import { ToastProvider } from '@/shared/components/Toast'
 import { quoteFixture } from './fixtures.test-support'
 import { customerFixture } from '@/features/customers/fixtures.test-support'
 
@@ -22,7 +23,7 @@ function mount(onSave = vi.fn(async () => quoteFixture), address = customerFixtu
     { path: '/form', element: <><Link to="/other">Sair</Link><QuoteForm quote={quoteFixture} customerAddress={address} onSave={onSave} /></> },
     { path: '/other', element: <p>Outra página</p> },
   ], { initialEntries: ['/other', '/form'] })
-  const view = render(<RouterProvider router={router} />)
+  const view = render(<ToastProvider><RouterProvider router={router} /></ToastProvider>)
   return { ...view, router, onSave }
 }
 const changeNotes = (value: string) => fireEvent.change(screen.getByLabelText('Observações'), { target: { value } })
@@ -111,7 +112,7 @@ test('locks fields and duplicate submission while saving', async () => {
 test('allows an empty new draft and maps blank optional fields to null', async () => {
   const onSave = vi.fn(async () => quoteFixture)
   const router = createMemoryRouter([{ path: '*', element: <QuoteForm onSave={onSave} /> }])
-  render(<RouterProvider router={router} />)
+  render(<ToastProvider><RouterProvider router={router} /></ToastProvider>)
   save()
   await screen.findByText('Rascunho salvo.')
   expect(onSave).toHaveBeenCalledWith({})

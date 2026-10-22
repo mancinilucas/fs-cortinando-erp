@@ -8,6 +8,7 @@ import { server } from '@/shared/test/server'
 import { QuoteDocuments } from './QuoteDocuments'
 import { quoteFixture } from './fixtures.test-support'
 import { quoteKeys } from './query-keys'
+import { ToastProvider } from '@/shared/components/Toast'
 import { getQuote } from './api'
 import type { QuoteDetail } from './types'
 
@@ -25,7 +26,7 @@ beforeEach(() => {
 })
 function mount() {
   const client = createAppQueryClient()
-  const view = render(<QueryClientProvider client={client}><MemoryRouter><QuoteDocuments quote={current} /></MemoryRouter></QueryClientProvider>)
+  const view = render(<ToastProvider><QueryClientProvider client={client}><MemoryRouter><QuoteDocuments quote={current} /></MemoryRouter></QueryClientProvider></ToastProvider>)
   return { ...view, client }
 }
 function pdf() { return new HttpResponse('%PDF-1.7', { headers: { 'Content-Type': 'application/pdf' } }) }
@@ -104,7 +105,7 @@ test('status conflicts refetch the quote and update available actions', async ()
     const query = useQuery({ queryKey: quoteKeys.detail(current.id), queryFn: ({ signal }) => getQuote(current.id, signal) })
     return query.data ? <QuoteDocuments quote={query.data} /> : null
   }
-  render(<QueryClientProvider client={createAppQueryClient()}><MemoryRouter><LiveDocuments /></MemoryRouter></QueryClientProvider>)
+  render(<ToastProvider><QueryClientProvider client={createAppQueryClient()}><MemoryRouter><LiveDocuments /></MemoryRouter></QueryClientProvider></ToastProvider>)
   fireEvent.click(await screen.findByRole('button', { name: 'Gerar PDF' }))
   await screen.findByText('Nenhum documento disponível nesta situação.')
   expect(screen.queryByRole('button', { name: 'Gerar PDF' })).not.toBeInTheDocument()

@@ -2,13 +2,14 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { expect, test, vi } from 'vitest'
 import { QuoteForm } from './QuoteForm'
+import { ToastProvider } from '@/shared/components/Toast'
 import type { QuoteFormPayload } from './quote-form'
 import { quoteFixture } from './fixtures.test-support'
 import type { QuoteDetail } from './types'
 
 function mount(quote: QuoteDetail | undefined = quoteFixture, onSave = vi.fn<(payload: QuoteFormPayload) => Promise<QuoteDetail>>(async () => quoteFixture)) {
   const router = createMemoryRouter([{ path: '*', element: <QuoteForm quote={quote} onSave={onSave} /> }])
-  render(<RouterProvider router={router} />)
+  render(<ToastProvider><RouterProvider router={router} /></ToastProvider>)
   return onSave
 }
 const save = () => fireEvent.click(screen.getByRole('button', { name: 'Salvar rascunho' }))
@@ -93,7 +94,7 @@ test('totals remain confirmed while editing and change only to the save response
 })
 test('new quotes have no financial preview before saving', () => {
   const router = createMemoryRouter([{ path: '*', element: <QuoteForm onSave={vi.fn()} /> }])
-  render(<RouterProvider router={router} />)
+  render(<ToastProvider><RouterProvider router={router} /></ToastProvider>)
   expect(screen.getByText('Os totais serão exibidos após salvar o rascunho.')).toBeVisible()
   expect(screen.queryByLabelText(/total desejado/i)).not.toBeInTheDocument()
 })

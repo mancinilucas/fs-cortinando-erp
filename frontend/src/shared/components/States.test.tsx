@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
-import { LoadingState, EmptyState, ErrorState } from './States'
+import { LoadingListState, LoadingState, EmptyState, ErrorState } from './States'
 import { StatusBadge } from './StatusBadge'
 import { quoteStatusLabels } from '@/shared/format/labels'
 import type { QuoteDisplayStatus } from '@/shared/format/labels'
@@ -20,6 +20,13 @@ test('announces loading once and hides the decorative spinner', () => {
   render(<LoadingState label="Carregando dados…" />)
   expect(screen.getByRole('status')).toHaveTextContent('Carregando dados…')
   expect(screen.getByRole('status').querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+})
+
+test('renders an accessible list skeleton with a useful loading label', () => {
+  render(<LoadingListState label="Buscando clientes…" rows={4} />)
+  expect(screen.getByRole('status', { name: 'Buscando clientes…' })).toBeInTheDocument()
+  expect(screen.getByRole('status').querySelectorAll('li')).toHaveLength(4)
+  expect(screen.getByRole('status').querySelector('ul')).toHaveAttribute('aria-hidden', 'true')
 })
 
 test('shows empty-state instructions without treating absence as an error', () => {

@@ -67,7 +67,7 @@ test('creates on first save, navigates without a discard dialog, then sends only
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   fireEvent.change(notes(), { target: { value: 'edited' } }); save()
   expect(await screen.findByText('Rascunho salvo.')).toBeVisible()
-  expect(notes()).toHaveValue('Server edited')
+  await waitFor(() => expect(notes()).toHaveValue('Server edited'))
   expect(post).toHaveBeenCalledOnce(); expect(patch).toHaveBeenCalledOnce()
   expect(screen.getByRole('button', { name: 'Salvar rascunho' })).toBeDisabled()
 })

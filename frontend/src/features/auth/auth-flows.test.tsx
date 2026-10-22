@@ -10,6 +10,7 @@ import { useSession } from '@/shared/auth/use-session'
 import { SessionErrors } from '@/shared/auth/session-errors'
 import { ApiError } from '@/shared/api/api-error'
 import { createAppQueryClient } from '@/app/query-client'
+import { ToastProvider } from '@/shared/components/Toast'
 import { LoginPage, LOGIN_ERROR_MESSAGE } from './LoginPage'
 import { useLogout } from './use-logout'
 
@@ -21,15 +22,15 @@ function Probe() {
   return <><output aria-label="Session">{state.status}</output><output aria-label="Location">{location.pathname}{location.search}</output></>
 }
 function LogoutProbe() {
-  const { signOut, pending, error } = useLogout()
-  return <><button disabled={pending} onClick={() => { void signOut() }}>Logout</button>{error && <p role="alert">{error}</p>}</>
+  const { signOut, pending } = useLogout()
+  return <button disabled={pending} onClick={() => { void signOut() }}>Logout</button>
 }
 function mount(path = '/login', extra?: React.ReactNode) {
   const client = createAppQueryClient()
-  const view = render(<QueryClientProvider client={client}><AuthProvider><MemoryRouter initialEntries={[path]}>
+  const view = render(<QueryClientProvider client={client}><ToastProvider><AuthProvider><MemoryRouter initialEntries={[path]}>
     <SessionErrors /><Probe />{extra}
     <Routes><Route path="/login" element={<LoginPage />} /><Route path="*" element={<p>Destination</p>} /></Routes>
-  </MemoryRouter></AuthProvider></QueryClientProvider>)
+  </MemoryRouter></AuthProvider></ToastProvider></QueryClientProvider>)
   return { ...view, client }
 }
 async function fillLogin() {

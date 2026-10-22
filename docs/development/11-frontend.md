@@ -36,9 +36,9 @@ material de UX ou arquitetura permanecem `[P]` e estão destacadas em §21.
 | Classificação | Quantidade | Decisões |
 | --- | --- | --- |
 | `[F]` | 30 | D260, D261, D262, D266, D274, D275, D276, D280, D285, D287, D290, D293, D295, D297, D302, D306, D307, D308, D313, D315, D316, D318, D319, D320, D327, D328, D330, D331, D332, D333 |
-| `[P]` | 7 | D279, D283, D284, D291, D321, D323, D329 |
+| `[P]` | 4 | D279, D283, D284, D291 |
 | `[V]` | 0 | — |
-| `[A]` | 38 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D296, D298, D299, D300, D301, D303, D304, D305, D309, D310, D311, D312, D314, D317, D322, D324, D325, D326, D334 |
+| `[A]` | 41 | D263, D264, D265, D267, D268, D269, D270, D271, D272, D273, D277, D278, D281, D282, D286, D288, D289, D292, D294, D296, D298, D299, D300, D301, D303, D304, D305, D309, D310, D311, D312, D314, D317, D321, D322, D323, D324, D325, D326, D329, D334 |
 
 A faixa D260–D333 continua imediatamente após D259, a última decisão da Fase
 9.
@@ -1133,9 +1133,11 @@ otimista.
 
 **Impacto:** um único submit; estado inicial obrigatório antes de editar.
 
-### D321 — Formulário e feedback `[P]`
+### D321 — Formulário e feedback `[A]`
 
-**Decisão:** campos `commercialNameOrConsultant` e `phone` obrigatórios;
+**Aprovação humana registrada em 2026-10-21, antes da FRONTEND-30.**
+
+**Decisão aprovada:** campos `commercialNameOrConsultant` e `phone` obrigatórios;
 `email` e `taxId` opcionais. Mostrar `updatedAt` quando existir. Após salvar,
 exibir confirmação e atualizar o objeto com a resposta. Não exibir ou aceitar
 `id`. Não expor o payload em logs.
@@ -1173,12 +1175,17 @@ documentos têm tradução própria; desconhecidos caem em mensagem genérica.
 
 **Impacto:** `parse-api-error.ts`, `error-messages.ts` e componentes de erro.
 
-### D323 — Carregamento, sucesso e duplo envio `[P]`
+### D323 — Carregamento, sucesso e duplo envio `[A]`
 
-**Decisão:** usar skeletons em listas e dashboard, spinner em botões de ação e
-toasts para sucesso/erro. Desabilitar qualquer mutação enquanto estiver em
-voo. Não usar atualização otimista em transições de estado nem em exclusões.
-Confirmar ações destrutivas (D313). Exibir estados vazios com texto útil.
+**Aprovação humana registrada em 2026-10-21, antes da FRONTEND-31.**
+
+**Decisão aprovada:** usar skeletons em listas e dashboard, spinner em botões
+de ação e toasts para sucesso/erro. Desabilitar qualquer mutação enquanto
+estiver em voo. Não usar atualização otimista em transições de estado nem em
+exclusões. Confirmar ações destrutivas (D313). Exibir estados vazios com texto
+útil. Toasts de erro não substituem mensagens contextuais de validação
+previstas em decisões anteriores, especialmente D309; evitar mensagens
+duplicadas para o mesmo erro.
 
 **Justificativa:** `PROJECT_SPEC.md` §14.1 (feedback claro); ausência de
 idempotência nas ações e nos documentos.
@@ -1271,9 +1278,11 @@ padrão.
 
 ## 15. Testes e qualidade
 
-### D329 — Escopo dos testes de frontend `[P]`
+### D329 — Escopo dos testes de frontend `[A]`
 
-**Decisão:** cobrir com Vitest:
+**Aprovação humana registrada em 2026-10-21, antes da FRONTEND-31.**
+
+**Decisão aprovada:** cobrir com Vitest:
 
 - formatadores de dinheiro, decimal e data;
 - parser de erros e mapa de mensagens;
@@ -1626,6 +1635,10 @@ reabre regra de produto ou backend.
 
 **Aprovação adicional (2026-10-21):** D317 `[A]`, aprovada explicitamente pelo responsável antes da FRONTEND-29. Não promove D321 nem antecipa FRONTEND-30.
 
+**Aprovação adicional (2026-10-21):** D321 `[A]`, aprovada explicitamente pelo responsável conforme descrita antes da FRONTEND-30. Não promove D323/D329 nem antecipa FRONTEND-31.
+
+**Aprovações adicionais (2026-10-21):** D323 e D329 `[A]`, aprovadas explicitamente pelo responsável conforme descritas, antes da FRONTEND-31. D323 mantém feedback de erro contextual previsto em decisões anteriores, especialmente D309, e evita duplicidade de mensagens. Nenhuma outra decisão promovida; FRONTEND-32 não antecipada.
+
 ### 21.3 `[P]` ainda abertas
 
 As decisões abaixo permanecem propostas e podem ser implementadas salvo
@@ -1638,9 +1651,6 @@ da etapa correspondente.
 | D283 | Raiz, títulos e metadados | não |
 | D284 | NotFound, voltar e foco | não |
 | D291 | Debounce da busca | não |
-| D321 | Formulário de dados do negócio | sim (UX) |
-| D323 | Loading, sucesso e duplo envio | sim (UX) |
-| D329 | Escopo dos testes | sim (qualidade) |
 
 ---
 
@@ -4118,6 +4128,16 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
 
+#### Registro de execução — FRONTEND-30 (2026-10-21)
+
+**Estado: IMPLEMENTADA; gates aprovados.** D319–D321 e D324 conferidas contra PROJECT_SPEC §11, ARCHITECTURE §18, endpoints e DTOs existentes; D321 aprovada e registrada `[A]` acima. Nenhuma outra proposta promovida.
+
+**Entrega:** rota já prevista `/configuracoes/dados-do-negocio` agora monta a página da feature `business-data`. `GET /dados-do-negocio` carrega os quatro campos públicos e `updatedAt`; `404` apresenta formulário vazio com explicação; erros restantes oferecem nova tentativa manual. O formulário marca nome e telefone como obrigatórios, aceita e-mail e CPF/CNPJ opcionais, mostra `updatedAt`, não renderiza `id` e envia sempre os quatro campos no `PUT`, convertendo opcionais vazios para `null`. Sucesso usa a resposta do servidor como estado confirmado e mostra mensagem; falha preserva entradas e apresenta erro seguro. Leituras não têm retry automático; mutação bem-sucedida cancela leituras antigas, atualiza o cache com a resposta oficial e invalida a query. Sem logs de payload, upload ou mudanças de backend.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test --maxWorkers=2` (51 arquivos, 698 testes) e `pnpm build` aprovados; build mantém aviso não bloqueante de chunk acima de 500 kB. Os testes da feature passaram (2 arquivos, 7 testes), cobrindo contrato GET/PUT, 404, campos obrigatórios, substituição completa, resposta do servidor, falhas e cache. Uma execução completa anterior falhou de forma intermitente em teste de navegação existente de `QuoteForm.test.tsx`; a repetição completa passou sem alterações nesse teste. `git diff --check` aprovado e status revisado.
+
+**Stop:** FRONTEND-31 não iniciada. Nenhuma rota nova, upload de logo, alteração de backend/dependências ou comportamento da task seguinte.
+
 ---
 
 ### FRONTEND-31 — Revisão transversal de UX, acessibilidade e testes
@@ -4184,6 +4204,16 @@ Rodar os gates aplicáveis disponíveis: `pnpm typecheck`, `pnpm lint`, `pnpm te
 #### Semantic review
 
 Confrontar o Scope e as Decisions com PROJECT_SPEC, ARCHITECTURE, contratos backend, D303-B e a spec visual. Revisar findings, reparar e repetir a verificação afetada antes de DONE.
+
+#### Registro de execução — FRONTEND-31 (2026-10-21)
+
+**Estado: DONE.** READ → PRECONDITION CHECK → IMPLEMENT → VERIFY → REVIEW → REPAIR → RE-VERIFY → DONE. D322 estava `[A]`; D323/D329 foram aprovadas e registradas `[A]` antes da implementação. A ressalva D323 foi aplicada: erros de campo e mensagens contextuais de validação, em especial o fluxo D309, permanecem no formulário/diálogo; nenhum toast duplica esses erros. Nenhuma decisão adicional promovida.
+
+**Entrega e revisão:** adicionados `ToastProvider` e notificações acessíveis com ícone semântico, dispensar por botão de 44 px, deduplicação de mensagem, limite de três, sucesso temporário de cinco segundos e erro persistente até dispensar. Posicionamento responsivo fica acima da navegação mobile e no canto superior direito em desktop, conforme a direção visual. Sucessos de cliente, orçamento, negócio, lifecycle, instalação, documentos e logout usam o toast; erros genéricos de páginas sem validação contextual usam toast, enquanto erros de campo, validação, conflitos e diálogos preservam o contexto. Listas de clientes/orçamentos e históricos usam skeleton; o dashboard já tinha skeleton. Estados vazios úteis, spinners, bloqueios de mutação, confirmações destrutivas e travas contra duplo envio foram conferidos; teste de envio repetido adicionado para dados do negócio. Removidos `RoutePlaceholder` sem rota consumidora e o trecho de README do template Vite, substituído por instruções atuais. Revisão não encontrou logs de console, armazenamento de sessão/credenciais, HTML inseguro ou dependências sem uso; nenhum pacote foi alterado.
+
+**Verificação:** `pnpm typecheck`, `pnpm lint`, `pnpm test --maxWorkers=2` (52 arquivos, 702 testes), `pnpm build` e `git diff --check` aprovados. O build mantém aviso não bloqueante de chunk acima de 500 kB. As primeiras execuções revelaram testes que ainda esperavam feedback inline, renderizavam `QuoteForm` sem o provider e dependiam do texto acessível dos skeletons; harnesses/asserções foram ajustados e os skeletons mantiveram um rótulo anunciado além das formas decorativas ocultas. Os testes direcionados passaram (79 testes nos cinco arquivos afetados) e a repetição completa passou. Testes cobrem toast/deduplicação/limite/dispensa, skeleton, feedback contextual D309 e bloqueio de salvamento duplicado. A responsividade foi revisada contra breakpoints e regras da spec visual; conferência visual em navegador não realizada.
+
+**Stop:** FRONTEND-32 não iniciada. Sem alteração de backend, dependências, plano de implementação ou infraestrutura da Fase 12.
 
 ---
 

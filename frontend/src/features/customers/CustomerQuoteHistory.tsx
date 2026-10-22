@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 import { ApiError } from '@/shared/api/api-error'
-import { EmptyState, ErrorState, LoadingState } from '@/shared/components/States'
+import { EmptyState, ErrorState, LoadingListState } from '@/shared/components/States'
 import { StatusBadge } from '@/shared/components/StatusBadge'
 import { GENERIC_ERROR_MESSAGE } from '@/shared/errors/error-messages'
 import { formatDate } from '@/shared/format/dates'
@@ -11,7 +11,7 @@ export function CustomerQuoteHistory({ customerId }: { customerId: string }) {
   const query = useCustomerQuotes(customerId)
   return <section aria-labelledby="customer-history-title" className="rounded-md border border-border-default bg-surface-primary">
     <h2 id="customer-history-title" className="p-4 text-section-title font-semibold">Histórico de orçamentos</h2>
-    {query.isPending ? <LoadingState label="Carregando histórico…" />
+    {query.isPending ? <LoadingListState label="Carregando histórico…" />
       : query.isError ? <ErrorState message={query.error instanceof ApiError ? query.error.message : GENERIC_ERROR_MESSAGE} onRetry={() => { void query.refetch() }} />
         : query.data.length === 0 ? <EmptyState title="Nenhum orçamento para este cliente." />
           : <ul className="divide-y divide-border-default">{query.data.map((quote) => <li key={quote.id}>

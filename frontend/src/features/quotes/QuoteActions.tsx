@@ -8,6 +8,7 @@ import { Dialog } from '@/shared/components/Dialog'
 import { TextArea, TextField } from '@/shared/components/FormFields'
 import { ErrorState, Spinner } from '@/shared/components/States'
 import { GENERIC_ERROR_MESSAGE } from '@/shared/errors/error-messages'
+import { useToast } from '@/shared/components/toast-context'
 import { quoteActionLabels, quoteStatusLabels } from '@/shared/format/labels'
 import { lifecycleActions, lifecycleDescriptions, validityToIso } from './lifecycle'
 import type { LifecycleAction } from './lifecycle'
@@ -15,7 +16,19 @@ import { QuoteGateErrors } from './QuoteGateErrors'
 import type { QuoteDetail } from './types'
 import { useQuoteLifecycle } from './use-quote-lifecycle'
 
+const lifecycleSuccessMessages = {
+  send: 'Orçamento enviado.',
+  confirm: 'Orçamento confirmado.',
+  reopen: 'Orçamento reaberto.',
+  renew: 'Validade do orçamento renovada.',
+  cancel: 'Orçamento cancelado.',
+  startProduction: 'Produção iniciada.',
+  complete: 'Orçamento concluído.',
+  delete: 'Rascunho excluído.',
+} satisfies Record<LifecycleAction, string>
+
 function ActionDialog({ action, quote, futureInstallation, onClose }: { action: LifecycleAction; quote: QuoteDetail; futureInstallation: boolean; onClose: () => void }) {
+  const toast = useToast()
   const mutation = useQuoteLifecycle(quote)
   const navigate = useNavigate()
   const locked = useRef(false)
@@ -38,6 +51,7 @@ function ActionDialog({ action, quote, futureInstallation, onClose }: { action: 
     locked.current = true; setFailure(undefined)
     try {
       await mutation.mutateAsync({ action, validUntil, reason: values.reason.trim() || undefined })
+      toast.success(lifecycleSuccessMessages[action])
       if (action === 'delete') void navigate('/orcamentos', { replace: true })
       else onClose()
     } catch (error) { setFailure(error) }
@@ -50,9 +64,11 @@ function ActionDialog({ action, quote, futureInstallation, onClose }: { action: 
         {action === 'cancel' && <TextArea label="Motivo do cancelamento (opcional)" maxLength={500} {...register('reason')} error={errors.reason?.message} />}
       </fieldset>
       {failure !== undefined && <>
-        <ErrorState message={failure instanceof ApiError ? failure.message : GENERIC_ERROR_MESSAGE} />
-        {failure instanceof ApiError && failure.status === 409 && <p role="status">Situação conhecida: {quoteStatusLabels[quote.expired ? 'EXPIRED' : quote.status]}. Confira os dados antes de tentar novamente.</p>}
-        {failure instanceof ApiError && failure.status === 422 && <QuoteGateErrors violations={failure.violations} />}
+        {failure instanceof ApiError && failure.status === 409
+          ? <><ErrorState message={failure.message} /><p role="status">Situação conhecida: {quoteStatusLabels[quote.expired ? 'EXPIRED' : quote.status]}. Confira os dados antes de tentar novamente.</p></>
+          : failure instanceof ApiError && failure.status === 422 && failure.violations.length > 0
+            ? <QuoteGateErrors violations={failure.violations} />
+            : <ErrorState message={failure instanceof ApiError ? failure.message : GENERIC_ERROR_MESSAGE} />}
       </>}
       {!permitted && <p role="status">Esta ação não está disponível na situação atual.</p>}
       <div className="flex flex-wrap gap-3">

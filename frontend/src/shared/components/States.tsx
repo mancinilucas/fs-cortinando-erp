@@ -12,6 +12,18 @@ export function LoadingState({ label = 'Carregando…' }: { label?: string }) {
   </div>
 }
 
+export function LoadingListState({ label = 'Carregando resultados…', rows = 5 }: { label?: string; rows?: number }) {
+  return <div role="status" aria-label={label} className="space-y-3 p-4">
+    <span className="sr-only">{label}</span>
+    <ul aria-hidden="true" className="space-y-3">
+      {Array.from({ length: rows }, (_, index) => <li key={index} className="flex min-h-14 items-center gap-4 border-b border-border-default py-2 last:border-0">
+        <span className="h-4 w-2/5 rounded-sm bg-surface-alt" />
+        <span className="ml-auto h-4 w-1/4 rounded-sm bg-surface-alt" />
+      </li>)}
+    </ul>
+  </div>
+}
+
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return <div className="flex flex-col items-start gap-2 p-4 text-body">
     <Inbox aria-hidden="true" className="text-text-secondary" />

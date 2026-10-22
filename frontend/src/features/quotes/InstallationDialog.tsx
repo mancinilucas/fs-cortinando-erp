@@ -7,6 +7,7 @@ import { Dialog } from '@/shared/components/Dialog'
 import { TextField } from '@/shared/components/FormFields'
 import { ErrorState, Spinner } from '@/shared/components/States'
 import { GENERIC_ERROR_MESSAGE } from '@/shared/errors/error-messages'
+import { useToast } from '@/shared/components/toast-context'
 import { formatDateTime } from '@/shared/format/dates'
 import { quoteStatusLabels } from '@/shared/format/labels'
 import { isoToLocalDateTime, localDateTimeToIso } from './local-date-time'
@@ -20,6 +21,7 @@ const schema = z.object({ instant: z.string().min(1, 'Informe a data e hora da i
   catch { context.addIssue({ code: 'custom', message: 'Informe data e hora válidas.' }) }
 }) })
 export function InstallationDialog({ quote, mode, onClose }: { quote: QuoteDetail; mode: 'schedule' | 'remove'; onClose: () => void }) {
+  const toast = useToast()
   const mutation = useInstallation(quote)
   const locked = useRef(false)
   const [failure, setFailure] = useState<unknown>()
@@ -35,6 +37,7 @@ export function InstallationDialog({ quote, mode, onClose }: { quote: QuoteDetai
     locked.current = true; setFailure(undefined)
     try {
       await mutation.mutateAsync(mode === 'remove' ? { action: 'remove' } : { action: 'schedule', scheduledInstallationAt: localDateTimeToIso(values.instant) })
+      toast.success(mode === 'remove' ? 'Agendamento removido.' : 'Instalação agendada.')
       onClose()
     } catch (error) { setFailure(error) }
     finally { locked.current = false }

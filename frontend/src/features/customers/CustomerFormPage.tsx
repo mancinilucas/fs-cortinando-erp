@@ -6,6 +6,7 @@ import { Button } from '@/shared/components/Button'
 import { FieldError, TextArea, TextField } from '@/shared/components/FormFields'
 import { ErrorState, LoadingState, Spinner } from '@/shared/components/States'
 import { GENERIC_ERROR_MESSAGE } from '@/shared/errors/error-messages'
+import { useToast } from '@/shared/components/toast-context'
 import { AddressFields } from './AddressFields'
 import { customerFormDefaults, customerFormPatch, customerFormPayload, customerFormResolver } from './customer-form'
 import type { CustomerFormValues } from './customer-form'
@@ -14,6 +15,7 @@ import type { CustomerDetail } from './types'
 
 function CustomerForm({ customer }: { customer?: CustomerDetail }) {
   const navigate = useNavigate()
+  const toast = useToast()
   const baseline = useRef(customerFormDefaults(customer))
   const mounted = useRef(false)
   const locked = useRef(false)
@@ -37,10 +39,14 @@ function CustomerForm({ customer }: { customer?: CustomerDetail }) {
       if (!mounted.current) return
       baseline.current = customerFormDefaults(saved)
       reset(baseline.current)
+      toast.success(customer ? 'Cliente atualizado.' : 'Cliente cadastrado.')
       if (!customer) { void navigate(`/clientes/${encodeURIComponent(saved.id)}`, { replace: true }) }
-      else setNotice('Cliente atualizado.')
     } catch (failure) {
-      if (mounted.current) setError(failure instanceof ApiError ? failure.message : GENERIC_ERROR_MESSAGE)
+      if (mounted.current) {
+        if (failure instanceof ApiError && failure.status === 401) return
+        if (failure instanceof ApiError && [400, 422].includes(failure.status)) setError(failure.message)
+        else toast.error(failure instanceof ApiError ? failure.message : GENERIC_ERROR_MESSAGE)
+      }
     } finally { locked.current = false }
   }
   const backTo = customer ? `/clientes/${encodeURIComponent(customer.id)}` : '/clientes'

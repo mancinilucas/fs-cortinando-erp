@@ -3,11 +3,13 @@ import { QuoteCreatePage } from '@/features/quotes/QuoteCreatePage'
 import { QuoteEditPage } from '@/features/quotes/QuoteEditPage'
 import { QuotesListPage } from '@/features/quotes/QuotesListPage'
 import { useEffect } from 'react'
-import { Link, matchPath, Navigate, Route, Routes, useLocation, useParams } from 'react-router'
+import type { ReactNode } from 'react'
+import { matchPath, Navigate, Route, Routes, useLocation } from 'react-router'
 import { CustomerDetailPage } from '@/features/customers/CustomerDetailPage'
 import { CustomerFormPage } from '@/features/customers/CustomerFormPage'
 import { CustomersListPage } from '@/features/customers/CustomersListPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
+import { BusinessDataPage } from '@/features/business-data/BusinessDataPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RequireAuth } from '@/shared/auth/RequireAuth'
 import { SessionErrors } from '@/shared/auth/session-errors'
@@ -16,17 +18,18 @@ import { AppShell } from './AppShell'
 import { NotFoundPage } from './NotFoundPage'
 import { productRoutes } from './route-definitions'
 
-function RoutePlaceholder({ path }: { path: string }) {
-  const { customerId, quoteId } = useParams()
-  const backTo = path === '/clientes/novo' || path === '/clientes/:customerId' ? '/clientes'
-    : path.startsWith('/clientes/:customerId/') ? `/clientes/${customerId}`
-      : path === '/orcamentos/:quoteId' ? '/orcamentos'
-        : path === '/orcamentos/:quoteId/editar' ? `/orcamentos/${quoteId}` : undefined
-  return <>
-    {backTo && <Link to={backTo} className="mb-4 inline-flex min-h-11 items-center text-brand-navy underline">Voltar</Link>}
-    <p className="text-text-secondary">Esta página será implementada nas próximas etapas.</p>
-  </>
-}
+const productPages = {
+  '/dashboard': <DashboardPage />,
+  '/clientes': <CustomersListPage />,
+  '/clientes/novo': <CustomerFormPage />,
+  '/clientes/:customerId': <CustomerDetailPage />,
+  '/clientes/:customerId/editar': <CustomerFormPage />,
+  '/clientes/:customerId/orcamentos/novo': <QuoteCreatePage />,
+  '/orcamentos': <QuotesListPage />,
+  '/orcamentos/:quoteId': <QuoteDetailPage />,
+  '/orcamentos/:quoteId/editar': <QuoteEditPage />,
+  '/configuracoes/dados-do-negocio': <BusinessDataPage />,
+} satisfies Record<(typeof productRoutes)[number]['path'], ReactNode>
 
 function RouteEffects() {
   const { pathname } = useLocation()
@@ -56,7 +59,7 @@ export function AppRoutes() {
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          {productRoutes.map(({ path }) => <Route key={path} path={path} element={path === '/orcamentos/:quoteId' ? <QuoteDetailPage /> : path === '/clientes/:customerId/orcamentos/novo' ? <QuoteCreatePage /> : path === '/orcamentos/:quoteId/editar' ? <QuoteEditPage /> : path === '/dashboard' ? <DashboardPage /> : path === '/orcamentos' ? <QuotesListPage /> : path === '/clientes' ? <CustomersListPage /> : path === '/clientes/:customerId' ? <CustomerDetailPage /> : path === '/clientes/novo' || path === '/clientes/:customerId/editar' ? <CustomerFormPage /> : <RoutePlaceholder path={path} />} />)}
+          {productRoutes.map(({ path }) => <Route key={path} path={path} element={productPages[path]} />)}
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />

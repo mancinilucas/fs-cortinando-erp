@@ -5,11 +5,13 @@ import { Button } from '@/shared/components/Button'
 import { Dialog } from '@/shared/components/Dialog'
 import { ErrorState, Spinner } from '@/shared/components/States'
 import { GENERIC_ERROR_MESSAGE } from '@/shared/errors/error-messages'
+import { useToast } from '@/shared/components/toast-context'
 import { useDeleteCustomer } from './hooks'
 import type { CustomerDetail } from './types'
 
 export function CustomerDeleteDialog({ customer, onClose }: { customer: CustomerDetail; onClose: () => void }) {
   const mutation = useDeleteCustomer()
+  const toast = useToast()
   const navigate = useNavigate()
   const locked = useRef(false)
   const [error, setError] = useState<string>()
@@ -19,6 +21,7 @@ export function CustomerDeleteDialog({ customer, onClose }: { customer: Customer
     setError(undefined)
     try {
       await mutation.mutateAsync(customer.id)
+      toast.success('Cliente excluído.')
       void navigate('/clientes', { replace: true })
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : GENERIC_ERROR_MESSAGE)

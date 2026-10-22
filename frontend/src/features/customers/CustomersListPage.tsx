@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import { ApiError } from '@/shared/api/api-error'
 import { TextField } from '@/shared/components/FormFields'
-import { EmptyState, ErrorState, LoadingState } from '@/shared/components/States'
+import { EmptyState, ErrorState, LoadingListState } from '@/shared/components/States'
 import { GENERIC_ERROR_MESSAGE } from '@/shared/errors/error-messages'
 import { useCustomers } from './hooks'
 import { useCustomerSearch } from './use-customer-search'
@@ -18,7 +18,7 @@ export function CustomersListPage() {
     </div>
     <section aria-label="Resultados de clientes" aria-busy={isDebouncing || query.isFetching}
       className="rounded-md border border-border-default bg-surface-primary">
-      {isDebouncing || query.isPending ? <LoadingState label="Buscando clientes…" />
+      {isDebouncing || query.isPending ? <LoadingListState label="Buscando clientes…" />
         : query.isError ? <ErrorState message={query.error instanceof ApiError ? query.error.message : GENERIC_ERROR_MESSAGE}
           onRetry={() => { void query.refetch() }} />
           : query.data.length === 0 ? <EmptyState title={search ? 'Nenhum cliente encontrado para esta busca.' : 'Nenhum cliente cadastrado.'} />

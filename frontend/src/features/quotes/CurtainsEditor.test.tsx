@@ -3,12 +3,13 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { expect, test, vi } from 'vitest'
 import type { QuoteFormPayload } from './quote-form'
 import { QuoteForm } from './QuoteForm'
+import { ToastProvider } from '@/shared/components/Toast'
 import { quoteFixture } from './fixtures.test-support'
 import type { QuoteDetail } from './types'
 
 function mount(quote: QuoteDetail | undefined = quoteFixture, onSave = vi.fn<(payload: QuoteFormPayload) => Promise<QuoteDetail>>(async () => quoteFixture)) {
   const router = createMemoryRouter([{ path: '*', element: <QuoteForm quote={quote} onSave={onSave} /> }])
-  render(<RouterProvider router={router} />)
+  render(<ToastProvider><RouterProvider router={router} /></ToastProvider>)
   return onSave
 }
 const curtains = () => screen.getAllByRole('group', { name: /^Cortina \d+$/ })

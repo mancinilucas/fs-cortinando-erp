@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router'
 import { useSession } from '@/shared/auth/use-session'
 import { ApiError } from '@/shared/api/api-error'
 import { GENERIC_ERROR_MESSAGE, getHttpErrorMessage } from '@/shared/errors/error-messages'
+import { useToast } from '@/shared/components/toast-context'
 import { logout } from './api'
 
 export function useLogout() {
@@ -11,7 +12,7 @@ export function useLogout() {
   const navigate = useNavigate()
   const { clearSession } = useSession()
   const [pending, setPending] = useState(false)
-  const [error, setError] = useState<string>()
+  const toast = useToast()
   const request = useRef<AbortController | null>(null)
   useEffect(() => () => { request.current?.abort() }, [])
   const signOut = useCallback(async () => {
@@ -19,7 +20,6 @@ export function useLogout() {
     const controller = new AbortController()
     request.current = controller
     setPending(true)
-    setError(undefined)
     try {
       await logout(controller.signal)
       if (controller.signal.aborted) return
@@ -27,13 +27,14 @@ export function useLogout() {
       if (controller.signal.aborted) return
       client.clear()
       clearSession('logout')
+      toast.success('Sessão encerrada.')
       navigate('/login', { replace: true })
     } catch (failure) {
-      if (!controller.signal.aborted) setError(failure instanceof ApiError ? getHttpErrorMessage(failure.status) : GENERIC_ERROR_MESSAGE)
+      if (!controller.signal.aborted && !(failure instanceof ApiError && failure.status === 401)) toast.error(failure instanceof ApiError ? getHttpErrorMessage(failure.status) : GENERIC_ERROR_MESSAGE)
     } finally {
       if (request.current === controller) request.current = null
       if (!controller.signal.aborted) setPending(false)
     }
-  }, [client, clearSession, navigate])
-  return { signOut, pending, error }
+  }, [client, clearSession, navigate, toast])
+  return { signOut, pending }
 }

@@ -7,7 +7,7 @@ import type { QuoteDetail } from './types'
 import { useQuoteDocument } from './use-quote-document'
 
 export function QuoteDocuments({ quote }: { quote: QuoteDetail }) {
-  const { generate, pending, failure, notice } = useQuoteDocument(quote)
+  const { generate, pending, failure } = useQuoteDocument(quote)
   const production = ['CONFIRMED', 'IN_PRODUCTION', 'COMPLETED'].includes(quote.status)
   const commercial = quote.status !== 'CANCELLED'
   const preview = quote.status === 'DRAFT'
@@ -28,7 +28,6 @@ export function QuoteDocuments({ quote }: { quote: QuoteDetail }) {
       </>}
     </div>
     {pending && <p role="status" className="flex items-center gap-2"><Spinner />Preparando documento…</p>}
-    {notice && <p role="status">{notice}</p>}
     {failure && <ErrorState message={error instanceof ApiError ? error.message : GENERIC_ERROR_MESSAGE} />}
     {conflict && failure?.kind === 'commercial' && error.message === getKnownErrorMessage('Business data is not configured') && <Link className="inline-flex min-h-11 items-center text-brand-navy underline" to="/configuracoes/dados-do-negocio">Configurar dados do negócio</Link>}
     {conflict && error.message === getKnownErrorMessage('Document data is incomplete') && <p>Confira os dados em {failure?.kind === 'production' ? 'Cortinas (ambiente, material e medidas)' : 'Cliente, Cortinas, Condições comerciais e Datas do orçamento'} no detalhe do orçamento antes de tentar novamente.</p>}

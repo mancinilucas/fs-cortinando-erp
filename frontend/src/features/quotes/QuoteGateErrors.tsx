@@ -8,7 +8,7 @@ export function QuoteGateErrors({ violations }: { violations: readonly ApiViolat
         : violation.code === 'GENERAL_ADD_ON_INVALID' ? 'Adicionais gerais' : 'Dados do orçamento'
     groups.set(group, [...(groups.get(group) ?? []), violation])
   }
-  return <div className="space-y-3">{[...groups].map(([label, items]) => <section key={label} aria-label={label}>
+  return <div role="alert" className="space-y-3">{[...groups].map(([label, items]) => <section key={label} aria-label={label}>
     <h3 className="font-semibold">{label}</h3><ul className="list-inside list-disc text-error-fg">{items.map((item, index) => <li key={index}>{item.message}</li>)}</ul>
   </section>)}</div>
 }
