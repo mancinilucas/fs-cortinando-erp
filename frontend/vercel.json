@@ -1,0 +1,28 @@
+{
+  "rewrites": [
+    {
+      "source": "/auth",
+      "destination": "https://cortinando-erp-backend.onrender.com/auth"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "https://cortinando-erp-backend.onrender.com/auth/:path*"
+    },
+    {
+      "source": "/clientes/:path*",
+      "destination": "https://cortinando-erp-backend.onrender.com/clientes/:path*"
+    },
+    {
+      "source": "/orcamentos/:path*",
+      "destination": "https://cortinando-erp-backend.onrender.com/orcamentos/:path*"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "https://cortinando-erp-backend.onrender.com/dashboard"
+    },
+    {
+      "source": "/dados-do-negocio",
+      "destination": "https://cortinando-erp-backend.onrender.com/dados-do-negocio"
+    }
+  ]
+}
