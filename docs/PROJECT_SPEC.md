@@ -118,12 +118,12 @@ Orcamento
 - enderecoInstalacao (estruturado — ver 2.8)
 - status
 - cortinas[]
-- adicionaisGerais[]
+- composicaoFinanceira[]
 - descontoGlobal?
 - ajusteComercial?
 - observacoes?
 - subtotalCortinas
-- totalAdicionaisGerais
+- totalLancamentosGerais
 - subtotalOrcamento
 - valorDesconto
 - totalCalculado
@@ -160,7 +160,6 @@ Cortina
 - altura
 - fatorTecido
 - quantidadeTecido
-- componentesFinanceiros[]
 - observacoes?
 ```
 
@@ -184,15 +183,22 @@ Janela principal
 `observacoes` é um campo interno da consultora e não deve aparecer nos
 documentos destinados ao cliente ou à produção.
 
+No formulário, medidas, material, quantidade calculada de tecido, preço
+por metro e total do tecido são apresentados juntos no bloco da cortina,
+com o contexto dos respectivos valores. Essa organização visual não
+altera os cálculos nem as informações permitidas nos documentos.
+
 Não existe entidade `Ambiente` no MVP.
 
-### 2.4 Componente financeiro da cortina
+### 2.4 Lançamento financeiro
 
-A composição financeira de cada cortina é flexível.
+A composição financeira única do orçamento reúne todos os lançamentos,
+associados a uma cortina específica ou diretamente ao orçamento.
 
 ``` text
-ComponenteFinanceiro
-- nome
+LancamentoFinanceiro
+- descricao
+- cortina? (quando associado a uma cortina)
 - quantidade
 - unidade
 - valorUnitario
@@ -205,7 +211,8 @@ Cálculo:
 total = quantidade × valorUnitario
 ```
 
-Ao criar uma cortina, a interface pode sugerir:
+Ao criar uma cortina, a interface pode sugerir lançamentos associados a
+ela:
 
 ``` text
 Tecido
@@ -214,12 +221,13 @@ Trilho
 Entretela
 ```
 
-Esses nomes são padrões de UX, e não categorias rígidas do domínio. O
-usuário pode remover ou substituir componentes.
+Essas descrições são sugestões de UX, não categorias rígidas do domínio.
+O usuário pode removê-las ou substituí-las; a descrição é livre.
 
-### 2.5 Adicional geral do orçamento
+### 2.5 Lançamentos gerais do orçamento
 
-Representa valores aplicáveis ao orçamento como um todo, por exemplo:
+São lançamentos sem vínculo com uma cortina específica, associados
+diretamente ao orçamento. Podem representar, por exemplo:
 
 ``` text
 Frete
@@ -227,22 +235,8 @@ Instalação
 Deslocamento
 ```
 
-Possui conceitualmente a mesma estrutura financeira:
-
-``` text
-AdicionalGeral
-- nome
-- quantidade
-- unidade
-- valorUnitario
-- total
-```
-
-Os adicionais gerais começam vazios e são incluídos manualmente quando
-necessários.
-
-A decisão sobre compartilhar ou não a mesma estrutura
-técnica/persistência dos componentes financeiros pertence à arquitetura.
+Começam vazios e são incluídos manualmente quando necessários, seguindo
+a estrutura e as regras de cálculo da seção 2.4.
 
 ### 2.6 Desconto global
 
@@ -393,6 +387,11 @@ No primeiro `Salvar rascunho`:
 -   passa a aparecer no histórico do cliente.
 
 O rascunho pode estar incompleto.
+
+Depois do primeiro salvamento, a consultora pode salvar alterações em
+etapas diferentes do formulário. Salvamentos de rascunho não exigem que
+todos os campos estejam preenchidos. Cálculos e atualizações visuais
+ocorrem imediatamente e não dependem de salvar.
 
 ### 4.3 Número do orçamento
 
@@ -562,13 +561,13 @@ A escolha do material não determina automaticamente seu preço.
 
 Não existe `tipoTrilho` como dado técnico estruturado da cortina no MVP.
 
-Quando cobrado, trilho é representado como componente financeiro.
+Quando cobrado, trilho é representado como lançamento financeiro.
 
 Trilho não é enviado à produção de costura.
 
 ### 6.8 Entretela
 
-Entretela pode ser adicionada como componente financeiro sugerido.
+Entretela pode ser adicionada como lançamento financeiro sugerido.
 
 Quantidade, unidade e preço são informados manualmente enquanto a regra
 comercial específica não estiver formalizada.
@@ -588,12 +587,14 @@ O MVP não calcula nem acompanha:
 -   margem;
 -   lucro.
 
-### 7.2 Componentes por cortina
+### 7.2 Lançamentos financeiros
 
-Cada cortina deve possuir pelo menos um componente financeiro válido
-antes do envio.
+Cada lançamento da composição financeira possui uma descrição livre,
+quantidade, unidade, valor unitário e total, e é associado a uma cortina
+específica ou ao orçamento geral. Cada cortina deve possuir pelo menos
+um lançamento financeiro válido associado a ela antes do envio.
 
-Para qualquer componente presente:
+Para qualquer lançamento presente:
 
 ``` text
 quantidade > 0
@@ -601,15 +602,15 @@ valorUnitario > 0
 total = quantidade × valorUnitario
 ```
 
-Componentes com valor zero não são utilizados.
+Lançamentos com valor zero não são utilizados.
 
-Se um componente não se aplica, ele deve ser removido.
+Se um lançamento não se aplica, ele deve ser removido.
 
 Reduções comerciais são representadas pelo desconto global.
 
 ### 7.3 Tecido
 
-Quando `Tecido` for utilizado como componente:
+Quando houver lançamento de tecido associado a uma cortina:
 
 ``` text
 quantidade sugerida = quantidadeTecido calculada
@@ -617,11 +618,13 @@ unidade sugerida = m
 valorUnitario = informado manualmente
 ```
 
-A consultora pode definir o preço comercial por metro.
+O preço do tecido permanece associado à cortina correspondente dentro da
+composição financeira única. A consultora pode definir o preço comercial
+por metro.
 
 ### 7.4 Mão de obra
 
-Quando `Mão de obra` for utilizada:
+Quando houver lançamento de mão de obra associado a uma cortina:
 
 ``` text
 quantidade sugerida = quantidadeTecido
@@ -633,13 +636,14 @@ O valor unitário pode ser alterado pela consultora.
 
 ### 7.5 Trilho e entretela
 
-São componentes financeiros sugeridos.
+São lançamentos financeiros sugeridos e associados à cortina quando
+aplicáveis.
 
 Quantidade, unidade e valor são informados manualmente no MVP.
 
-### 7.6 Adicionais gerais
+### 7.6 Lançamentos gerais
 
-Começam vazios.
+São associados ao orçamento geral e começam vazios.
 
 Quando presentes, devem respeitar:
 
@@ -709,14 +713,14 @@ O ajuste comercial:
 ### 7.9 Totais
 
 ``` text
-valorCortina = Σ componentesFinanceirosDaCortina
+valorCortina = Σ lançamentos associados à cortina
 
 subtotalCortinas = Σ valorCortina
 
-totalAdicionaisGerais = Σ adicionaisGerais
+totalLancamentosGerais = Σ lançamentos associados ao orçamento geral
 
 subtotalOrcamento =
-  subtotalCortinas + totalAdicionaisGerais
+  subtotalCortinas + totalLancamentosGerais
 
 totalCalculado =
   subtotalOrcamento - valorDesconto
@@ -724,6 +728,11 @@ totalCalculado =
 totalOrcamento =
   totalCalculado + ajusteComercial
 ```
+
+O total de cada cortina e o subtotal de todas as cortinas são calculados
+somente a partir dos lançamentos associados às respectivas cortinas.
+Lançamentos associados ao orçamento geral compõem
+`totalLancamentosGerais`.
 
 Quando não houver ajuste comercial:
 
@@ -822,12 +831,12 @@ Para `Marcar como enviado`, é necessário:
     -   borda \>= 0;
     -   fator de tecido \> 0;
     -   material preenchido;
-    -   pelo menos um componente financeiro válido;
--   para todos os componentes presentes:
+    -   pelo menos um lançamento financeiro válido associado à cortina;
+-   para todos os lançamentos presentes na composição financeira:
     -   quantidade \> 0;
     -   valor unitário \> 0;
     -   total calculável;
--   adicionais gerais, quando presentes, válidos;
+-   lançamentos financeiros gerais, quando presentes, válidos;
 -   desconto global, quando presente, válido;
 -   ajuste comercial, quando presente, deve resultar em total final válido;
 -   total final \> 0.
@@ -1094,8 +1103,7 @@ Pode apresentar:
 -   endereço de instalação;
 -   dados técnicos completos;
 -   cálculos;
--   componentes financeiros;
--   adicionais gerais;
+-   composição financeira;
 -   desconto;
 -   total;
 -   observações internas;
@@ -1103,7 +1111,11 @@ Pode apresentar:
 
 ### 10.2 PDF comercial do cliente
 
-O PDF utiliza template visual fixo com identidade do negócio.
+O PDF utiliza template visual fixo com identidade do negócio e deve
+apresentar hierarquia visual clara, cabeçalho, identificação do
+orçamento, dados do cliente, serviços por ambiente, valor final em
+destaque e validade. A melhoria visual não altera as regras de conteúdo
+abaixo.
 
 Deve apresentar:
 
@@ -1147,8 +1159,7 @@ Não deve apresentar:
 -   quantidade de tecido;
 -   borda;
 -   fator de tecido;
--   componentes financeiros internos;
--   adicionais gerais itemizados;
+-   composição financeira;
 -   desconto itemizado;
 -   observações internas.
 
@@ -1236,7 +1247,8 @@ Não deve incluir:
 -   entretela;
 -   frete;
 -   mão de obra;
--   componentes financeiros;
+-   composição financeira;
+-   lançamentos financeiros;
 -   preços;
 -   desconto;
 -   dados da negociação;
@@ -1429,6 +1441,9 @@ definida na arquitetura.
 -   Confirmação antes de ações destrutivas ou irreversíveis.
 -   Valores padrão devem reduzir digitação sem impedir edição quando a
     regra permitir.
+-   Ícones decorativos inconsistentes devem ser removidos ou substituídos
+    por elementos visuais coerentes; ícones com função clara de navegação
+    ou ação devem ser preservados.
 
 ### 14.2 Integridade
 
@@ -1566,7 +1581,7 @@ Cadastrar/localizar cliente
 → preencher e salvar rascunho
 → adicionar cortinas
 → calcular medidas
-→ configurar composição financeira
+→ configurar composição financeira única
 → informar endereço de instalação
 → visualizar prévia
 → marcar como enviado
