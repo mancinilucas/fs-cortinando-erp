@@ -125,8 +125,7 @@ Orcamento (AR)
 ├── status
 ├── enderecoInstalacao
 ├── Cortina[]
-│   └── ItemFinanceiro[]
-├── adicionaisGerais: ItemFinanceiro[]
+├── ItemFinanceiro[]
 ├── descontoGlobal
 ├── ajusteComercial
 ├── observacoes
@@ -152,26 +151,29 @@ quantidadeTecido = larguraFinal × fatorTecido
 
 ### 3.4 Itens financeiros
 
-Componentes financeiros de cortinas e adicionais gerais compartilham o mesmo modelo de domínio, provisoriamente denominado `ItemFinanceiro`.
+`ItemFinanceiro` representa todo lançamento da composição financeira do orçamento, seja associado a uma cortina ou diretamente ao orçamento.
 
 ```text
 ItemFinanceiro
 - id
-- nome
-- quantidade
-- unidade
-- valorUnitario
-- total derivado
+- quoteId
+- curtainId? (quando associado a uma cortina)
+- name
+- quantity
+- unit
+- unitPriceCents
+- totalCents derivado
 ```
 
-O modelo é uma Entity interna do aggregate.
+`ItemFinanceiro` é uma Entity interna do aggregate `Orcamento`, mantida em uma única coleção. O vínculo com o orçamento é obrigatório; o vínculo com uma cortina é opcional. Quando presente, a cortina deve pertencer ao mesmo orçamento do lançamento.
 
-As coleções permanecem semanticamente separadas:
+Os identificadores técnicos permanecem em inglês. `name` corresponde à descrição livre de `PROJECT_SPEC.md`; `unitPriceCents` representa o valor unitário em centavos inteiros, e `totalCents` é derivado.
 
-```text
-Cortina.componentesFinanceiros[]
-Orcamento.adicionaisGerais[]
-```
+O aggregate calcula o total de cada cortina a partir dos lançamentos associados a ela e o total dos lançamentos gerais a partir dos itens sem cortina. As regras de cálculo, desconto e ajuste permanecem no domínio do orçamento.
+
+A associação de um lançamento existente pode ser alterada entre cortinas do mesmo orçamento, respeitada a integridade referencial.
+
+Os IDs dos lançamentos são únicos dentro de todo o orçamento. Um ID existente só pode ser atualizado no orçamento ao qual pertence; ele pode mudar de cortina dentro desse orçamento. Cortinas inexistentes ou pertencentes a outro orçamento, IDs de lançamentos de outro orçamento e IDs repetidos na coleção enviada são rejeitados. A validação ocorre antes da persistência.
 
 Nomes como `Tecido`, `Mão de obra`, `Trilho`, `Entretela`, `Frete` e `Instalação` são presets de UX, não enums do domínio.
 
@@ -538,29 +540,21 @@ observacoes?
 
 `larguraFinal` e `quantidadeTecido` não serão persistidos inicialmente porque são deterministicamente derivados.
 
-#### `componentes_financeiros`
+#### `lancamentos_financeiros`
 
 ```text
 id UUID PK
-cortina_id FK
+orcamento_id FK obrigatório
+cortina_id FK opcional
 nome
 quantidade
 unidade
 valor_unitario_centavos
 ```
 
-#### `adicionais_gerais`
+O banco deve garantir que, quando `cortina_id` estiver presente, a cortina pertença ao mesmo orçamento indicado por `orcamento_id`. A associação opcional à cortina não substitui o vínculo obrigatório ao orçamento. A representação relacional e sua declaração no Prisma devem preservar essa integridade.
 
-```text
-id UUID PK
-orcamento_id FK
-nome
-quantidade
-unidade
-valor_unitario_centavos
-```
-
-Componentes e adicionais compartilham o mesmo modelo de domínio, mas utilizam tabelas diferentes por clareza referencial.
+Excluir uma cortina exclui seus lançamentos associados e mantém os lançamentos gerais do orçamento. Excluir o orçamento exclui todos os seus lançamentos. As políticas referenciais do banco devem preservar esses comportamentos e impedir associações inválidas.
 
 Totais derivados não serão persistidos inicialmente.
 
@@ -647,6 +641,8 @@ Essa política se aplica apenas a dinheiro. Medidas e quantidade de tecido não 
 ## 11. Transações
 
 A Application Layer controla transações quando uma operação precisa persistir múltiplas alterações atomicamente.
+
+Atualizações da composição financeira são coordenadas com a atualização do orçamento e o registro do histórico na mesma transação.
 
 Exemplo:
 
@@ -817,6 +813,8 @@ Os nomes exatos podem sofrer pequenos refinamentos sem alterar a decisão arquit
 DTOs HTTP são separados dos objetos de domínio.
 
 Entities não são retornadas diretamente pela API.
+
+A composição financeira é exposta como uma coleção única do orçamento. Em atualizações parciais, a propriedade omitida mantém a composição inalterada; quando enviada, representa o estado completo da coleção e é reconciliada por identificador. IDs devem ser únicos no orçamento; apenas IDs pertencentes ao orçamento atualizado podem identificar itens existentes. Um item pode ser transferido para outra cortina do mesmo orçamento, mas cortinas inválidas ou de outro orçamento, IDs desconhecidos, de outro orçamento ou repetidos são rejeitados. A validação ocorre antes da persistência; a reconciliação integra a mesma transação que salva o orçamento e registra o histórico.
 
 ---
 

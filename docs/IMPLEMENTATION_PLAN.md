@@ -52,6 +52,8 @@ A numeração histórica das fases é preservada; a ordem de execução recomend
 
 A Fase 9 foi concluída em 2026-10-20: `docs/development/09-queries-dashboard.md` registra DASHBOARD-03 a DASHBOARD-11, os gates finais e o fechamento na seção 19. A Fase 11 foi fechada em 2026-10-21; a próxima fase é a 12, em rodada própria.
 
+A iniciativa complementar **Unificação da composição financeira** foi incorporada à seção 3 sem reclassificar as fases concluídas. Seu alinhamento documental está concluído nesta atualização; as tarefas de implementação permanecem pendentes. A ordem relativa entre essa iniciativa e a Fase 12 não é definida aqui.
+
 ### 2.3 Classificação das fases
 
 | Fase | Estado anterior no plano | Estado real | Motivo/evidência |
@@ -384,6 +386,30 @@ negócio permanece concluído.
 **Evidência do estado atual:** a Fase 2 já entrega baseline de autenticação, CSRF por `Origin`/`Referer`, rate limiting e cookie; existem 6 arquivos E2E cobrindo Auth, Clientes, Orçamentos e Dados do Negócio. A revisão final, a configuração de produção, `trust proxy`, HTTPS, deploy, backup e smoke tests continuam pendentes.
 
 **Spec:** `docs/development/12-hardening-deploy.md` (a criar na abertura da fase).
+
+---
+
+### Iniciativa complementar — Unificação da composição financeira
+
+**Estado:** PLANEJADA — alinhamento documental concluído; implementação pendente. Esta iniciativa não reabre nem reclassifica as Fases 4–7 ou 11, que permanecem concluídas conforme seu escopo original.
+
+**Objetivo:** alinhar domínio, persistência, aplicação, API e frontend à composição financeira única definida em `PROJECT_SPEC.md`, preservando as regras financeiras existentes e os dados persistidos.
+
+| Task | Objetivo e dependências | Critério de conclusão |
+|---|---|---|
+| UFIN-01 — Alinhamento arquitetural e do plano **[x]** | Registrar a estrutura unificada e decompor o trabalho neste plano. | `ARCHITECTURE.md` e este plano descrevem uma coleção única, associação obrigatória ao orçamento, associação opcional à cortina e integridade entre as relações. Nenhuma regra financeira foi alterada. |
+| UFIN-02 — Modelo de domínio | Consolidar a coleção financeira no aggregate e associar cada lançamento ao orçamento e, opcionalmente, à cortina. Preservar cálculos, subtotais e gate de envio existentes. | Testes de domínio cobrem IDs únicos no orçamento, atualização apenas de IDs pertencentes ao orçamento, movimentação entre cortinas do mesmo orçamento, rejeição de IDs desconhecidos, repetidos ou de outro orçamento, e rejeição de cortinas inexistentes ou de outro orçamento. A validação antecede a persistência e a atualização do orçamento e do histórico permanece atômica. |
+| UFIN-03 — Schema e migração de dados | Modelar a entidade financeira única no Prisma e preparar a migração das duas tabelas existentes. | Schema compatível com Prisma 7.10.0 e PostgreSQL; integridade referencial garante orçamento/cortina consistentes e políticas de exclusão conforme a arquitetura; migração executável e validada no ambiente de desenvolvimento, sem inconsistências. Não requer preservar os dados atuais, remapear UUIDs ou reconciliar registros antigos. Nenhuma ordenação de lançamentos é introduzida. |
+| UFIN-04 — Aplicação e persistência | Adaptar carregamento, criação, atualização e mapeamento do aggregate à coleção unificada, com reconciliação atômica junto ao orçamento e histórico. | Testes unitários e de integração comprovam preservação de IDs, associações, atomicidade e totais após salvar e recarregar. |
+| UFIN-05 — Contrato HTTP | Representar a composição por uma única propriedade nos contratos de criação, atualização e leitura, mantendo a semântica parcial do PATCH. | Testes comprovam que omissão mantém a coleção, coleção enviada substitui o estado completo por reconciliação, array vazio remove todos, IDs existentes do orçamento são preservados, IDs desconhecidos, repetidos ou de outro orçamento são rejeitados, e a transferência entre cortinas válidas do mesmo orçamento é aceita. Cortinas inexistentes ou de outro orçamento são rejeitadas; validação antecede a persistência e a operação permanece atômica com o histórico. |
+| UFIN-06 — Frontend | Adaptar tipos, schemas, estado, editores e integração para a coleção unificada, mantendo o contexto visual de cada associação e sem calcular totais no cliente. | Testes comprovam que edições parciais enviam o estado completo quando a coleção é alterada, preservam IDs e associações não editadas, e exibem os totais confirmados pelo backend. |
+| UFIN-07 — Regressão integrada | Validar os fluxos completos do orçamento após a mudança de estrutura. | Regressão de criação, leitura, edição, envio, documentos e ordem de produção passa; não há lançamentos órfãos nem associações inconsistentes. A verificação não exige preservar dados descartáveis do banco de desenvolvimento. |
+
+**Dependências:** UFIN-02 precede schema e persistência; UFIN-03 define a estrutura e a migração antes da adaptação do repositório; UFIN-04 precede os contratos HTTP; UFIN-05 precede a adaptação do frontend; UFIN-07 depende de todas as tarefas anteriores. Os testes específicos pertencem a cada tarefa, além da verificação integrada final.
+
+**Regras preservadas:** as regras de quantidade, preço unitário, total, desconto, ajuste, cálculo dos subtotais e envio permanecem as definidas em `PROJECT_SPEC.md`; esta iniciativa altera a estrutura e os contratos para representá-las de forma unificada.
+
+**Escopo da migração de desenvolvimento:** conforme o estado atual informado, o banco de desenvolvimento contém um cliente e um orçamento em rascunho sem dados históricos relevantes; esse orçamento pode ser descartado ou recriado. UFIN-03 pode descartar os dados das tabelas financeiras antigas e removê-las, sem mecanismo de remapeamento de UUIDs ou preservação dos registros atuais. Essa simplificação vale somente para essa migração no ambiente de desenvolvimento e não define política para futuras migrações com dados relevantes.
 
 ---
 
