@@ -123,10 +123,10 @@ model Quote {
   scheduledInstallationAt         DateTime?    @map("scheduled_installation_at") @db.Timestamptz(3)
   completedAt                     DateTime?    @map("completed_at") @db.Timestamptz(3)
 
-  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  curtains      Curtain[]
-  generalAddOns GeneralAddOn[]
-  history       QuoteHistory[]
+  customer       Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  curtains       Curtain[]
+  financialItems FinancialItem[]
+  history        QuoteHistory[]
 
   @@index([customerId])
   @@index([status])
@@ -148,39 +148,33 @@ model Curtain {
   fabricFactor Decimal? @map("fabric_factor") @db.Decimal(6, 3)
   notes        String?
 
-  quote      Quote                @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  components FinancialComponent[]
+  quote          Quote                @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  financialItems FinancialItem[]
 
+  // The composite key lets financial items reference the curtain together
+  // with the quote, so the database rejects cross-quote associations.
+  @@unique([quoteId, id])
   @@unique([quoteId, sequence])
   @@map("curtains")
 }
 
-model FinancialComponent {
-  id             String   @id @default(uuid()) @db.Uuid
-  curtainId      String   @map("curtain_id") @db.Uuid
-  name           String
-  quantity       Decimal? @db.Decimal(12, 6)
-  unit           String?
-  unitPriceCents Int?     @map("unit_price_cents")
-
-  curtain Curtain @relation(fields: [curtainId], references: [id], onDelete: Cascade)
-
-  @@index([curtainId])
-  @@map("financial_components")
-}
-
-model GeneralAddOn {
+model FinancialItem {
   id             String   @id @default(uuid()) @db.Uuid
   quoteId        String   @map("quote_id") @db.Uuid
+  curtainId      String?  @map("curtain_id") @db.Uuid
   name           String
   quantity       Decimal? @db.Decimal(12, 6)
   unit           String?
   unitPriceCents Int?     @map("unit_price_cents")
 
   quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  // Optional association: when curtainId is null the composite foreign key
+  // is not enforced and the item belongs to the quote composition.
+  curtain Curtain? @relation(fields: [curtainId, quoteId], references: [id, quoteId], onDelete: Cascade)
 
   @@index([quoteId])
-  @@map("general_add_ons")
+  @@index([curtainId])
+  @@map("financial_items")
 }
 
 model QuoteHistory {
