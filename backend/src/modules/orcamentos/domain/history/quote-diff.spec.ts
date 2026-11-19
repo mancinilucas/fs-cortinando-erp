@@ -1,6 +1,7 @@
 import { Curtain } from '../entities/curtain.js';
 import { FinancialItem } from '../entities/financial-item.js';
 import { Quote, type QuotePatch } from '../entities/quote.js';
+import { InstallationAddress } from '../value-objects/installation-address.js';
 import { QuoteNumber } from '../value-objects/quote-number.js';
 import { captureEditableState, diffEditableState } from './quote-diff.js';
 import type { QuoteEditChange } from './quote-history.js';
@@ -14,17 +15,6 @@ describe('quote diff', () => {
     labor: FinancialItem;
     addOn: FinancialItem;
   } {
-    const fabric = FinancialItem.create({
-      name: 'Tecido',
-      quantity: 8.05,
-      unit: 'm',
-      unitPriceCents: 3_000,
-    });
-    const labor = FinancialItem.create({
-      name: 'Mão de obra',
-      quantity: 1,
-      unitPriceCents: 20_000,
-    });
     const sala = Curtain.create({
       room: 'Sala',
       material: 'Linho A',
@@ -32,22 +22,35 @@ describe('quote diff', () => {
       borderValue: 0.15,
       height: 2.6,
       fabricFactor: 3.5,
-      components: [fabric, labor],
     });
     const quarto = Curtain.create({ room: 'Quarto' });
-    const addOn = FinancialItem.create({
-      name: 'Frete',
-      quantity: 1,
-      unitPriceCents: 5_000,
-    });
     const quote = Quote.create({
       quoteNumber: QuoteNumber.create(3_001, 1),
       customerId: 'customer-id',
       createdAt: new Date('2026-10-19T12:00:00.000Z'),
       curtains: [sala, quarto],
-      generalAddOns: [addOn],
+      financialItems: [
+        {
+          name: 'Tecido',
+          quantity: 8.05,
+          unit: 'm',
+          unitPriceCents: 3_000,
+          curtainId: sala.id,
+        },
+        {
+          name: 'Mão de obra',
+          quantity: 1,
+          unitPriceCents: 20_000,
+          curtainId: sala.id,
+        },
+        { name: 'Frete', quantity: 1, unitPriceCents: 5_000, curtainId: null },
+      ],
     });
-
+    const fabric = quote.financialItems.find((item) => item.name === 'Tecido')!;
+    const labor = quote.financialItems.find(
+      (item) => item.name === 'Mão de obra',
+    )!;
+    const addOn = quote.financialItems.find((item) => item.name === 'Frete')!;
     return { quote, sala, quarto, fabric, labor, addOn };
   }
 
@@ -75,32 +78,10 @@ describe('quote diff', () => {
             borderValue: 0.15,
             height: 2.6,
             fabricFactor: 3.5,
-            components: [
-              {
-                id: fabric.id,
-                name: 'Tecido',
-                quantity: 8.05,
-                unit: 'm',
-                unitPriceCents: 3_000,
-              },
-              {
-                id: labor.id,
-                name: 'Mão de obra',
-                quantity: 1,
-                unitPriceCents: 20_000,
-              },
-            ],
           },
           { id: quarto.id, room: 'Quarto' },
         ],
-        generalAddOns: [
-          {
-            id: addOn.id,
-            name: 'Frete',
-            quantity: 1,
-            unitPriceCents: 5_000,
-          },
-        ],
+        financialItems: [{ id: fabric.id }, { id: labor.id }, { id: addOn.id }],
       }),
     ).toEqual([]);
   });
@@ -132,9 +113,15 @@ describe('quote diff', () => {
           {
             id: sala.id,
             height: 2.65,
-            components: [{ id: fabric.id, name: 'Linho B' }, { id: labor.id }],
           },
           { id: quarto.id },
+        ],
+        financialItems: [
+          { id: fabric.id, name: 'Linho B' },
+          { id: labor.id },
+          {
+            id: quote.financialItems.find((item) => item.name === 'Frete')!.id,
+          },
         ],
       }),
     ).toEqual([
@@ -184,10 +171,8 @@ describe('quote diff', () => {
 
     expect(
       diff(quote, {
-        curtains: [
-          { room: 'Cozinha' },
-          { id: sala.id, components: [{ id: fabric.id }] },
-        ],
+        curtains: [{ room: 'Cozinha' }, { id: sala.id }],
+        financialItems: [{ id: fabric.id }],
       }),
     ).toEqual([
       {
@@ -219,6 +204,43 @@ describe('quote diff', () => {
         curtainSequence: 2,
         curtainRoom: 'Quarto',
       },
+      { field: 'generalAddOn', previous: 'Frete', next: null },
+    ]);
+  });
+
+  it('records the components of a removed curtain before the curtain itself', () => {
+    const { quote, sala, quarto, fabric, labor, addOn } = buildQuote();
+
+    quote.applyPatch({
+      financialItems: [
+        { id: fabric.id },
+        { id: labor.id },
+        { id: addOn.id },
+        {
+          name: 'Argola',
+          quantity: 4,
+          unitPriceCents: 250,
+          curtainId: quarto.id,
+        },
+      ],
+    });
+
+    expect(diff(quote, { curtains: [{ id: sala.id }] })).toEqual([
+      {
+        field: 'component',
+        previous: 'Argola',
+        next: null,
+        curtainSequence: 2,
+        curtainRoom: 'Quarto',
+        componentName: 'Argola',
+      },
+      {
+        field: 'curtain',
+        previous: 'Quarto',
+        next: null,
+        curtainSequence: 2,
+        curtainRoom: 'Quarto',
+      },
     ]);
   });
 
@@ -227,9 +249,22 @@ describe('quote diff', () => {
 
     expect(
       diff(quote, {
-        generalAddOns: [
+        financialItems: [
+          {
+            id: quote.financialItems.find((item) => item.name === 'Tecido')!.id,
+          },
+          {
+            id: quote.financialItems.find(
+              (item) => item.name === 'Mão de obra',
+            )!.id,
+          },
           { id: addOn.id, quantity: 2 },
-          { name: 'Montagem', quantity: 1, unitPriceCents: 10_000 },
+          {
+            name: 'Montagem',
+            quantity: 1,
+            unitPriceCents: 10_000,
+            curtainId: null,
+          },
         ],
       }),
     ).toEqual([
@@ -238,11 +273,44 @@ describe('quote diff', () => {
     ]);
   });
 
+  it('records a transfer between curtains in the existing history shape', () => {
+    const { quote, sala, quarto, fabric, labor, addOn } = buildQuote();
+
+    expect(
+      diff(quote, {
+        financialItems: [
+          { id: fabric.id, curtainId: quarto.id },
+          { id: labor.id },
+          { id: addOn.id },
+        ],
+      }),
+    ).toEqual([
+      {
+        field: 'component',
+        previous: 'Tecido',
+        next: null,
+        curtainSequence: 1,
+        curtainRoom: 'Sala',
+        componentName: 'Tecido',
+      },
+      {
+        field: 'component',
+        previous: null,
+        next: 'Tecido',
+        curtainSequence: 2,
+        curtainRoom: 'Quarto',
+        componentName: 'Tecido',
+      },
+    ]);
+    expect(quote.financialItemsForCurtain(quarto.id)).toContain(fabric);
+    expect(quote.financialItemsForCurtain(sala.id)).not.toContain(fabric);
+  });
+
   it('records a cleared installation address field by field', () => {
     const { quote } = buildQuote();
 
     quote.applyPatch({
-      installationAddress: { street: 'Rua Nova' },
+      installationAddress: InstallationAddress.create({ street: 'Rua Nova' }),
     });
 
     const before = captureEditableState(quote);

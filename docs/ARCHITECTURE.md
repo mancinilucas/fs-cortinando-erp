@@ -173,7 +173,7 @@ O aggregate calcula o total de cada cortina a partir dos lançamentos associados
 
 A associação de um lançamento existente pode ser alterada entre cortinas do mesmo orçamento, respeitada a integridade referencial.
 
-Os IDs dos lançamentos são únicos dentro de todo o orçamento. Um ID existente só pode ser atualizado no orçamento ao qual pertence; ele pode mudar de cortina dentro desse orçamento. Cortinas inexistentes ou pertencentes a outro orçamento, IDs de lançamentos de outro orçamento e IDs repetidos na coleção enviada são rejeitados. A validação ocorre antes de aplicar as alterações ao aggregate.
+Os IDs dos lançamentos são únicos dentro de todo o orçamento. Um ID existente só pode ser atualizado no orçamento ao qual pertence; ele pode mudar de cortina dentro desse orçamento. IDs que não pertençam à coleção atual do orçamento são rejeitados como desconhecidos, sem consulta a outros orçamentos. IDs repetidos e associações a cortinas inexistentes ou pertencentes a outro orçamento também são rejeitados. A validação ocorre antes de aplicar as alterações ao aggregate.
 
 Ao remover cortinas por PATCH, se `financialItems` for omitida, o domínio remove os lançamentos vinculados às cortinas removidas e mantém os lançamentos gerais. Se a coleção for enviada, ela deve descrever um estado final válido: referências às cortinas removidas no mesmo PATCH são rejeitadas antes da aplicação das alterações. O domínio não filtra silenciosamente itens enviados para corrigir inconsistências.
 
@@ -816,7 +816,7 @@ DTOs HTTP são separados dos objetos de domínio.
 
 Entities não são retornadas diretamente pela API.
 
-A composição financeira é exposta como uma coleção única do orçamento. Em atualizações parciais, a propriedade omitida mantém a composição inalterada; quando enviada, representa o estado completo da coleção e é reconciliada por identificador. IDs devem ser únicos no orçamento; apenas IDs pertencentes ao orçamento atualizado podem identificar itens existentes. Um item pode ser transferido para outra cortina do mesmo orçamento, mas cortinas inválidas ou de outro orçamento, IDs desconhecidos, de outro orçamento ou repetidos são rejeitados. O aggregate valida o estado proposto antes de aplicar as alterações. A integração HTTP dessa coleção é tratada em UFIN-05; sua reconciliação persistida, incluindo transfers, e atomicidade com orçamento e histórico são tratadas em UFIN-04.
+A API expõe a composição financeira como uma coleção única, conforme a semântica PATCH e as regras de identidade descritas na seção 3.4. A validação do estado proposto pertence ao aggregate. A integração HTTP dessa coleção é tratada em UFIN-05; sua reconciliação persistida, incluindo transfers, e atomicidade com orçamento e histórico são tratadas em UFIN-04.
 
 ---
 

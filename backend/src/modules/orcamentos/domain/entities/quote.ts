@@ -4,6 +4,7 @@ import {
   assertFinancialItemPatchesReconcilable,
   FinancialItem,
   reconcileFinancialItems,
+  type FinancialItemInput,
   type FinancialItemPatch,
 } from './financial-item.js';
 import {
@@ -39,7 +40,7 @@ export interface CreateQuoteInput {
   createdAt: Date;
   installationAddress?: InstallationAddress | null;
   curtains?: Curtain[];
-  generalAddOns?: FinancialItem[];
+  financialItems?: FinancialItemInput[];
   discount?: Discount;
   commercialAdjustmentCents?: number | null;
   notes?: string | null;
@@ -52,14 +53,13 @@ export interface UpdateQuoteEditableDataInput {
   notes?: string | null;
 }
 
-export type QuoteCurtainPatch = Omit<CurtainPatch, 'components'> & {
+export type QuoteCurtainPatch = CurtainPatch & {
   id?: string | null;
-  components?: FinancialItemPatch[];
 };
 
 export interface QuotePatch extends UpdateQuoteEditableDataInput {
   curtains?: QuoteCurtainPatch[];
-  generalAddOns?: FinancialItemPatch[];
+  financialItems?: FinancialItemPatch[];
 }
 
 export interface QuoteSnapshot {
@@ -69,7 +69,7 @@ export interface QuoteSnapshot {
   status: QuoteStatus;
   installationAddress: InstallationAddress | null;
   curtains: Curtain[];
-  generalAddOns: FinancialItem[];
+  financialItems: FinancialItem[];
   discount: Discount;
   commercialAdjustmentCents: number | null;
   notes: string | null;
@@ -100,7 +100,7 @@ export class Quote {
     private _status: QuoteStatus,
     public installationAddress: InstallationAddress | null,
     public curtains: Curtain[],
-    public generalAddOns: FinancialItem[],
+    public financialItems: FinancialItem[],
     public discount: Discount,
     public commercialAdjustmentCents: number | null,
     public notes: string | null,
@@ -121,14 +121,17 @@ export class Quote {
   static create(input: CreateQuoteInput): Quote {
     assertValidDate(input.createdAt, 'Quote createdAt');
 
+    const id = randomUUID();
     const quote = new Quote(
-      randomUUID(),
+      id,
       input.quoteNumber,
       input.customerId,
       QuoteStatus.DRAFT,
       input.installationAddress ?? null,
       [...(input.curtains ?? [])],
-      [...(input.generalAddOns ?? [])],
+      (input.financialItems ?? []).map((item) =>
+        FinancialItem.create(item, id),
+      ),
       input.discount ?? Discount.noDiscount(),
       normalizeAdjustment(input.commercialAdjustmentCents),
       normalizeText(input.notes),
@@ -142,6 +145,7 @@ export class Quote {
       null,
     );
 
+    quote.assertCurrentFinancialItemsValid();
     quote.normalizeCurtainSequences();
     quote.assertTotalsInRange();
 
@@ -149,14 +153,14 @@ export class Quote {
   }
 
   static rehydrate(snapshot: QuoteSnapshot): Quote {
-    return new Quote(
+    const quote = new Quote(
       snapshot.id,
       snapshot.quoteNumber,
       snapshot.customerId,
       snapshot.status,
       snapshot.installationAddress,
       snapshot.curtains,
-      snapshot.generalAddOns,
+      snapshot.financialItems,
       snapshot.discount,
       snapshot.commercialAdjustmentCents,
       snapshot.notes,
@@ -168,6 +172,19 @@ export class Quote {
       snapshot.productionStartedAt,
       snapshot.scheduledInstallationAt,
       snapshot.completedAt,
+    );
+
+    quote.assertCurrentFinancialItemsValid();
+    return quote;
+  }
+
+  private assertCurrentFinancialItemsValid(): void {
+    const curtainIds = new Set(this.curtains.map((curtain) => curtain.id));
+    assertFinancialItemPatchesReconcilable(
+      this.financialItems,
+      this.financialItems.map((item) => ({ id: item.id })),
+      this.id,
+      curtainIds,
     );
   }
 
@@ -202,8 +219,16 @@ export class Quote {
       throw new QuoteNotEditableError();
     }
 
-    this.assertPatchReconcilable(patch);
+    const candidate = this.copyForPatchValidation();
+    candidate.assertPatchReconcilable(patch);
+    candidate.applyPatchChanges(patch);
+    candidate.assertPatchedStateValid();
 
+    this.assertPatchReconcilable(patch);
+    this.applyPatchChanges(patch);
+  }
+
+  private applyPatchChanges(patch: QuotePatch): void {
     this.updateEditableData({
       installationAddress: patch.installationAddress,
       discount: patch.discount,
@@ -215,13 +240,17 @@ export class Quote {
       this.reconcileCurtains(patch.curtains);
     }
 
-    if (patch.generalAddOns !== undefined) {
-      this.generalAddOns = reconcileFinancialItems(
-        this.generalAddOns,
-        patch.generalAddOns,
+    if (patch.financialItems !== undefined) {
+      this.financialItems = reconcileFinancialItems(
+        this.financialItems,
+        patch.financialItems,
+        this.id,
+        new Set(this.curtains.map((curtain) => curtain.id)),
       );
     }
+  }
 
+  private assertPatchedStateValid(): void {
     // D86 applies to every saved state, including drafts, so an edit cannot
     // persist totals that the read model cannot derive. D87/D95 additionally
     // require a non-draft save to keep the address and every item complete;
@@ -235,6 +264,52 @@ export class Quote {
         throw new QuoteValidationError(violations);
       }
     }
+  }
+
+  private copyForPatchValidation(): Quote {
+    return Quote.rehydrate({
+      id: this.id,
+      quoteNumber: this.quoteNumber,
+      customerId: this.customerId,
+      status: this.status,
+      installationAddress: this.installationAddress,
+      curtains: this.curtains.map((curtain) =>
+        Curtain.rehydrate({
+          id: curtain.id,
+          sequence: curtain.sequence,
+          room: curtain.room,
+          description: curtain.description,
+          material: curtain.material,
+          openingWidth: curtain.openingWidth,
+          borderValue: curtain.borderValue,
+          height: curtain.height,
+          fabricFactor: curtain.fabricFactor,
+          notes: curtain.notes,
+        }),
+      ),
+      financialItems: this.financialItems.map((item) =>
+        FinancialItem.rehydrate({
+          id: item.id,
+          quoteId: item.quoteId,
+          curtainId: item.curtainId,
+          name: item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPriceCents: item.unitPriceCents,
+        }),
+      ),
+      discount: this.discount,
+      commercialAdjustmentCents: this.commercialAdjustmentCents,
+      notes: this.notes,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+      firstSentAt: this.firstSentAt,
+      validUntil: this.validUntil,
+      confirmedAt: this.confirmedAt,
+      productionStartedAt: this.productionStartedAt,
+      scheduledInstallationAt: this.scheduledInstallationAt,
+      completedAt: this.completedAt,
+    });
   }
 
   // State machine (D96). Transitions are only reachable through these
@@ -348,14 +423,16 @@ export class Quote {
         });
       }
 
-      if (!curtain.components.some(isCompleteItem)) {
+      const curtainItems = this.financialItemsForCurtain(curtain.id);
+
+      if (!curtainItems.some(isCompleteItem)) {
         violations.push({
           code: 'CURTAIN_COMPONENT_REQUIRED',
           message: `${label} must have at least one complete component`,
         });
       }
 
-      for (const component of curtain.components) {
+      for (const component of curtainItems) {
         if (!isCompleteItem(component)) {
           violations.push({
             code: 'COMPONENT_INVALID',
@@ -365,7 +442,7 @@ export class Quote {
       }
     }
 
-    for (const addOn of this.generalAddOns) {
+    for (const addOn of this.generalFinancialItems) {
       if (!isCompleteItem(addOn)) {
         violations.push({
           code: 'GENERAL_ADD_ON_INVALID',
@@ -601,47 +678,96 @@ export class Quote {
       normalizeAdjustment(patch.commercialAdjustmentCents);
     }
 
-    if (patch.generalAddOns !== undefined) {
+    const currentCurtainIds = new Set(
+      this.curtains.map((curtain) => curtain.id),
+    );
+    const targetCurtains =
+      patch.curtains === undefined
+        ? this.curtains
+        : this.validateCurtainPatches(patch.curtains, currentCurtainIds);
+    const targetCurtainIds = new Set(
+      targetCurtains.map((curtain) => curtain.id),
+    );
+
+    if (patch.financialItems !== undefined) {
       assertFinancialItemPatchesReconcilable(
-        this.generalAddOns,
-        patch.generalAddOns,
+        this.financialItems,
+        patch.financialItems,
+        this.id,
+        targetCurtainIds,
       );
+      this.validateFinancialItemValues(patch.financialItems);
     }
+  }
 
-    if (patch.curtains === undefined) {
-      return;
-    }
-
+  private validateCurtainPatches(
+    patches: QuoteCurtainPatch[],
+    currentCurtainIds: ReadonlySet<string>,
+  ): Curtain[] {
     const byId = new Map(this.curtains.map((curtain) => [curtain.id, curtain]));
     const seen = new Set<string>();
 
-    for (const curtainPatch of patch.curtains) {
+    return patches.map((curtainPatch) => {
       if (curtainPatch.id === undefined || curtainPatch.id === null) {
-        if (curtainPatch.components !== undefined) {
-          assertFinancialItemPatchesReconcilable([], curtainPatch.components);
-        }
-
-        continue;
+        return Curtain.create(curtainPatch);
       }
 
       if (seen.has(curtainPatch.id)) {
         throw new UnknownQuoteItemError('Duplicate curtain id');
       }
-
       seen.add(curtainPatch.id);
 
-      const existing = byId.get(curtainPatch.id);
-
-      if (existing === undefined) {
+      if (!currentCurtainIds.has(curtainPatch.id)) {
         throw new UnknownQuoteItemError('Unknown curtain id');
       }
 
-      if (curtainPatch.components !== undefined) {
-        assertFinancialItemPatchesReconcilable(
-          existing.components,
-          curtainPatch.components,
+      const existing = byId.get(curtainPatch.id)!;
+      const validated = Curtain.rehydrate({
+        id: existing.id,
+        sequence: existing.sequence,
+        room: existing.room,
+        description: existing.description,
+        material: existing.material,
+        openingWidth: existing.openingWidth,
+        borderValue: existing.borderValue,
+        height: existing.height,
+        fabricFactor: existing.fabricFactor,
+        notes: existing.notes,
+      });
+      validated.applyPatch(curtainPatch);
+      return validated;
+    });
+  }
+
+  private validateFinancialItemValues(patches: FinancialItemPatch[]): void {
+    const byId = new Map(this.financialItems.map((item) => [item.id, item]));
+
+    for (const patch of patches) {
+      if (patch.id === undefined || patch.id === null) {
+        FinancialItem.create(
+          {
+            name: patch.name ?? '',
+            quantity: patch.quantity,
+            unit: patch.unit,
+            unitPriceCents: patch.unitPriceCents,
+            curtainId: patch.curtainId,
+          },
+          this.id,
         );
+        continue;
       }
+
+      const existing = byId.get(patch.id)!;
+      const validated = FinancialItem.rehydrate({
+        id: existing.id,
+        quoteId: existing.quoteId,
+        curtainId: existing.curtainId,
+        name: existing.name,
+        quantity: existing.quantity,
+        unit: existing.unit,
+        unitPriceCents: existing.unitPriceCents,
+      });
+      validated.update(patch);
     }
   }
 
@@ -672,19 +798,35 @@ export class Quote {
         notes: patch.notes,
       });
 
-      if (patch.components !== undefined) {
-        curtain.applyPatch({ components: patch.components });
-      }
-
       return curtain;
     });
 
     this.normalizeCurtainSequences();
+    const curtainIds = new Set(this.curtains.map((curtain) => curtain.id));
+    this.financialItems = this.financialItems.filter(
+      (item) => item.curtainId === null || curtainIds.has(item.curtainId),
+    );
+  }
+
+  financialItemsForCurtain(curtainId: string): FinancialItem[] {
+    return this.financialItems.filter((item) => item.curtainId === curtainId);
+  }
+
+  get generalFinancialItems(): FinancialItem[] {
+    return this.financialItems.filter((item) => item.curtainId === null);
   }
 
   get curtainsSubtotalCents(): number {
     const total = this.curtains.reduce(
-      (sum, curtain) => sum.add(Money.fromCents(curtain.financialTotalCents)),
+      (sum, curtain) =>
+        sum.add(
+          Money.fromCents(
+            this.financialItemsForCurtain(curtain.id).reduce(
+              (itemTotal, item) => itemTotal + (item.totalCents ?? 0),
+              0,
+            ),
+          ),
+        ),
       Money.zero(),
     );
 
@@ -692,7 +834,7 @@ export class Quote {
   }
 
   get generalAddOnsSubtotalCents(): number {
-    return this.generalAddOns.reduce(
+    return this.generalFinancialItems.reduce(
       (sum, addOn) => sum + (addOn.totalCents ?? 0),
       0,
     );

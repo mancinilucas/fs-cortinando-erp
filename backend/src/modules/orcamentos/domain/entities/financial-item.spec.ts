@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { FinancialItem } from './financial-item.js';
 
+function createItem(
+  input: Parameters<typeof FinancialItem.create>[0],
+): FinancialItem {
+  return FinancialItem.create(input, 'quote-1');
+}
+
 describe('FinancialItem', () => {
   it('creates a complete item', () => {
-    const item = FinancialItem.create({
+    const item = createItem({
       name: '  Mão de obra ',
       quantity: 8.05,
       unit: ' m ',
@@ -21,11 +27,11 @@ describe('FinancialItem', () => {
   });
 
   it('accepts an incomplete item while the quote is a draft', () => {
-    const withoutPrice = FinancialItem.create({
+    const withoutPrice = createItem({
       name: 'Instalação',
       quantity: 2.125,
     });
-    const withoutQuantity = FinancialItem.create({
+    const withoutQuantity = createItem({
       name: 'Instalação',
       unitPriceCents: 5_000,
     });
@@ -37,39 +43,37 @@ describe('FinancialItem', () => {
   });
 
   it('normalizes an absent or blank unit to null', () => {
-    expect(FinancialItem.create({ name: 'Item' }).unit).toBeNull();
-    expect(FinancialItem.create({ name: 'Item', unit: '   ' }).unit).toBeNull();
+    expect(createItem({ name: 'Item' }).unit).toBeNull();
+    expect(createItem({ name: 'Item', unit: '   ' }).unit).toBeNull();
   });
 
   it('requires a non-empty name', () => {
-    expect(() => FinancialItem.create({ name: '' })).toThrow(Error);
-    expect(() => FinancialItem.create({ name: '   ' })).toThrow(Error);
+    expect(() => createItem({ name: '' })).toThrow(Error);
+    expect(() => createItem({ name: '   ' })).toThrow(Error);
   });
 
   it('rejects zero and negative quantities', () => {
     for (const quantity of [0, -1, -0.000001]) {
-      expect(() => FinancialItem.create({ name: 'Item', quantity })).toThrow(
+      expect(() => createItem({ name: 'Item', quantity })).toThrow(RangeError);
+    }
+  });
+
+  it('rejects quantities with more than six decimal places', () => {
+    expect(() => createItem({ name: 'Item', quantity: 0.0000001 })).toThrow(
+      RangeError,
+    );
+  });
+
+  it('rejects zero, negative and fractional prices', () => {
+    for (const unitPriceCents of [0, -1, 10.5]) {
+      expect(() => createItem({ name: 'Item', unitPriceCents })).toThrow(
         RangeError,
       );
     }
   });
 
-  it('rejects quantities with more than six decimal places', () => {
-    expect(() =>
-      FinancialItem.create({ name: 'Item', quantity: 0.0000001 }),
-    ).toThrow(RangeError);
-  });
-
-  it('rejects zero, negative and fractional prices', () => {
-    for (const unitPriceCents of [0, -1, 10.5]) {
-      expect(() =>
-        FinancialItem.create({ name: 'Item', unitPriceCents }),
-      ).toThrow(RangeError);
-    }
-  });
-
   it('derives the total using HALF_UP', () => {
-    const item = FinancialItem.create({
+    const item = createItem({
       name: 'Item',
       quantity: 2.125,
       unitPriceCents: 1_999,
@@ -80,17 +84,17 @@ describe('FinancialItem', () => {
   });
 
   it('derives the total with sub-cent precision', () => {
-    const belowHalf = FinancialItem.create({
+    const belowHalf = createItem({
       name: 'Item',
       quantity: 0.000001,
       unitPriceCents: 499_999,
     });
-    const exactlyHalf = FinancialItem.create({
+    const exactlyHalf = createItem({
       name: 'Item',
       quantity: 0.000001,
       unitPriceCents: 500_000,
     });
-    const aboveHalf = FinancialItem.create({
+    const aboveHalf = createItem({
       name: 'Item',
       quantity: 0.000001,
       unitPriceCents: 500_001,
@@ -104,6 +108,8 @@ describe('FinancialItem', () => {
   it('keeps the identity when rehydrated', () => {
     const item = FinancialItem.rehydrate({
       id: '8d5f4a52-3f0d-4a84-9a52-7daa8c1c5b64',
+      quoteId: 'quote-1',
+      curtainId: null,
       name: 'Instalação',
       quantity: 2,
       unit: 'un',
@@ -115,8 +121,8 @@ describe('FinancialItem', () => {
   });
 
   it('generates a different identity for each new item', () => {
-    const first = FinancialItem.create({ name: 'Item' });
-    const second = FinancialItem.create({ name: 'Item' });
+    const first = createItem({ name: 'Item' });
+    const second = createItem({ name: 'Item' });
 
     expect(first.id).not.toBe(second.id);
   });

@@ -122,31 +122,98 @@ function completeAddress(): InstallationAddress {
   return address;
 }
 
+const curtainItems = new WeakMap<Curtain, FinancialItem[]>();
+type CurtainTestInput = Partial<CreateCurtainInput> & {
+  components?: FinancialItem[];
+};
+type QuoteTestInput = Partial<CreateQuoteInput> & {
+  generalAddOns?: FinancialItem[];
+};
+
 function item(overrides: Partial<FinancialItemInput> = {}): FinancialItem {
-  return FinancialItem.create({
-    name: 'Tecido',
-    quantity: 8.05,
-    unitPriceCents: 3_000,
-    ...overrides,
-  });
+  return FinancialItem.create(
+    {
+      name: 'Tecido',
+      quantity: 8.05,
+      unitPriceCents: 3_000,
+      ...overrides,
+    },
+    QUOTE_ID,
+  );
 }
 
-function curtain(overrides: Partial<CreateCurtainInput> = {}): Curtain {
-  return Curtain.create({
+function curtain(overrides: CurtainTestInput = {}): Curtain {
+  const { components, ...input } = overrides;
+  const entity = Curtain.create({
     room: 'Sala',
     material: 'Linho',
     openingWidth: 2,
     height: 2.7,
-    components: [item()],
-    ...overrides,
+    ...input,
+  });
+  curtainItems.set(entity, components ?? [item()]);
+  return entity;
+}
+
+function itemSnapshot(
+  item: FinancialItem,
+  quoteId: string,
+  curtainId: string | null,
+): FinancialItem {
+  return FinancialItem.rehydrate({
+    id: item.id,
+    quoteId,
+    curtainId,
+    name: item.name,
+    quantity: item.quantity,
+    unit: item.unit,
+    unitPriceCents: item.unitPriceCents,
   });
 }
 
-function draft(overrides: Partial<CreateQuoteInput> = {}): Quote {
-  return Quote.create({
+function createQuote(overrides: QuoteTestInput = {}): Quote {
+  const curtains = overrides.curtains ?? [];
+  const { generalAddOns = [], ...input } = overrides;
+  const base = Quote.create({
     quoteNumber: number(),
     customerId: CUSTOMER_ID,
     createdAt: CREATED_AT,
+    ...input,
+    curtains,
+    financialItems: [],
+  });
+  const financialItems = [
+    ...curtains.flatMap((entry) =>
+      (curtainItems.get(entry) ?? []).map((item) =>
+        itemSnapshot(item, base.id, entry.id),
+      ),
+    ),
+    ...generalAddOns.map((item) => itemSnapshot(item, base.id, null)),
+  ];
+  return Quote.rehydrate({
+    id: base.id,
+    quoteNumber: base.quoteNumber,
+    customerId: base.customerId,
+    status: base.status,
+    installationAddress: base.installationAddress,
+    curtains: base.curtains,
+    financialItems,
+    discount: base.discount,
+    commercialAdjustmentCents: base.commercialAdjustmentCents,
+    notes: base.notes,
+    createdAt: base.createdAt,
+    updatedAt: base.updatedAt,
+    firstSentAt: null,
+    validUntil: null,
+    confirmedAt: null,
+    productionStartedAt: null,
+    scheduledInstallationAt: null,
+    completedAt: null,
+  });
+}
+
+function draft(overrides: QuoteTestInput = {}): Quote {
+  return createQuote({
     installationAddress: completeAddress(),
     curtains: [curtain()],
     ...overrides,
@@ -154,14 +221,22 @@ function draft(overrides: Partial<CreateQuoteInput> = {}): Quote {
 }
 
 function rehydrated(overrides: Partial<QuoteSnapshot> = {}): Quote {
+  const curtains = overrides.curtains ?? [curtain()];
+  const financialItems =
+    overrides.financialItems ??
+    curtains.flatMap((entry) =>
+      (curtainItems.get(entry) ?? []).map((item) =>
+        itemSnapshot(item, QUOTE_ID, entry.id),
+      ),
+    );
   return Quote.rehydrate({
     id: QUOTE_ID,
     quoteNumber: number(),
     customerId: CUSTOMER_ID,
     status: QuoteStatus.DRAFT,
     installationAddress: completeAddress(),
-    curtains: [curtain()],
-    generalAddOns: [],
+    curtains,
+    financialItems,
     discount: Discount.noDiscount(),
     commercialAdjustmentCents: null,
     notes: null,
@@ -560,11 +635,14 @@ describe('FinancialItem (D87)', () => {
   it('rejects empty names at any save', () => {
     for (const name of ['', '   ', null, undefined]) {
       expect(() =>
-        FinancialItem.create({
-          name: name as unknown as string,
-          quantity: 1,
-          unitPriceCents: 1,
-        }),
+        FinancialItem.create(
+          {
+            name: name as unknown as string,
+            quantity: 1,
+            unitPriceCents: 1,
+          },
+          QUOTE_ID,
+        ),
       ).toThrow('Financial item name is required');
     }
   });
@@ -638,10 +716,15 @@ describe('FinancialItem (D87)', () => {
     const second = item({ name: 'Argola' });
     const current = [first, second];
 
-    const reconciled = reconcileFinancialItems(current, [
-      { id: first.id, name: 'Linho' },
-      { name: 'Suporte', quantity: 2, unitPriceCents: 300 },
-    ]);
+    const reconciled = reconcileFinancialItems(
+      current,
+      [
+        { id: first.id, name: 'Linho' },
+        { name: 'Suporte', quantity: 2, unitPriceCents: 300 },
+      ],
+      QUOTE_ID,
+      new Set(),
+    );
 
     expect(reconciled).toHaveLength(2);
     expect(reconciled[0]).toBe(first);
@@ -654,13 +737,23 @@ describe('FinancialItem (D87)', () => {
     expect(reconciled).not.toContain(second);
 
     expect(() =>
-      reconcileFinancialItems(current, [{ id: UNKNOWN_ID, name: 'X' }]),
+      reconcileFinancialItems(
+        current,
+        [{ id: UNKNOWN_ID, name: 'X' }],
+        QUOTE_ID,
+        new Set(),
+      ),
     ).toThrow(UnknownQuoteItemError);
     expect(() =>
-      reconcileFinancialItems(current, [
-        { id: first.id, name: 'A' },
-        { id: first.id, name: 'B' },
-      ]),
+      reconcileFinancialItems(
+        current,
+        [
+          { id: first.id, name: 'A' },
+          { id: first.id, name: 'B' },
+        ],
+        QUOTE_ID,
+        new Set(),
+      ),
     ).toThrow(UnknownQuoteItemError);
   });
 });
@@ -738,38 +831,6 @@ describe('Curtain (D83/D84/D85)', () => {
     expect(entity.finalWidth).toBeNull();
     expect(entity.fabricQuantity).toBeNull();
   });
-
-  it('sums complete components and ignores incomplete ones', () => {
-    const entity = curtain({
-      components: [
-        item({ quantity: 1, unitPriceCents: 100 }),
-        item({ quantity: 1, unitPriceCents: 200 }),
-        item({ quantity: null, unitPriceCents: 300 }),
-      ],
-    });
-
-    expect(entity.financialTotalCents).toBe(300);
-  });
-
-  it('applies partial patches and reconciles components', () => {
-    const component = item({
-      name: 'Tecido',
-      quantity: 1,
-      unitPriceCents: 100,
-    });
-    const entity = curtain({ components: [component], notes: 'Nota' });
-
-    entity.applyPatch({
-      room: 'Quarto',
-      components: [{ id: component.id, name: 'Linho' }],
-    });
-
-    expect(entity.room).toBe('Quarto');
-    expect(entity.notes).toBe('Nota');
-    expect(entity.components).toHaveLength(1);
-    expect(entity.components[0]).toBe(component);
-    expect(component.name).toBe('Linho');
-  });
 });
 
 describe('Quote creation and boundary (D76/D78/D79)', () => {
@@ -803,7 +864,7 @@ describe('Quote creation and boundary (D76/D78/D79)', () => {
 
     expect(quote.installationAddress).toBeNull();
     expect(quote.curtains).toEqual([]);
-    expect(quote.generalAddOns).toEqual([]);
+    expect(quote.financialItems).toEqual([]);
     expect(quote.discount.type).toBe(DiscountType.NO_DISCOUNT);
     expect(quote.notes).toBe('Cliente preferencial');
     expect(quote.commercialAdjustmentCents).toBeNull();
@@ -858,8 +919,8 @@ describe('Quote creation and boundary (D76/D78/D79)', () => {
   it('never creates labor or any other item automatically (D89)', () => {
     const quote = draft({ curtains: [curtain({ components: [] })] });
 
-    expect(quote.generalAddOns).toEqual([]);
-    expect(quote.curtains[0]?.components).toEqual([]);
+    expect(quote.generalFinancialItems).toEqual([]);
+    expect(quote.financialItems).toEqual([]);
   });
 
   it('keeps no event history inside the aggregate (D108)', () => {
@@ -872,7 +933,7 @@ describe('Quote creation and boundary (D76/D78/D79)', () => {
 
 describe('derived totals (D88/D91/D92/D93)', () => {
   function totalsFixture(): Quote {
-    return Quote.create({
+    return createQuote({
       quoteNumber: number(),
       customerId: CUSTOMER_ID,
       createdAt: CREATED_AT,
@@ -909,7 +970,7 @@ describe('derived totals (D88/D91/D92/D93)', () => {
   });
 
   it('rounds ties per item, not after the sum', () => {
-    const quote = Quote.create({
+    const quote = createQuote({
       quoteNumber: number(),
       customerId: CUSTOMER_ID,
       createdAt: CREATED_AT,
@@ -927,7 +988,7 @@ describe('derived totals (D88/D91/D92/D93)', () => {
   });
 
   it('applies a fixed discount to the subtotal', () => {
-    const quote = Quote.create({
+    const quote = createQuote({
       quoteNumber: number(),
       customerId: CUSTOMER_ID,
       createdAt: CREATED_AT,
@@ -958,15 +1019,15 @@ describe('derived totals (D88/D91/D92/D93)', () => {
       ],
     };
 
-    expect(Quote.create(base).totalCents).toBe(1_000);
+    expect(createQuote(base).totalCents).toBe(1_000);
     expect(
-      Quote.create({ ...base, commercialAdjustmentCents: 200 }).totalCents,
+      createQuote({ ...base, commercialAdjustmentCents: 200 }).totalCents,
     ).toBe(1_200);
     expect(
-      Quote.create({ ...base, commercialAdjustmentCents: -200 }).totalCents,
+      createQuote({ ...base, commercialAdjustmentCents: -200 }).totalCents,
     ).toBe(800);
     expect(
-      Quote.create({
+      createQuote({
         ...base,
         discount: Discount.percentage(10),
         commercialAdjustmentCents: 200,
@@ -975,7 +1036,7 @@ describe('derived totals (D88/D91/D92/D93)', () => {
   });
 
   it('treats incomplete items as zero in draft totals', () => {
-    const quote = Quote.create({
+    const quote = createQuote({
       quoteNumber: number(),
       customerId: CUSTOMER_ID,
       createdAt: CREATED_AT,
@@ -1066,33 +1127,38 @@ describe('partial update semantics (D117)', () => {
     expect(quote.curtains[0]).toBe(keep);
   });
 
-  it('replaces only the sent collections at each level', () => {
-    const component = item({ name: 'Tecido' });
-    const existing = curtain({ room: 'Sala', components: [component] });
+  it('reconciles the one sent financial collection and keeps omitted associations', () => {
+    const existing = curtain({
+      room: 'Sala',
+      components: [item({ name: 'Tecido' })],
+    });
     const addOn = item({ name: 'Frete' });
     const quote = draft({ curtains: [existing], generalAddOns: [addOn] });
+    const component = quote.financialItems.find(
+      (entry) => entry.curtainId === existing.id,
+    )!;
+    const generalItem = quote.generalFinancialItems[0]!;
 
     quote.applyPatch({ curtains: [{ id: existing.id, room: 'Quarto' }] });
-
-    expect(quote.curtains).toHaveLength(1);
-    expect(quote.curtains[0]).toBe(existing);
     expect(existing.room).toBe('Quarto');
-    expect(existing.components[0]).toBe(component);
-    expect(quote.generalAddOns[0]).toBe(addOn);
+    expect(quote.financialItems).toContain(component);
+    expect(quote.financialItems).toContain(generalItem);
 
     quote.applyPatch({
-      curtains: [
-        { id: existing.id, components: [{ id: component.id, name: 'Linho' }] },
+      financialItems: [
+        { id: component.id, name: 'Linho' },
+        {
+          name: 'Instalação',
+          quantity: 1,
+          unitPriceCents: 500,
+          curtainId: null,
+        },
       ],
-      generalAddOns: [{ name: 'Instalação', quantity: 1, unitPriceCents: 500 }],
     });
-
-    expect(existing.components).toHaveLength(1);
-    expect(existing.components[0]).toBe(component);
+    expect(quote.financialItems[0]).toBe(component);
     expect(component.name).toBe('Linho');
-    expect(quote.generalAddOns).toHaveLength(1);
-    expect(quote.generalAddOns[0]).not.toBe(addOn);
-    expect(quote.generalAddOns[0]?.name).toBe('Instalação');
+    expect(quote.generalFinancialItems).toHaveLength(1);
+    expect(quote.generalFinancialItems[0]?.name).toBe('Instalação');
   });
 
   it('creates new curtains and recalculates sequences from the sent order', () => {
@@ -1121,8 +1187,7 @@ describe('partial update semantics (D117)', () => {
 
     expect(quote.curtains).toHaveLength(1);
     expect(quote.curtains[0]?.room).toBe('Sala');
-    // A new curtain starts without components; the old ones were removed.
-    expect(quote.curtains[0]?.components).toHaveLength(0);
+    expect(quote.financialItems).toEqual([]);
   });
 
   it('rejects unknown, duplicated and foreign ids before mutating anything', () => {
@@ -1141,27 +1206,13 @@ describe('partial update semantics (D117)', () => {
       }),
     ).toThrow(UnknownQuoteItemError);
 
-    const componentId = quote.curtains[0]?.components[0]?.id;
-
+    const componentId = quote.financialItems[0]?.id;
     expect(() =>
-      quote.applyPatch({
-        curtains: [
-          {
-            id: curtainId,
-            components: [{ id: UNKNOWN_ID }, { id: componentId }],
-          },
-        ],
-      }),
+      quote.applyPatch({ financialItems: [{ id: UNKNOWN_ID }] }),
     ).toThrow(UnknownQuoteItemError);
-
     expect(() =>
       quote.applyPatch({
-        curtains: [
-          {
-            id: curtainId,
-            components: [{ id: componentId }, { id: componentId }],
-          },
-        ],
+        financialItems: [{ id: componentId }, { id: componentId }],
       }),
     ).toThrow(UnknownQuoteItemError);
 
