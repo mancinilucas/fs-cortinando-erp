@@ -33,6 +33,7 @@ describe('DeleteDraftQuoteUseCase integration', () => {
 
   async function seedQuote(status: SeedStatus): Promise<{ id: string }> {
     const id = randomUUID();
+    const curtainId = randomUUID();
 
     await prisma.quote.create({
       data: {
@@ -49,6 +50,7 @@ describe('DeleteDraftQuoteUseCase integration', () => {
         curtains: {
           create: [
             {
+              id: curtainId,
               sequence: 1,
               room: 'Sala',
               material: 'Linho',
@@ -56,21 +58,20 @@ describe('DeleteDraftQuoteUseCase integration', () => {
               borderValue: 0.15,
               height: 2.2,
               fabricFactor: 2,
-              components: {
-                create: [
-                  {
-                    name: 'Tecido',
-                    quantity: 8.05,
-                    unit: 'm',
-                    unitPriceCents: 3_000,
-                  },
-                ],
-              },
             },
           ],
         },
-        generalAddOns: {
-          create: [{ name: 'Instalação', quantity: 1, unitPriceCents: 5_000 }],
+        financialItems: {
+          create: [
+            {
+              name: 'Tecido',
+              quantity: 8.05,
+              unit: 'm',
+              unitPriceCents: 3_000,
+              curtainId,
+            },
+            { name: 'Instalação', quantity: 1, unitPriceCents: 5_000 },
+          ],
         },
         history: {
           create: [
@@ -134,9 +135,6 @@ describe('DeleteDraftQuoteUseCase integration', () => {
 
   it('deletes a DRAFT with its children and history', async () => {
     const seeded = await seedQuote('DRAFT');
-    const curtain = await prisma.curtain.findFirstOrThrow({
-      where: { quoteId: seeded.id },
-    });
 
     await useCase.execute({ id: seeded.id });
 
@@ -147,12 +145,7 @@ describe('DeleteDraftQuoteUseCase integration', () => {
       0,
     );
     expect(
-      await prisma.financialComponent.count({
-        where: { curtainId: curtain.id },
-      }),
-    ).toBe(0);
-    expect(
-      await prisma.generalAddOn.count({ where: { quoteId: seeded.id } }),
+      await prisma.financialItem.count({ where: { quoteId: seeded.id } }),
     ).toBe(0);
     expect(
       await prisma.quoteHistory.count({ where: { quoteId: seeded.id } }),

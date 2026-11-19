@@ -19,11 +19,17 @@ const productionStartedAt = new Date('2026-10-26T12:00:00.000Z');
 const scheduledInstallationAt = new Date('2026-11-10T12:00:00.000Z');
 const completedAt = new Date('2026-11-11T12:00:00.000Z');
 
+const QUOTE_ID = '33333333-3333-4333-8333-333333333333';
+const CURTAIN_A = '22222222-2222-4222-8222-222222222222';
+const CURTAIN_B = '66666666-6666-4666-8666-666666666666';
+
 function itemRecord(
   overrides: Partial<FinancialItemRecord> = {},
 ): FinancialItemRecord {
   return {
     id: '11111111-1111-4111-8111-111111111111',
+    quoteId: QUOTE_ID,
+    curtainId: CURTAIN_A,
     name: 'Tecido',
     quantity: '8.050000',
     unit: 'm',
@@ -34,7 +40,7 @@ function itemRecord(
 
 function curtainRecord(overrides: Partial<CurtainRecord> = {}): CurtainRecord {
   return {
-    id: '22222222-2222-4222-8222-222222222222',
+    id: CURTAIN_A,
     sequence: 1,
     room: 'Sala',
     description: null,
@@ -44,14 +50,13 @@ function curtainRecord(overrides: Partial<CurtainRecord> = {}): CurtainRecord {
     height: '2.700',
     fabricFactor: '3.500',
     notes: null,
-    components: [itemRecord()],
     ...overrides,
   };
 }
 
 function quoteRecord(overrides: Partial<QuoteRecord> = {}): QuoteRecord {
   return {
-    id: '33333333-3333-4333-8333-333333333333',
+    id: QUOTE_ID,
     quoteNumber: 'ORÇ-2026-001',
     customerId: '44444444-4444-4444-8444-444444444444',
     status: QuoteStatus.DRAFT,
@@ -76,7 +81,7 @@ function quoteRecord(overrides: Partial<QuoteRecord> = {}): QuoteRecord {
     scheduledInstallationAt: null,
     completedAt: null,
     curtains: [],
-    generalAddOns: [],
+    financialItems: [],
     ...overrides,
   };
 }
@@ -85,14 +90,11 @@ function rebuildRecord(quote: Quote): QuoteRecord {
   return {
     ...QuoteMapper.toPersistence(quote),
     id: quote.id,
-    curtains: quote.curtains.map((curtain) => ({
-      ...QuoteMapper.curtainToPersistence(curtain),
-      components: curtain.components.map((component) =>
-        QuoteMapper.financialItemToPersistence(component),
-      ),
-    })),
-    generalAddOns: quote.generalAddOns.map((addOn) =>
-      QuoteMapper.financialItemToPersistence(addOn),
+    curtains: quote.curtains.map((curtain) =>
+      QuoteMapper.curtainToPersistence(curtain),
+    ),
+    financialItems: quote.financialItems.map((item) =>
+      QuoteMapper.financialItemToPersistence(item),
     ),
   };
 }
@@ -108,7 +110,7 @@ describe('QuoteMapper', () => {
     expect(quote.status).toBe(QuoteStatus.DRAFT);
     expect(quote.installationAddress).toBeNull();
     expect(quote.curtains).toEqual([]);
-    expect(quote.generalAddOns).toEqual([]);
+    expect(quote.financialItems).toEqual([]);
     expect(quote.discount.equals(Discount.noDiscount())).toBe(true);
     expect(quote.commercialAdjustmentCents).toBeNull();
     expect(quote.notes).toBeNull();
@@ -119,6 +121,7 @@ describe('QuoteMapper', () => {
   it('maps a complete draft with address, children and percentage discount', () => {
     const addOn = itemRecord({
       id: '55555555-5555-4555-8555-555555555555',
+      curtainId: null,
       name: 'Frete',
       quantity: '1.000000',
       unit: null,
@@ -137,14 +140,9 @@ describe('QuoteMapper', () => {
       discountPercentage: 12.34,
       curtains: [
         curtainRecord(),
-        curtainRecord({
-          id: '66666666-6666-4666-8666-666666666666',
-          sequence: 2,
-          room: 'Quarto',
-          components: [],
-        }),
+        curtainRecord({ id: CURTAIN_B, sequence: 2, room: 'Quarto' }),
       ],
-      generalAddOns: [addOn],
+      financialItems: [itemRecord(), addOn],
     });
 
     const quote = QuoteMapper.toDomain(record);
@@ -156,10 +154,12 @@ describe('QuoteMapper', () => {
     expect(quote.curtains[0].borderValue).toBe(0.15);
     expect(quote.curtains[0].height).toBe(2.7);
     expect(quote.curtains[0].fabricFactor).toBe(3.5);
-    expect(quote.curtains[0].components[0].quantity).toBe(8.05);
-    expect(quote.curtains[0].components[0].unitPriceCents).toBe(3_000);
-    expect(quote.generalAddOns[0].id).toBe(addOn.id);
-    expect(quote.generalAddOns[0].quantity).toBe(1);
+    expect(quote.financialItemsForCurtain(CURTAIN_A)[0].quantity).toBe(8.05);
+    expect(quote.financialItemsForCurtain(CURTAIN_A)[0].unitPriceCents).toBe(
+      3_000,
+    );
+    expect(quote.generalFinancialItems[0].id).toBe(addOn.id);
+    expect(quote.generalFinancialItems[0].quantity).toBe(1);
     expect(quote.discount.equals(Discount.percentage(12.34))).toBe(true);
 
     const address = InstallationAddress.create({
@@ -227,18 +227,14 @@ describe('QuoteMapper', () => {
       quoteRecord({
         discountType: DiscountType.PERCENTAGE,
         discountPercentage: decimal('5.50'),
-        curtains: [
-          curtainRecord({
-            openingWidth: decimal('3.125'),
-            components: [itemRecord({ quantity: decimal('1.500000') })],
-          }),
-        ],
+        curtains: [curtainRecord({ openingWidth: decimal('3.125') })],
+        financialItems: [itemRecord({ quantity: decimal('1.500000') })],
       }),
     );
 
     expect(quote.discount.equals(Discount.percentage(5.5))).toBe(true);
     expect(quote.curtains[0].openingWidth).toBe(3.125);
-    expect(quote.curtains[0].components[0].quantity).toBe(1.5);
+    expect(quote.financialItems[0].quantity).toBe(1.5);
   });
 
   it('maps the aggregate back to persistence columns', () => {
@@ -256,7 +252,14 @@ describe('QuoteMapper', () => {
         firstSentAt,
         validUntil,
         curtains: [curtainRecord()],
-        generalAddOns: [itemRecord({ name: 'Frete' })],
+        financialItems: [
+          itemRecord(),
+          itemRecord({
+            id: '77777777-7777-4777-8777-777777777777',
+            name: 'Frete',
+            curtainId: null,
+          }),
+        ],
       }),
     );
 
@@ -295,9 +298,11 @@ describe('QuoteMapper', () => {
     });
 
     expect(
-      QuoteMapper.financialItemToPersistence(quote.generalAddOns[0]),
+      QuoteMapper.financialItemToPersistence(quote.generalFinancialItems[0]),
     ).toEqual({
-      id: '11111111-1111-4111-8111-111111111111',
+      id: '77777777-7777-4777-8777-777777777777',
+      quoteId: QUOTE_ID,
+      curtainId: null,
       name: 'Frete',
       quantity: 8.05,
       unit: 'm',
@@ -322,7 +327,15 @@ describe('QuoteMapper', () => {
         productionStartedAt,
         scheduledInstallationAt,
         curtains: [curtainRecord()],
-        generalAddOns: [itemRecord({ name: 'Frete', quantity: '1.000000' })],
+        financialItems: [
+          itemRecord(),
+          itemRecord({
+            id: '77777777-7777-4777-8777-777777777777',
+            name: 'Frete',
+            curtainId: null,
+            quantity: '1.000000',
+          }),
+        ],
       }),
     );
 
@@ -340,11 +353,10 @@ describe('QuoteMapper', () => {
     expect(roundTripped.discount.equals(quote.discount)).toBe(true);
     expect(roundTripped.commercialAdjustmentCents).toBe(-240);
     expect(roundTripped.curtains[0].id).toBe(quote.curtains[0].id);
-    expect(roundTripped.curtains[0].components[0].id).toBe(
-      quote.curtains[0].components[0].id,
-    );
-    expect(roundTripped.curtains[0].components[0].quantity).toBe(8.05);
-    expect(roundTripped.generalAddOns[0].id).toBe(quote.generalAddOns[0].id);
+    expect(roundTripped.financialItems[0].id).toBe(quote.financialItems[0].id);
+    expect(roundTripped.financialItems[0].quantity).toBe(8.05);
+    expect(roundTripped.financialItems[1].id).toBe(quote.financialItems[1].id);
+    expect(roundTripped.financialItems[1].curtainId).toBeNull();
     expect(roundTripped.firstSentAt).toBe(firstSentAt);
     expect(roundTripped.productionStartedAt).toBe(productionStartedAt);
   });

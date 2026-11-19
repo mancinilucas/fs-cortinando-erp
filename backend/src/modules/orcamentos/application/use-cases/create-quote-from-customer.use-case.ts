@@ -5,10 +5,7 @@ import {
   Curtain,
   type CreateCurtainInput,
 } from '../../domain/entities/curtain.js';
-import {
-  FinancialItem,
-  type FinancialItemInput,
-} from '../../domain/entities/financial-item.js';
+import type { FinancialItemInput } from '../../domain/entities/financial-item.js';
 import { Quote } from '../../domain/entities/quote.js';
 import { QuoteHistoryDetails } from '../../domain/history/quote-history.js';
 import { QuoteRepository } from '../../domain/repositories/quote.repository.js';
@@ -20,12 +17,12 @@ import { commercialYearFrom } from '../../domain/value-objects/quote-number.js';
 import { QuoteCustomerNotFoundError } from '../errors/quote-customer-not-found.error.js';
 import { toDiscount, type QuoteDiscountInput } from './quote-discount-input.js';
 
-// Creation input: the editable data of a first save (D79/D116). Ids and
-// sequence are not accepted; the aggregate generates them.
-export type CreatableCurtainInput = Omit<
-  CreateCurtainInput,
-  'sequence' | 'components'
-> & {
+// Creation input: the editable data of a first save (D79/D116). Curtain ids
+// and sequences are not accepted; the aggregate generates them. Components
+// stay nested under the curtain they belong to because a not-yet-created
+// curtain has no id the caller could reference; the use case flattens them
+// into the aggregate's single financial collection.
+export type CreatableCurtainInput = Omit<CreateCurtainInput, 'sequence'> & {
   components?: FinancialItemInput[];
 };
 
@@ -59,6 +56,7 @@ export class CreateQuoteFromCustomerUseCase {
 
     const now = this.clock.now();
     const year = commercialYearFrom(now);
+    const curtains = (input.curtains ?? []).map(toCurtain);
 
     return this.quotes.create(year, (quoteNumber) => ({
       quote: Quote.create({
@@ -68,10 +66,14 @@ export class CreateQuoteFromCustomerUseCase {
         installationAddress: InstallationAddress.create(
           input.installationAddress,
         ),
-        curtains: (input.curtains ?? []).map(toCurtain),
-        generalAddOns: (input.generalAddOns ?? []).map((item) =>
-          FinancialItem.create(item),
-        ),
+        curtains,
+        financialItems: [
+          ...toCurtainComponents(input.curtains ?? [], curtains),
+          ...(input.generalAddOns ?? []).map((item) => ({
+            ...item,
+            curtainId: null,
+          })),
+        ],
         discount: toDiscount(input.discount),
         commercialAdjustmentCents: input.commercialAdjustmentCents,
         notes: input.notes,
@@ -94,8 +96,19 @@ function toCurtain(input: CreatableCurtainInput): Curtain {
     height: input.height,
     fabricFactor: input.fabricFactor,
     notes: input.notes,
-    components: (input.components ?? []).map((item) =>
-      FinancialItem.create(item),
-    ),
   });
+}
+
+// Flattens the nested creation input into the aggregate's single collection,
+// binding each component to the curtain created for its input position.
+function toCurtainComponents(
+  inputs: CreatableCurtainInput[],
+  curtains: Curtain[],
+): FinancialItemInput[] {
+  return inputs.flatMap((input, index) =>
+    (input.components ?? []).map((item) => ({
+      ...item,
+      curtainId: curtains[index].id,
+    })),
+  );
 }

@@ -29,13 +29,6 @@ describe('PrismaQuoteRepository integration — transactions', () => {
       material: 'Linho',
       openingWidth: 2.6,
       height: 2.7,
-      components: [
-        FinancialItem.create({
-          name: 'Tecido',
-          quantity: 2,
-          unitPriceCents: 1_000,
-        }),
-      ],
     });
     const quote = Quote.create({
       quoteNumber,
@@ -43,12 +36,14 @@ describe('PrismaQuoteRepository integration — transactions', () => {
       createdAt,
       notes: 'Criado pelo teste',
       curtains: [curtain],
-      generalAddOns: [
-        FinancialItem.create({
-          name: 'Frete',
-          quantity: 1,
-          unitPriceCents: 5_000,
-        }),
+      financialItems: [
+        {
+          name: 'Tecido',
+          quantity: 2,
+          unitPriceCents: 1_000,
+          curtainId: curtain.id,
+        },
+        { name: 'Frete', quantity: 1, unitPriceCents: 5_000 },
       ],
     });
 
@@ -115,8 +110,8 @@ describe('PrismaQuoteRepository integration — transactions', () => {
     const stored = await prisma.quote.findUnique({
       where: { id: quote.id },
       include: {
-        curtains: { include: { components: true } },
-        generalAddOns: true,
+        curtains: true,
+        financialItems: true,
         history: true,
       },
     });
@@ -127,8 +122,14 @@ describe('PrismaQuoteRepository integration — transactions', () => {
     expect(stored?.quoteNumber).toBe('ORÇ-1601-001');
     expect(stored?.status).toBe('DRAFT');
     expect(stored?.curtains).toHaveLength(1);
-    expect(stored?.curtains[0].components).toHaveLength(1);
-    expect(stored?.generalAddOns).toHaveLength(1);
+    expect(
+      stored?.financialItems.filter(
+        (item) => item.curtainId === stored.curtains[0].id,
+      ),
+    ).toHaveLength(1);
+    expect(
+      stored?.financialItems.filter((item) => item.curtainId === null),
+    ).toHaveLength(1);
     expect(stored?.history).toHaveLength(1);
     expect(stored?.history[0].eventType).toBe('QUOTE_CREATED');
     expect(stored?.history[0].details).toEqual({
@@ -290,9 +291,11 @@ describe('PrismaQuoteRepository integration — transactions', () => {
     const other = await repository.create(1601, buildQuote);
 
     quote.applyPatch({ notes: 'Não deve persistir' });
-    quote.curtains[0].components.push(
+    quote.financialItems.push(
       FinancialItem.rehydrate({
-        id: other.curtains[0].components[0].id,
+        id: other.financialItems[0].id,
+        quoteId: quote.id,
+        curtainId: quote.curtains[0].id,
         name: 'Estrangeiro',
         quantity: 1,
         unit: null,

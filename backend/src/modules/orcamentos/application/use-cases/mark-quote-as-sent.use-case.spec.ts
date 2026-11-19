@@ -115,6 +115,7 @@ describe('MarkQuoteAsSentUseCase integration', () => {
     input: SeedQuoteInput = {},
   ): Promise<{ id: string }> {
     const id = randomUUID();
+    const curtainId = randomUUID();
     const hasCurtain = input.curtain !== null;
     const hasComponent = input.component !== null;
     const hasAddOn = input.addOn !== null;
@@ -142,31 +143,30 @@ describe('MarkQuoteAsSentUseCase integration', () => {
         curtains: hasCurtain
           ? {
               create: {
-                id: randomUUID(),
+                id: curtainId,
                 sequence: 1,
                 ...DEFAULT_CURTAIN,
                 ...input.curtain,
-                components: hasComponent
-                  ? {
-                      create: {
-                        id: randomUUID(),
-                        ...DEFAULT_COMPONENT,
-                        ...input.component,
-                      },
-                    }
-                  : undefined,
               },
             }
           : undefined,
-        generalAddOns: hasAddOn
-          ? {
-              create: {
-                id: randomUUID(),
-                ...DEFAULT_ADD_ON,
-                ...input.addOn,
-              },
-            }
-          : undefined,
+        financialItems: {
+          create: [
+            ...(hasCurtain && hasComponent
+              ? [
+                  {
+                    id: randomUUID(),
+                    curtainId,
+                    ...DEFAULT_COMPONENT,
+                    ...input.component,
+                  },
+                ]
+              : []),
+            ...(hasAddOn
+              ? [{ id: randomUUID(), ...DEFAULT_ADD_ON, ...input.addOn }]
+              : []),
+          ],
+        },
       },
     });
 

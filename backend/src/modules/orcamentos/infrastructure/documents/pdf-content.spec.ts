@@ -56,10 +56,7 @@ const INSTALLATION_ADDRESS = InstallationAddress.create({
   state: 'SP',
 });
 
-function sentinelCurtain(
-  material = 'SENTINELA-MATERIAL',
-  componentUnitPriceCents = COMPONENT_UNIT_PRICE_CENTS,
-): Curtain {
+function sentinelCurtain(material = 'SENTINELA-MATERIAL'): Curtain {
   return Curtain.create({
     room: 'Sala',
     description: 'Janela principal',
@@ -69,33 +66,49 @@ function sentinelCurtain(
     height: 4.44,
     fabricFactor: 5.5,
     notes: 'SENTINELA-NOTA-CORTINA',
-    components: [
-      FinancialItem.create({
-        name: 'SENTINELA-COMPONENTE',
-        quantity: 2.5,
-        unit: 'm',
-        unitPriceCents: componentUnitPriceCents,
-      }),
-    ],
   });
 }
 
-function sentinelQuote(overrides: Partial<QuoteSnapshot> = {}): Quote {
+interface ItemFixture {
+  id?: string;
+  curtainId?: string | null;
+  name?: string;
+  quantity?: number | null;
+  unit?: string | null;
+  unitPriceCents?: number | null;
+}
+
+type QuoteFixture = Omit<Partial<QuoteSnapshot>, 'financialItems'> & {
+  componentUnitPriceCents?: number;
+  financialItems?: ItemFixture[];
+};
+
+function sentinelQuote(overrides: QuoteFixture = {}): Quote {
+  const id = overrides.id ?? randomUUID();
+  const curtains = overrides.curtains ?? [sentinelCurtain()];
+  const items = overrides.financialItems ?? [
+    {
+      name: 'SENTINELA-COMPONENTE',
+      quantity: 2.5,
+      unit: 'm',
+      unitPriceCents:
+        overrides.componentUnitPriceCents ?? COMPONENT_UNIT_PRICE_CENTS,
+      curtainId: curtains[0]?.id ?? null,
+    },
+    {
+      name: 'SENTINELA-ADICIONAL',
+      quantity: 1,
+      unit: null,
+      unitPriceCents: ADD_ON_UNIT_PRICE_CENTS,
+      curtainId: null,
+    },
+  ];
+
   return Quote.rehydrate({
-    id: randomUUID(),
     quoteNumber: QuoteNumber.create(2026, 1),
     customerId: randomUUID(),
     status: QuoteStatus.SENT,
     installationAddress: INSTALLATION_ADDRESS,
-    curtains: [sentinelCurtain()],
-    generalAddOns: [
-      FinancialItem.create({
-        name: 'SENTINELA-ADICIONAL',
-        quantity: 1,
-        unit: null,
-        unitPriceCents: ADD_ON_UNIT_PRICE_CENTS,
-      }),
-    ],
     discount: Discount.percentage(37),
     commercialAdjustmentCents: ADJUSTMENT_CENTS,
     notes: 'SENTINELA-NOTA-ORCAMENTO',
@@ -108,6 +121,19 @@ function sentinelQuote(overrides: Partial<QuoteSnapshot> = {}): Quote {
     scheduledInstallationAt: null,
     completedAt: null,
     ...overrides,
+    id,
+    curtains,
+    financialItems: items.map((item) =>
+      FinancialItem.rehydrate({
+        id: item.id ?? randomUUID(),
+        quoteId: id,
+        curtainId: item.curtainId ?? null,
+        name: item.name ?? 'SENTINELA-COMPONENTE',
+        quantity: item.quantity ?? 1,
+        unit: item.unit ?? null,
+        unitPriceCents: item.unitPriceCents ?? 1_000,
+      }),
+    ),
   });
 }
 
@@ -168,7 +194,7 @@ describe('generated PDF content — commercial quote', () => {
   it('reflects component changes in the consolidated total', async () => {
     async function renderWithComponentPrice(unitPriceCents: number) {
       const quote = sentinelQuote({
-        curtains: [sentinelCurtain('SENTINELA-MATERIAL', unitPriceCents)],
+        componentUnitPriceCents: unitPriceCents,
       });
       const bytes = await renderer().renderCommercialPdf(
         toCommercialPdfProjection({

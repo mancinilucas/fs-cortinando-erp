@@ -135,7 +135,7 @@ function makeQuote(overrides: Partial<QuoteSnapshot> = {}): Quote {
     status: QuoteStatus.CONFIRMED,
     installationAddress: null,
     curtains: [makeCurtain()],
-    generalAddOns: [],
+    financialItems: [],
     discount: Discount.noDiscount(),
     commercialAdjustmentCents: null,
     notes: null,

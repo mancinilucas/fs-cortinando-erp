@@ -180,7 +180,7 @@ function makeQuote(overrides: Partial<QuoteSnapshot> = {}): Quote {
     status: QuoteStatus.SENT,
     installationAddress: null,
     curtains: [Curtain.create({ room: 'Sala' })],
-    generalAddOns: [],
+    financialItems: [],
     discount: Discount.noDiscount(),
     commercialAdjustmentCents: null,
     notes: null,

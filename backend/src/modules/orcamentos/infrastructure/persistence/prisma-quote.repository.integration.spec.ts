@@ -73,7 +73,7 @@ describe('PrismaQuoteRepository integration — loading', () => {
     expect(quote?.customerId).toBe(customerId);
     expect(quote?.status).toBe('DRAFT');
     expect(quote?.curtains).toEqual([]);
-    expect(quote?.generalAddOns).toEqual([]);
+    expect(quote?.financialItems).toEqual([]);
     expect(quote?.installationAddress).toBeNull();
   });
 
@@ -98,26 +98,28 @@ describe('PrismaQuoteRepository integration — loading', () => {
     ]);
   });
 
-  it('loads multiple components of a curtain', async () => {
+  it('loads multiple items associated with a curtain', async () => {
     const componentId = randomUUID();
+    const curtainId = randomUUID();
     const record = await prisma.quote.create({
       data: quoteData({
         curtains: {
+          create: [{ id: curtainId, sequence: 1 }],
+        },
+        financialItems: {
           create: [
             {
-              sequence: 1,
-              components: {
-                create: [
-                  {
-                    id: componentId,
-                    name: 'Tecido',
-                    quantity: '8.050000',
-                    unit: 'm',
-                    unitPriceCents: 3_000,
-                  },
-                  { name: 'Mão de obra', quantity: '1.000000' },
-                ],
-              },
+              id: componentId,
+              curtainId,
+              name: 'Tecido',
+              quantity: '8.050000',
+              unit: 'm',
+              unitPriceCents: 3_000,
+            },
+            {
+              curtainId,
+              name: 'Mão de obra',
+              quantity: '1.000000',
             },
           ],
         },
@@ -125,7 +127,7 @@ describe('PrismaQuoteRepository integration — loading', () => {
     });
 
     const quote = await repository.findById(record.id);
-    const components = quote?.curtains[0].components ?? [];
+    const components = quote?.financialItemsForCurtain(curtainId) ?? [];
 
     expect(components).toHaveLength(2);
     expect(components[0].id).toBe(componentId);
@@ -136,10 +138,10 @@ describe('PrismaQuoteRepository integration — loading', () => {
     expect(components[1].unitPriceCents).toBeNull();
   });
 
-  it('loads general add-ons', async () => {
+  it('loads general items of the composition', async () => {
     const record = await prisma.quote.create({
       data: quoteData({
-        generalAddOns: {
+        financialItems: {
           create: [
             { name: 'Frete', quantity: '1.000000', unitPriceCents: 5_000 },
             { name: 'Instalação', quantity: '2.000000', unitPriceCents: 7_500 },
@@ -150,13 +152,13 @@ describe('PrismaQuoteRepository integration — loading', () => {
 
     const quote = await repository.findById(record.id);
 
-    expect(quote?.generalAddOns).toHaveLength(2);
-    expect(quote?.generalAddOns.map((addOn) => addOn.name)).toEqual([
+    expect(quote?.generalFinancialItems).toHaveLength(2);
+    expect(quote?.generalFinancialItems.map((item) => item.name)).toEqual([
       'Frete',
       'Instalação',
     ]);
-    expect(quote?.generalAddOns[1].quantity).toBe(2);
-    expect(quote?.generalAddOns[1].unitPriceCents).toBe(7_500);
+    expect(quote?.generalFinancialItems[1].quantity).toBe(2);
+    expect(quote?.generalFinancialItems[1].unitPriceCents).toBe(7_500);
   });
 
   it('loads the installation address', async () => {

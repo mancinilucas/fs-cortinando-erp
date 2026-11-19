@@ -74,24 +74,25 @@ describe('UpdateQuoteUseCase integration', () => {
             borderValue: 0.15,
             height: 2.6,
             fabricFactor: 3.5,
-            components: {
-              create: {
-                id: seeded.componentId,
-                name: 'Tecido',
-                quantity: 8.05,
-                unit: 'm',
-                unitPriceCents: 3_000,
-              },
-            },
           },
         },
-        generalAddOns: {
-          create: {
-            id: seeded.addOnId,
-            name: 'Frete',
-            quantity: 1,
-            unitPriceCents: 5_000,
-          },
+        financialItems: {
+          create: [
+            {
+              id: seeded.componentId,
+              curtainId: seeded.curtainId,
+              name: 'Tecido',
+              quantity: 8.05,
+              unit: 'm',
+              unitPriceCents: 3_000,
+            },
+            {
+              id: seeded.addOnId,
+              name: 'Frete',
+              quantity: 1,
+              unitPriceCents: 5_000,
+            },
+          ],
         },
       },
     });
@@ -160,16 +161,17 @@ describe('UpdateQuoteUseCase integration', () => {
 
     const children = await prisma.curtain.findMany({
       where: { quoteId: seeded.id },
-      include: { components: true },
     });
-    const addOns = await prisma.generalAddOn.findMany({
+    const items = await prisma.financialItem.findMany({
       where: { quoteId: seeded.id },
+      orderBy: { name: 'asc' },
     });
 
     expect(children).toHaveLength(1);
     expect(children[0].id).toBe(seeded.curtainId);
-    expect(children[0].components[0].id).toBe(seeded.componentId);
-    expect(addOns[0].id).toBe(seeded.addOnId);
+    expect(items.map((item) => item.id).sort()).toEqual(
+      [seeded.componentId, seeded.addOnId].sort(),
+    );
   });
 
   it('edits only the commercial adjustment when it is the only field', async () => {
@@ -253,20 +255,13 @@ describe('UpdateQuoteUseCase integration', () => {
     });
   });
 
-  it('reconciles curtains, components and add-ons by id', async () => {
+  it('reconciles curtains and the financial collection by id', async () => {
     const seeded = await seedQuote();
 
     const quote = await useCase.execute({
       id: seeded.id,
       curtains: [
-        {
-          id: seeded.curtainId,
-          height: 2.65,
-          components: [
-            { id: seeded.componentId, name: 'Linho B' },
-            { name: 'Mão de obra', quantity: 1, unitPriceCents: 20_000 },
-          ],
-        },
+        { id: seeded.curtainId, height: 2.65 },
         {
           room: 'Quarto',
           material: 'Voil',
@@ -274,38 +269,53 @@ describe('UpdateQuoteUseCase integration', () => {
           height: 2,
         },
       ],
-      generalAddOns: [{ id: seeded.addOnId, quantity: 2 }],
+      financialItems: [
+        { id: seeded.componentId, name: 'Linho B' },
+        {
+          name: 'Mão de obra',
+          curtainId: seeded.curtainId,
+          quantity: 1,
+          unitPriceCents: 20_000,
+        },
+        { id: seeded.addOnId, quantity: 2 },
+      ],
     });
 
     expect(quote.curtains).toHaveLength(2);
-    expect(quote.curtains[0].components).toHaveLength(2);
+    expect(
+      quote.financialItemsForCurtain(seeded.curtainId).map((item) => item.name),
+    ).toContain('Mão de obra');
 
     const stored = await prisma.quote.findUniqueOrThrow({
       where: { id: seeded.id },
       include: {
-        curtains: {
-          orderBy: { sequence: 'asc' },
-          include: { components: { orderBy: { name: 'asc' } } },
-        },
-        generalAddOns: true,
+        curtains: { orderBy: { sequence: 'asc' } },
+        financialItems: true,
       },
     });
     const history = await historyOf(seeded.id);
+    const salaItems = stored.financialItems.filter(
+      (item) => item.curtainId === seeded.curtainId,
+    );
 
     expect(stored.curtains).toHaveLength(2);
     expect(stored.curtains[0].id).toBe(seeded.curtainId);
     expect(Number(stored.curtains[0].height)).toBe(2.65);
-    expect(stored.curtains[0].components.map((item) => item.id)).toContain(
-      seeded.componentId,
+    expect(salaItems.map((item) => item.id)).toContain(seeded.componentId);
+    expect(salaItems.map((item) => item.name).sort()).toEqual(
+      ['Linho B', 'Mão de obra'].sort(),
     );
-    expect(stored.curtains[0].components.map((item) => item.name)).toEqual([
-      'Linho B',
-      'Mão de obra',
-    ]);
     expect(stored.curtains[1].sequence).toBe(2);
     expect(stored.curtains[1].room).toBe('Quarto');
-    expect(Number(stored.generalAddOns[0].quantity)).toBe(2);
-    expect(stored.generalAddOns[0].id).toBe(seeded.addOnId);
+    expect(
+      stored.financialItems.filter((item) => item.curtainId === null),
+    ).toHaveLength(1);
+    expect(
+      Number(
+        stored.financialItems.find((item) => item.id === seeded.addOnId)
+          ?.quantity,
+      ),
+    ).toBe(2);
 
     expect(history).toHaveLength(1);
     expect(history[0].eventType).toBe('QUOTE_EDITED');
@@ -350,6 +360,79 @@ describe('UpdateQuoteUseCase integration', () => {
     });
   });
 
+  it('moves an item to another curtain preserving its id', async () => {
+    const seeded = await seedQuote();
+    const otherCurtainId = randomUUID();
+
+    await prisma.curtain.create({
+      data: {
+        id: otherCurtainId,
+        quoteId: seeded.id,
+        sequence: 2,
+        room: 'Quarto',
+      },
+    });
+
+    const quote = await useCase.execute({
+      id: seeded.id,
+      financialItems: [
+        { id: seeded.componentId, curtainId: otherCurtainId },
+        { id: seeded.addOnId },
+      ],
+    });
+
+    expect(quote.financialItemsForCurtain(seeded.curtainId)).toEqual([]);
+    expect(
+      quote.financialItemsForCurtain(otherCurtainId).map((item) => item.id),
+    ).toEqual([seeded.componentId]);
+    expect(quote.generalFinancialItems.map((item) => item.id)).toEqual([
+      seeded.addOnId,
+    ]);
+
+    const stored = await prisma.financialItem.findUniqueOrThrow({
+      where: { id: seeded.componentId },
+    });
+
+    expect(stored.curtainId).toBe(otherCurtainId);
+    expect(stored.quoteId).toBe(seeded.id);
+  });
+
+  it('moves an item between a curtain and the general composition', async () => {
+    const seeded = await seedQuote();
+
+    const general = await useCase.execute({
+      id: seeded.id,
+      financialItems: [
+        { id: seeded.componentId, curtainId: null },
+        { id: seeded.addOnId },
+      ],
+    });
+
+    expect(general.generalFinancialItems.map((item) => item.id).sort()).toEqual(
+      [seeded.componentId, seeded.addOnId].sort(),
+    );
+
+    const moved = await prisma.financialItem.findUniqueOrThrow({
+      where: { id: seeded.componentId },
+    });
+
+    expect(moved.curtainId).toBeNull();
+
+    const back = await useCase.execute({
+      id: seeded.id,
+      financialItems: [
+        { id: seeded.componentId, curtainId: seeded.curtainId },
+        { id: seeded.addOnId },
+      ],
+    });
+    const restored = await prisma.financialItem.findUniqueOrThrow({
+      where: { id: seeded.componentId },
+    });
+
+    expect(back.financialItemsForCurtain(seeded.curtainId)).toHaveLength(1);
+    expect(restored.curtainId).toBe(seeded.curtainId);
+  });
+
   it('does not save or write history when the patch changes nothing', async () => {
     const seeded = await seedQuote({ notes: 'Original' });
 
@@ -378,18 +461,17 @@ describe('UpdateQuoteUseCase integration', () => {
           borderValue: 0.15,
           height: 2.6,
           fabricFactor: 3.5,
-          components: [
-            {
-              id: seeded.componentId,
-              name: 'Tecido',
-              quantity: 8.05,
-              unit: 'm',
-              unitPriceCents: 3_000,
-            },
-          ],
         },
       ],
-      generalAddOns: [
+      financialItems: [
+        {
+          id: seeded.componentId,
+          curtainId: seeded.curtainId,
+          name: 'Tecido',
+          quantity: 8.05,
+          unit: 'm',
+          unitPriceCents: 3_000,
+        },
         {
           id: seeded.addOnId,
           name: 'Frete',
@@ -411,18 +493,17 @@ describe('UpdateQuoteUseCase integration', () => {
   it('removes omitted children when an empty collection is sent', async () => {
     const seeded = await seedQuote({ notes: 'Original' });
 
-    await useCase.execute({ id: seeded.id, curtains: [], generalAddOns: [] });
+    await useCase.execute({
+      id: seeded.id,
+      curtains: [],
+      financialItems: [],
+    });
 
     expect(await prisma.curtain.count({ where: { quoteId: seeded.id } })).toBe(
       0,
     );
     expect(
-      await prisma.financialComponent.count({
-        where: { curtainId: seeded.curtainId },
-      }),
-    ).toBe(0);
-    expect(
-      await prisma.generalAddOn.count({ where: { quoteId: seeded.id } }),
+      await prisma.financialItem.count({ where: { quoteId: seeded.id } }),
     ).toBe(0);
 
     const stored = await prisma.quote.findUniqueOrThrow({
@@ -434,6 +515,14 @@ describe('UpdateQuoteUseCase integration', () => {
     expect(history).toHaveLength(1);
     expect(history[0].details).toEqual({
       changes: [
+        {
+          field: 'component',
+          previous: 'Tecido',
+          next: null,
+          curtainSequence: 1,
+          curtainRoom: 'Sala',
+          componentName: 'Tecido',
+        },
         {
           field: 'curtain',
           previous: 'Sala',
@@ -466,15 +555,15 @@ describe('UpdateQuoteUseCase integration', () => {
 
     const curtains = await prisma.curtain.findMany({
       where: { quoteId: seeded.id },
-      include: { components: true },
+    });
+    const items = await prisma.financialItem.findMany({
+      where: { quoteId: seeded.id },
     });
     const history = await historyOf(seeded.id);
 
     expect(curtains).toHaveLength(1);
     expect(curtains[0].id).toBe(seeded.curtainId);
-    expect(curtains[0].components.map((item) => item.id)).toEqual([
-      seeded.componentId,
-    ]);
+    expect(items.map((item) => item.id)).toContain(seeded.componentId);
     expect(history).toHaveLength(1);
     expect(history[0].details).toEqual({
       changes: [
@@ -510,7 +599,9 @@ describe('UpdateQuoteUseCase integration', () => {
     const curtains = await prisma.curtain.findMany({
       where: { quoteId: seeded.id },
       orderBy: { sequence: 'asc' },
-      include: { components: true },
+    });
+    const items = await prisma.financialItem.findMany({
+      where: { quoteId: seeded.id },
     });
     const history = await historyOf(seeded.id);
 
@@ -519,9 +610,7 @@ describe('UpdateQuoteUseCase integration', () => {
       seeded.curtainId,
     ]);
     expect(curtains.map((curtain) => curtain.sequence)).toEqual([1, 2]);
-    expect(curtains[1].components.map((item) => item.id)).toEqual([
-      seeded.componentId,
-    ]);
+    expect(items.map((item) => item.id)).toContain(seeded.componentId);
     expect(history).toHaveLength(1);
     expect(history[0].details).toEqual({
       changes: [
@@ -557,12 +646,16 @@ describe('UpdateQuoteUseCase integration', () => {
     await expect(
       useCase.execute({
         id: seeded.id,
-        curtains: [
-          {
-            id: seeded.curtainId,
-            components: [{ id: randomUUID(), name: 'X' }],
-          },
+        financialItems: [
+          { id: seeded.componentId, curtainId: randomUUID(), name: 'X' },
         ],
+      }),
+    ).rejects.toBeInstanceOf(UnknownQuoteItemError);
+
+    await expect(
+      useCase.execute({
+        id: seeded.id,
+        financialItems: [{ id: randomUUID(), name: 'X' }],
       }),
     ).rejects.toBeInstanceOf(UnknownQuoteItemError);
 
@@ -572,15 +665,16 @@ describe('UpdateQuoteUseCase integration', () => {
 
     const stored = await prisma.quote.findUniqueOrThrow({
       where: { id: seeded.id },
-      include: { curtains: { include: { components: true } } },
+      include: { curtains: true },
+    });
+    const items = await prisma.financialItem.findMany({
+      where: { quoteId: seeded.id },
     });
 
     expect(stored.notes).toBe('Original');
     expect(stored.curtains).toHaveLength(1);
     expect(stored.curtains[0].id).toBe(seeded.curtainId);
-    expect(stored.curtains[0].components.map((item) => item.id)).toEqual([
-      seeded.componentId,
-    ]);
+    expect(items.map((item) => item.id)).toContain(seeded.componentId);
     expect(await historyOf(seeded.id)).toHaveLength(0);
   });
 

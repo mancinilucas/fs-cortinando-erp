@@ -51,6 +51,7 @@ describe('SearchQuotesQuery integration', () => {
 
   async function seedQuote(input: SeedInput): Promise<string> {
     const id = randomUUID();
+    const curtainId = randomUUID();
     const quoteNumber = nextNumber();
 
     ids.set(input.key, id);
@@ -73,26 +74,25 @@ describe('SearchQuotesQuery integration', () => {
           input.components === undefined
             ? undefined
             : {
-                create: [
-                  {
-                    sequence: 1,
-                    room: 'Sala',
-                    components: { create: input.components },
-                  },
-                ],
+                create: [{ id: curtainId, sequence: 1, room: 'Sala' }],
               },
-        generalAddOns:
-          input.addOnCents === undefined
-            ? undefined
-            : {
-                create: [
+        financialItems: {
+          create: [
+            ...(input.components ?? []).map((component) => ({
+              ...component,
+              curtainId,
+            })),
+            ...(input.addOnCents === undefined
+              ? []
+              : [
                   {
                     name: 'Instalação',
                     quantity: 1,
                     unitPriceCents: input.addOnCents,
                   },
-                ],
-              },
+                ]),
+          ],
+        },
       },
     });
 
