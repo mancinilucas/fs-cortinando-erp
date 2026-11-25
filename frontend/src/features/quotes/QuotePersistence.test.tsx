@@ -81,11 +81,14 @@ test('allows the first save of an empty draft as an empty body', async () => {
   await waitFor(() => expect(screen.getByLabelText('Location')).toHaveTextContent('/orcamentos/quote-1/editar'))
   expect(post).toHaveBeenCalledOnce()
 })
-test('creates nested children without ids, sequences or derived fields', async () => {
+test('creates a unified financial collection without ids, sequences or derived fields', async () => {
   const post = vi.fn(async ({ request }: { request: Request }) => {
-    const body = await request.json() as { curtains: Array<Record<string, unknown>> }
-    expect(body.curtains).toEqual([{ room: 'Sala', description: null, material: null, notes: null, openingWidth: null, borderValue: 0.15, height: null, fabricFactor: 3.5,
-      components: [{ name: 'Tecido', quantity: 1.123456, unit: null, unitPriceCents: 29 }] }])
+    const body = await request.json() as { curtains: Array<Record<string, unknown>>; financialItems: Array<Record<string, unknown>> }
+    const [curtain] = body.curtains
+    const ref = curtain.clientRef
+    expect(typeof ref).toBe('string')
+    expect(curtain).toEqual({ clientRef: ref, room: 'Sala', description: null, material: null, notes: null, openingWidth: null, borderValue: 0.15, height: null, fabricFactor: 3.5 })
+    expect(body.financialItems).toEqual([{ curtainRef: ref, name: 'Tecido', quantity: 1.123456, unit: null, unitPriceCents: 29 }])
     return HttpResponse.json(quoteFixture, { status: 201 })
   })
   server.use(http.post('*/clientes/customer-1/orcamentos', post))
@@ -110,14 +113,14 @@ test('PATCH preserves untouched children when editing a scalar and skips unchang
   await screen.findByText('Rascunho salvo.')
   expect(screen.getByLabelText('Nome do componente (obrigatório)')).toHaveValue('Tecido')
 })
-test('PATCH sends the complete altered collection with retained ids and does not accidentally remove siblings', async () => {
-  const second = { ...quoteFixture.curtains[0], id: 'curtain-2', room: 'Quarto', components: [] }
-  const current = { ...quoteFixture, curtains: [...quoteFixture.curtains, second], generalAddOns: [{ id: 'addon-1', name: 'Frete', quantity: 1, unit: null, unitPriceCents: 100, totalCents: 100 }] }
+test('PATCH sends the complete altered curtain collection with retained ids and does not accidentally remove siblings', async () => {
+  const second = { ...quoteFixture.curtains[0], id: 'curtain-2', room: 'Quarto' }
+  const current = { ...quoteFixture, curtains: [...quoteFixture.curtains, second], financialItems: [...quoteFixture.financialItems,
+    { id: 'addon-1', curtainId: null, name: 'Frete', quantity: 1, unit: null, unitPriceCents: 100, totalCents: 100 }] }
   const patch = vi.fn(async ({ request }: { request: Request }) => {
-    const body = await request.json() as { curtains: Array<{ id: string; room: string; components: Array<{ id: string }> }> }
+    const body = await request.json() as { curtains: Array<{ id: string; room: string }> }
     expect(Object.keys(body)).toEqual(['curtains'])
     expect(body.curtains.map((curtain) => curtain.id)).toEqual(['curtain-1', 'curtain-2'])
-    expect(body.curtains[0].components[0].id).toBe('component-1')
     expect(body.curtains[1].room).toBe('Quarto')
     return HttpResponse.json(current)
   })
@@ -127,12 +130,11 @@ test('PATCH sends the complete altered collection with retained ids and does not
   await screen.findByText('Rascunho salvo.')
   expect(screen.getByLabelText('Nome do adicional (obrigatório)')).toHaveValue('Frete')
 })
-test('PATCH clears only the removed components collection while keeping curtain identity', async () => {
+test('PATCH clears only the removed financial collection while keeping curtain identity', async () => {
   const patch = vi.fn(async ({ request }: { request: Request }) => {
-    const body = await request.json() as { curtains: Array<{ id: string; components: unknown[] }> }
-    expect(body.curtains).toHaveLength(1)
-    expect(body.curtains[0]).toMatchObject({ id: 'curtain-1', components: [] })
-    return HttpResponse.json({ ...quoteFixture, curtains: [{ ...quoteFixture.curtains[0], components: [] }] })
+    const body = await request.json() as { curtains?: unknown; financialItems: unknown[] }
+    expect(body).toEqual({ financialItems: [] })
+    return HttpResponse.json({ ...quoteFixture, financialItems: [] })
   })
   server.use(http.patch('*/orcamentos/quote-1', patch))
   mount('/orcamentos/quote-1/editar'); await ready()

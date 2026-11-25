@@ -23,6 +23,7 @@ export function QuoteDetailPage() {
   const missing = query.error instanceof ApiError && query.error.status === 404
   const customerMissing = customer.error instanceof ApiError && customer.error.status === 404
   const quote = query.data
+  const generalItems = quote?.financialItems.filter((item) => item.curtainId === null) ?? []
   return <div className="space-y-6">
     <Link to="/orcamentos" className="inline-flex min-h-11 items-center text-brand-navy underline">Voltar</Link>
     {query.isPending ? <LoadingState label="Carregando orçamento…" />
@@ -43,10 +44,10 @@ export function QuoteDetailPage() {
               : <ErrorState message={customer.error instanceof ApiError ? customer.error.message : GENERIC_ERROR_MESSAGE} onRetry={() => { void customer.refetch() }} />}
           </section>
           <InstallationSummary key={`installation-${quote.id}`} quote={quote} />
-          <QuoteCurtains curtains={quote.curtains} />
+          <QuoteCurtains curtains={quote.curtains} financialItems={quote.financialItems} />
           <section aria-labelledby="quote-additions-title" className={section}>
             <h2 id="quote-additions-title" className="text-section-title font-semibold">Adicionais gerais</h2>
-            {quote.generalAddOns.length === 0 ? <p className="text-text-secondary">Nenhum adicional geral cadastrado.</p> : <FinancialItems items={quote.generalAddOns} />}
+            {generalItems.length === 0 ? <p className="text-text-secondary">Nenhum adicional geral cadastrado.</p> : <FinancialItems items={generalItems} />}
           </section>
           <section aria-labelledby="quote-commercial-title" className={section}>
             <h2 id="quote-commercial-title" className="text-section-title font-semibold">Condições comerciais</h2>

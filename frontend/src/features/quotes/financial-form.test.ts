@@ -1,19 +1,33 @@
 import { expect, test } from 'vitest'
-import { addOnsFormPayload, discountFormPayload, financialFormDefaults, financialFormSchema } from './financial-form'
+import {
+  discountFormPayload, financialFormDefaults, financialFormSchema, financialItemFormDefaults,
+  financialItemFormPayload, financialItemFormSchema,
+} from './financial-form'
 import { quoteFormDefaults, quoteFormPayload } from './quote-form'
+import { curtainFormDefaults } from './curtain-form'
 import { quoteFixture } from './fixtures.test-support'
 
-test('financial inputs start without implicit add-ons or adjustment', () => {
+test('financial inputs start without adjustment and with no discount', () => {
   const values = financialFormDefaults()
-  expect(values.generalAddOns).toEqual([])
   expect(values.commercialAdjustment).toBe('')
   expect(discountFormPayload(values)).toEqual({ type: 'NO_DISCOUNT', percentage: null, fixedAmountCents: null })
 })
-test('maps signed cents and add-on ids without totals or generated field-array keys', () => {
-  const values = financialFormDefaults({ ...quoteFixture, commercialAdjustmentCents: -1,
-    generalAddOns: [{ id: 'add-on-1', name: 'Frete', quantity: 1.123456, unit: 'un', unitPriceCents: 29, totalCents: 999 }] })
+test('maps signed cents and financial item identity without totals or generated field-array keys', () => {
+  const item = { id: 'add-on-1', curtainId: null, name: 'Frete', quantity: 1.123456, unit: 'un', unitPriceCents: 29, totalCents: 999 }
+  expect(financialItemFormDefaults(item)).toEqual({ serverId: 'add-on-1', curtainKey: null, name: 'Frete', quantity: '1,123456', unit: 'un', unitPrice: '0,29' })
+  const curtainItem = financialItemFormDefaults({ ...item, curtainId: 'curtain-1' })
+  expect(curtainItem.curtainKey).toBe('curtain-1')
+  const values = financialFormDefaults({ ...quoteFixture, commercialAdjustmentCents: -1 })
   expect(values.commercialAdjustment).toBe('-0,01')
-  expect(addOnsFormPayload(values)).toEqual([{ id: 'add-on-1', name: 'Frete', quantity: 1.123456, unit: 'un', unitPriceCents: 29 }])
+})
+test('associates items with the general composition, an existing curtain or a new curtain', () => {
+  const item = { name: 'Frete', quantity: '1', unit: '', unitPrice: '10,00' }
+  const existing = { ...curtainFormDefaults(), serverId: 'curtain-1' }
+  expect(financialItemFormPayload({ ...item, curtainKey: null }, null)).toMatchObject({ curtainId: null, name: 'Frete', unitPriceCents: 1000 })
+  expect(financialItemFormPayload({ ...item, curtainKey: 'curtain-1' }, existing)).toMatchObject({ curtainId: 'curtain-1' })
+  const fresh = curtainFormDefaults()
+  expect(financialItemFormPayload({ ...item, curtainKey: fresh.clientRef! }, fresh)).toMatchObject({ curtainRef: fresh.clientRef })
+  expect(financialItemFormPayload({ ...item, serverId: 'item-1', curtainKey: 'curtain-1' }, existing)).toMatchObject({ id: 'item-1', curtainId: 'curtain-1' })
 })
 test('sends only the active discount value and ignores disabled stale text', () => {
   const values = { ...financialFormDefaults(), discountType: 'PERCENTAGE' as const, discountPercentage: '12,34', discountFixedAmount: 'invalid' }
@@ -32,15 +46,23 @@ test.each(['', '0', '-1', '0,001', '21474836,48'])('rejects invalid fixed discou
 test.each(['-21474836,48', '21474836,47', '-0,01', '+1,13', '0', ''])('accepts signed adjustment %s within the HTTP contract', (commercialAdjustment) => {
   expect(financialFormSchema.safeParse({ ...financialFormDefaults(), commercialAdjustment }).success).toBe(true)
 })
-test('keeps untouched financial fields out of payload, clears adjustment with null and sends explicit empty add-ons', () => {
-  const baseline = quoteFormDefaults({ ...quoteFixture, commercialAdjustmentCents: -1,
-    generalAddOns: [{ id: 'a', name: 'Frete', quantity: null, unit: null, unitPriceCents: null, totalCents: null }] })
+test('keeps untouched financial fields out of payload and sends the complete collection when one item changes', () => {
+  const baseline = quoteFormDefaults(quoteFixture)
   const unchanged = quoteFormPayload({ ...baseline, notes: 'changed' }, baseline)
-  expect(unchanged).not.toHaveProperty('generalAddOns')
+  expect(unchanged).not.toHaveProperty('financialItems')
   expect(unchanged).not.toHaveProperty('discount')
   expect(unchanged).not.toHaveProperty('commercialAdjustmentCents')
-  const changed = quoteFormPayload({ ...baseline, generalAddOns: [], commercialAdjustment: '' }, baseline)
-  expect(changed).toMatchObject({ generalAddOns: [], commercialAdjustmentCents: null })
+  const added = { ...baseline, financialItems: [
+    ...baseline.financialItems,
+    { curtainKey: null, name: 'Frete', quantity: '1', unit: 'un', unitPrice: '10,00' },
+  ] }
+  const changed = quoteFormPayload(added, baseline)
+  expect(changed.financialItems).toEqual([
+    { id: 'component-1', curtainId: 'curtain-1', name: 'Tecido', quantity: 1.123456, unit: null, unitPriceCents: 100 },
+    { curtainId: null, name: 'Frete', quantity: 1, unit: 'un', unitPriceCents: 1000 },
+  ])
+  const adjusted = quoteFormDefaults({ ...quoteFixture, commercialAdjustmentCents: -1 })
+  expect(quoteFormPayload({ ...adjusted, commercialAdjustment: '' }, adjusted)).toMatchObject({ commercialAdjustmentCents: null })
 })
 test('no-discount clears a previously fixed discount and excludes inactive values', () => {
   const baseline = quoteFormDefaults({ ...quoteFixture, discount: { type: 'FIXED_AMOUNT', percentage: null, fixedAmountCents: 500 } })
@@ -51,11 +73,12 @@ test.each([
   { quantity: '0', unitPrice: '1' }, { quantity: '-1', unitPrice: '1' },
   { quantity: '1,1234567', unitPrice: '1' }, { quantity: '1', unitPrice: '0' },
   { quantity: '1', unitPrice: '-1' }, { quantity: '1', unitPrice: '0,001' },
-])('rejects invalid additional quantity or price %#', (fields) => {
-  expect(financialFormSchema.safeParse({ ...financialFormDefaults(), generalAddOns: [{ name: 'Frete', unit: '', ...fields }] }).success).toBe(false)
+])('rejects invalid financial item quantity or price %#', (fields) => {
+  expect(financialItemFormSchema.safeParse({ curtainKey: null, name: 'Frete', unit: '', ...fields }).success).toBe(false)
 })
-test('allows incomplete draft add-ons with a name and accepts 100 percent without a local subtotal gate', () => {
-  const values = { ...financialFormDefaults(), discountType: 'PERCENTAGE', discountPercentage: '100', generalAddOns: [{ name: 'Frete', quantity: '', unit: '', unitPrice: '' }] }
-  expect(financialFormSchema.safeParse(values).success).toBe(true)
+test('allows incomplete draft items with a name and requires the name', () => {
+  expect(financialItemFormSchema.safeParse({ curtainKey: null, name: 'Frete', quantity: '', unit: '', unitPrice: '' }).success).toBe(true)
+  expect(financialItemFormSchema.safeParse({ curtainKey: null, name: ' ', quantity: '', unit: '', unitPrice: '' }).success).toBe(false)
+  expect(financialFormSchema.safeParse({ ...financialFormDefaults(), discountType: 'PERCENTAGE', discountPercentage: '100' }).success).toBe(true)
   expect(financialFormSchema.safeParse({ ...financialFormDefaults(), discountType: 'FIXED_AMOUNT', discountFixedAmount: '21474836,47' }).success).toBe(true)
 })

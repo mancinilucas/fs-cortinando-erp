@@ -26,7 +26,7 @@ test('renders all editable fields and server-derived values without recalculatin
   expect(within(curtain).getByText('Quantidade de tecido salva: 8,765 m')).toBeVisible()
   for (const label of ['Ambiente', 'Descrição', 'Material', 'Borda (m)', 'Altura (m)', 'Fator de tecido', 'Observações da cortina']) expect(within(curtain).getByLabelText(label)).toBeVisible()
 })
-test('adds and removes curtains and sends an empty array after removing the last persisted one', async () => {
+test('adds and removes curtains and sends empty collections after removing the last persisted one', async () => {
   const onSave = mount()
   fireEvent.click(screen.getByRole('button', { name: 'Adicionar cortina' }))
   expect(curtains()).toHaveLength(2)
@@ -34,11 +34,12 @@ test('adds and removes curtains and sends an empty array after removing the last
   fireEvent.click(within(curtains()[0]).getByRole('button', { name: 'Remover cortina' }))
   expect(screen.getByText('Nenhuma cortina adicionada.')).toBeVisible()
   save(); await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
-  expect(onSave.mock.calls[0][0]).toMatchObject({ curtains: [] })
+  expect(onSave.mock.calls[0][0]).toMatchObject({ curtains: [], financialItems: [] })
 })
-test('reorders curtains without mixing child values or persisted identities', async () => {
-  const second = { ...quoteFixture.curtains[0], id: 'curtain-2', room: 'Quarto', components: [{ ...quoteFixture.curtains[0].components[0], id: 'component-2', name: 'Trilho' }] }
-  const onSave = mount({ ...quoteFixture, curtains: [...quoteFixture.curtains, second] })
+test('reorders curtains and keeps each financial item associated with its curtain', async () => {
+  const second = { ...quoteFixture.curtains[0], id: 'curtain-2', room: 'Quarto' }
+  const secondItem = { ...quoteFixture.financialItems[0], id: 'component-2', curtainId: 'curtain-2', name: 'Trilho' }
+  const onSave = mount({ ...quoteFixture, curtains: [...quoteFixture.curtains, second], financialItems: [...quoteFixture.financialItems, secondItem] })
   fireEvent.change(within(curtains()[0]).getByLabelText('Ambiente'), { target: { value: 'Sala editada' } })
   fireEvent.click(within(curtains()[1]).getByRole('button', { name: 'Subir cortina' }))
   expect(within(curtains()[0]).getByLabelText('Ambiente')).toHaveValue('Quarto')
@@ -47,8 +48,9 @@ test('reorders curtains without mixing child values or persisted identities', as
   save(); await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
   const payload = onSave.mock.calls[0][0]
   expect(payload.curtains?.map((curtain) => curtain.id)).toEqual(['curtain-2', 'curtain-1'])
-  expect(payload.curtains?.[0].components?.[0]).toMatchObject({ id: 'component-2', name: 'Trilho editado' })
-  expect(payload.curtains?.[1]).toMatchObject({ room: 'Sala editada', components: [{ id: 'component-1', name: 'Tecido' }] })
+  expect(payload.curtains?.[1]).toMatchObject({ id: 'curtain-1', room: 'Sala editada' })
+  expect(payload.financialItems?.find((item) => item.id === 'component-2')).toMatchObject({ curtainId: 'curtain-2', name: 'Trilho editado' })
+  expect(payload.financialItems?.find((item) => item.id === 'component-1')).toMatchObject({ curtainId: 'curtain-1', name: 'Tecido' })
 })
 test('adds, reorders and removes components while retaining ids and exact quantities/prices', async () => {
   const onSave = mount()
@@ -62,9 +64,9 @@ test('adds, reorders and removes components while retaining ids and exact quanti
   fresh = components(curtain)[0]
   expect(within(fresh).getByLabelText('Nome do componente (obrigatório)')).toHaveValue('Frete da cortina')
   save(); await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
-  expect(onSave.mock.calls[0][0].curtains?.[0].components).toEqual([
-    { name: 'Frete da cortina', quantity: 1.123456, unit: null, unitPriceCents: 29 },
-    { id: 'component-1', name: 'Tecido', quantity: 1.123456, unit: null, unitPriceCents: 100 },
+  expect(onSave.mock.calls[0][0].financialItems).toEqual([
+    { curtainId: 'curtain-1', name: 'Frete da cortina', quantity: 1.123456, unit: null, unitPriceCents: 29 },
+    { id: 'component-1', curtainId: 'curtain-1', name: 'Tecido', quantity: 1.123456, unit: null, unitPriceCents: 100 },
   ])
 })
 test('preset copies only server quantity even after local measures change and remains editable', async () => {
@@ -77,7 +79,7 @@ test('preset copies only server quantity even after local measures change and re
   expect(within(preset).getByLabelText('Preço unitário (R$)')).toHaveValue('30,00')
   fireEvent.change(within(preset).getByLabelText('Quantidade'), { target: { value: '2' } })
   save(); await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
-  expect(onSave.mock.calls[0][0].curtains?.[0].components?.[1]).toEqual({ name: 'Mão de obra', quantity: 2, unit: 'm', unitPriceCents: 3000 })
+  expect(onSave.mock.calls[0][0].financialItems?.[1]).toEqual({ curtainId: 'curtain-1', name: 'Mão de obra', quantity: 2, unit: 'm', unitPriceCents: 3000 })
 })
 test('disables the preset for new curtains and curtains without server quantity', () => {
   mount({ ...quoteFixture, curtains: [{ ...quoteFixture.curtains[0], fabricQuantity: null }] })
@@ -97,9 +99,9 @@ test('validates nested fields on submission and focuses the first invalid input'
   expect(onSave).not.toHaveBeenCalled()
 })
 test('server response refreshes identities and preset basis after save', async () => {
-  const saved = { ...quoteFixture, curtains: [{ ...quoteFixture.curtains[0], id: 'assigned', fabricQuantity: 42, components: [] }] }
+  const saved = { ...quoteFixture, curtains: [{ ...quoteFixture.curtains[0], id: 'assigned', fabricQuantity: 42 }], financialItems: [] }
   const onSave = vi.fn<(payload: QuoteFormPayload) => Promise<QuoteDetail>>(async () => saved)
-  mount({ ...quoteFixture, curtains: [] }, onSave)
+  mount({ ...quoteFixture, curtains: [], financialItems: [] }, onSave)
   fireEvent.click(screen.getByRole('button', { name: 'Adicionar cortina' }))
   save(); await screen.findByText('Rascunho salvo.')
   const curtain = curtains()[0]
@@ -107,7 +109,7 @@ test('server response refreshes identities and preset basis after save', async (
   fireEvent.click(within(curtain).getByRole('button', { name: 'Adicionar mão de obra' }))
   expect(within(components(curtain)[0]).getByLabelText('Quantidade')).toHaveValue('42')
   save(); await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2))
-  expect(onSave.mock.calls[1][0].curtains?.[0].id).toBe('assigned')
+  expect(onSave.mock.calls[1][0].financialItems?.[0]).toMatchObject({ name: 'Mão de obra', curtainId: 'assigned' })
 })
 test('removing all components explicitly clears the collection and blocks editing during save', async () => {
   let finish!: (value: QuoteDetail) => void
@@ -115,7 +117,7 @@ test('removing all components explicitly clears the collection and blocks editin
   mount(quoteFixture, onSave)
   fireEvent.click(within(components(curtains()[0])[0]).getByRole('button', { name: 'Remover componente' }))
   save(); await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
-  expect(onSave.mock.calls[0][0].curtains?.[0].components).toEqual([])
+  expect(onSave.mock.calls[0][0].financialItems).toEqual([])
   expect(screen.getByRole('button', { name: 'Adicionar cortina' })).toBeDisabled()
   await act(async () => { finish(quoteFixture) })
 })

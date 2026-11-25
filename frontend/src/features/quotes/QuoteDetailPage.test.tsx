@@ -25,7 +25,7 @@ const ready = () => screen.findByRole('region', { name: 'Resumo do orçamento' }
 test('shows server values, current customer, installation snapshot, all dates and financial totals read-only', async () => {
   server.use(http.get('*/orcamentos/quote-1', () => HttpResponse.json({ ...quoteFixture,
     notes: 'Observação interna', installationAddress: { ...quoteFixture.installationAddress, street: 'Rua do orçamento' },
-    generalAddOns: [{ id: 'add-on', name: 'Frete', quantity: 2, unit: 'un', unitPriceCents: 29, totalCents: 999 }],
+    financialItems: [...quoteFixture.financialItems, { id: 'add-on', curtainId: null, name: 'Frete', quantity: 2, unit: 'un', unitPriceCents: 29, totalCents: 999 }],
     discount: { type: 'PERCENTAGE', percentage: 12.34, fixedAmountCents: null }, commercialAdjustmentCents: -1,
   })))
   mount(); await ready()

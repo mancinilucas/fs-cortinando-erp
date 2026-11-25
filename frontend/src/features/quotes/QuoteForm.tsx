@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useFieldArray, useForm } from 'react-hook-form'
 import { ApiError } from '@/shared/api/api-error'
 import { Button } from '@/shared/components/Button'
 import { Dialog } from '@/shared/components/Dialog'
@@ -24,6 +24,7 @@ export function QuoteForm({ quote, customerAddress, onSave, onSaved }: {
   onSaved?: (quote: QuoteDetail) => void
 }) {
   const form = useForm<QuoteFormValues>({ defaultValues: quoteFormDefaults(quote), resolver: quoteFormResolver })
+  const financial = useFieldArray({ control: form.control, name: 'financialItems' })
   const toast = useToast()
   const { isDirty, isSubmitting, errors } = form.formState
   const blocker = useUnsavedChanges(isDirty)
@@ -71,8 +72,8 @@ export function QuoteForm({ quote, customerAddress, onSave, onSaved }: {
           <TextArea label="Observações" {...form.register('notes')} error={errors.notes?.message} />
         </section>
         <InstallationAddressEditor form={form} customerAddress={customerAddress} />
-        <CurtainsEditor form={form} confirmed={confirmed?.curtains} />
-        <GeneralAddOnsEditor form={form} confirmed={confirmed?.generalAddOns} />
+        <CurtainsEditor form={form} financial={financial} confirmed={confirmed?.curtains} confirmedItems={confirmed?.financialItems} />
+        <GeneralAddOnsEditor form={form} financial={financial} confirmed={confirmed?.financialItems} />
         <DiscountEditor form={form} />
       </fieldset>
       <TotalsSummary totals={confirmed?.totals} />

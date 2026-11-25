@@ -43,22 +43,26 @@ test('creates from customer context with an empty draft payload', async () => {
   }))
   await expect(api.createQuote('customer-1')).resolves.toEqual(quoteFixture)
 })
-test('write whitelist excludes system and derived fields throughout nested create payloads', async () => {
+test('write whitelist excludes system and derived fields throughout create payloads', async () => {
   server.use(http.post('*/clientes/customer-1/orcamentos', async ({ request }) => {
-    expect(await request.json()).toEqual({ curtains: [{ room: 'Sala', components: [{ name: 'Tecido', quantity: 1.123456, unitPriceCents: 100 }] }], generalAddOns: [{ name: 'Frete' }] })
+    expect(await request.json()).toEqual({
+      curtains: [{ clientRef: 'c1', room: 'Sala' }],
+      financialItems: [{ curtainRef: 'c1', name: 'Tecido', quantity: 1.123456, unitPriceCents: 100 }],
+    })
     return HttpResponse.json(quoteFixture, { status: 201 })
   }))
   await api.createQuote('customer-1', {
     id: 'injected', customerId: 'wrong', status: 'CONFIRMED', totals: quoteFixture.totals,
-    curtains: [{ id: 'ignored', sequence: 99, finalWidth: 100, fabricQuantity: 100, totalCents: 100,
-      room: 'Sala', components: [{ id: 'ignored', name: 'Tecido', quantity: 1.123456, unitPriceCents: 100, totalCents: 100 }] }],
-    generalAddOns: [{ name: 'Frete', totalCents: 100 }],
+    curtains: [{ id: 'ignored', sequence: 99, finalWidth: 100, fabricQuantity: 100, totalCents: 100, clientRef: 'c1', room: 'Sala' }],
+    financialItems: [{ id: 'ignored', curtainId: 'ignored', curtainRef: 'c1', name: 'Tecido', quantity: 1.123456, unitPriceCents: 100, totalCents: 100 }],
   } as never)
 })
-test('PATCH preserves omitted scalars, null clearing, complete array order and existing child ids', async () => {
+test('PATCH preserves omitted scalars, null clearing, complete array order and existing identities', async () => {
   const patch = { notes: null, discount: null, commercialAdjustmentCents: -123, installationAddress: { city: null }, curtains: [
-    { id: 'curtain-2', components: [] }, { id: 'curtain-1', components: [{ id: 'component-1', quantity: null }, { name: 'Novo' }] }, {},
-  ], generalAddOns: [] }
+    { id: 'curtain-2' }, { id: 'curtain-1' }, {},
+  ], financialItems: [
+    { id: 'component-1', curtainId: 'curtain-2', quantity: null }, { name: 'Novo', curtainId: 'curtain-1' },
+  ] }
   server.use(http.patch('*/orcamentos/quote-1', async ({ request }) => {
     expect(await request.json()).toEqual(patch)
     return HttpResponse.json(quoteFixture)
@@ -164,7 +168,7 @@ test('query keys separate filters and resources, preserving the customer invalid
 })
 
 test.each([
-  { generalAddOns: [{ quantity: 1 }] }, { curtains: [{ components: [{ id: 'known', name: null }] }] },
+  { financialItems: [{ quantity: 1 }] }, { financialItems: [{ name: 'X', unitPriceCents: 1.5 }] },
   { curtains: null }, { commercialAdjustmentCents: 1.5 },
 ] as const)('rejects malformed writes %# before sending a request', (payload) => {
   const fetch = vi.spyOn(globalThis, 'fetch')
@@ -173,12 +177,12 @@ test.each([
 })
 test('PATCH strips derived fields while retaining editable child identity', async () => {
   server.use(http.patch('*/orcamentos/quote-1', async ({ request }) => {
-    expect(await request.json()).toEqual({ curtains: [{ id: 'curtain-1', components: [{ id: 'component-1', unitPriceCents: null }] }] })
+    expect(await request.json()).toEqual({ curtains: [{ id: 'curtain-1' }], financialItems: [{ id: 'component-1', curtainId: null, unitPriceCents: null }] })
     return HttpResponse.json(quoteFixture)
   }))
   await api.updateQuote('quote-1', { status: 'SENT', customerId: 'wrong', expired: true,
-    curtains: [{ id: 'curtain-1', sequence: 5, finalWidth: 999, totalCents: 1,
-      components: [{ id: 'component-1', unitPriceCents: null, totalCents: 1 }] }],
+    curtains: [{ id: 'curtain-1', sequence: 5, finalWidth: 999, totalCents: 1 }],
+    financialItems: [{ id: 'component-1', curtainId: null, unitPriceCents: null, totalCents: 1 }],
   } as never)
 })
 test('preserves safe send-gate violations from the HTTP client', async () => {

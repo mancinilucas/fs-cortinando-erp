@@ -29,8 +29,9 @@ test('starts add-ons empty and enables only the chosen discount field', () => {
   expect(screen.getByLabelText('Desconto percentual (%)')).toBeDisabled()
   expect(screen.getByLabelText('Desconto em valor fixo (R$)')).toBeEnabled()
 })
-test('adds add-ons with exact quantities and prices, preserving order and ids', async () => {
-  const onSave = mount({ ...quoteFixture, generalAddOns: [{ id: 'persisted', name: 'Frete', quantity: 1, unit: 'un', unitPriceCents: 100, totalCents: 999 }] })
+test('adds general items with exact quantities and prices, preserving order and ids in the single collection', async () => {
+  const onSave = mount({ ...quoteFixture, financialItems: [...quoteFixture.financialItems,
+    { id: 'persisted', curtainId: null, name: 'Frete', quantity: 1, unit: 'un', unitPriceCents: 100, totalCents: 999 }] })
   fireEvent.click(screen.getByRole('button', { name: 'Adicionar adicional geral' }))
   const added = addOns()[1]
   fireEvent.change(within(added).getByLabelText('Nome do adicional (obrigatório)'), { target: { value: 'Instalação' } })
@@ -39,16 +40,20 @@ test('adds add-ons with exact quantities and prices, preserving order and ids', 
   fireEvent.click(within(added).getByRole('button', { name: 'Subir adicional' }))
   expect(within(addOns()[0]).getByLabelText('Nome do adicional (obrigatório)')).toHaveValue('Instalação')
   save(); await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
-  expect(onSave.mock.calls[0][0].generalAddOns).toEqual([
-    { name: 'Instalação', quantity: 1.123456, unit: null, unitPriceCents: 29 },
-    { id: 'persisted', name: 'Frete', quantity: 1, unit: 'un', unitPriceCents: 100 },
+  const items = onSave.mock.calls[0][0].financialItems!
+  expect(items.filter((item) => item.curtainId === null)).toEqual([
+    { curtainId: null, name: 'Instalação', quantity: 1.123456, unit: null, unitPriceCents: 29 },
+    { id: 'persisted', curtainId: null, name: 'Frete', quantity: 1, unit: 'un', unitPriceCents: 100 },
   ])
+  expect(items.find((item) => item.id === 'component-1')).toMatchObject({ curtainId: 'curtain-1' })
 })
-test('removing all add-ons sends an empty collection', async () => {
-  const onSave = mount({ ...quoteFixture, generalAddOns: [{ id: 'a', name: 'Frete', quantity: null, unit: null, unitPriceCents: null, totalCents: null }] })
+test('removing the last general add-on sends an empty collection', async () => {
+  const onSave = mount({ ...quoteFixture, curtains: [], financialItems: [
+    { id: 'a', curtainId: null, name: 'Frete', quantity: null, unit: null, unitPriceCents: null, totalCents: null },
+  ] })
   fireEvent.click(screen.getByRole('button', { name: 'Remover adicional' })); save()
   await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
-  expect(onSave.mock.calls[0][0].generalAddOns).toEqual([])
+  expect(onSave.mock.calls[0][0].financialItems).toEqual([])
 })
 test('validates the additional name on submit and focuses it', async () => {
   const onSave = mount()
