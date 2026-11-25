@@ -319,6 +319,133 @@ describe('Quote.applyPatch unified financial items', () => {
     ).toThrow(QuoteNotEditableError);
   });
 
+  it('creates a curtain and its items atomically through clientRef/curtainRef', () => {
+    const quote = quoteWithStatus(QuoteStatus.DRAFT);
+
+    quote.applyPatch({
+      curtains: [
+        ...quote.curtains.map((curtain) => ({ id: curtain.id })),
+        { room: 'Cozinha', clientRef: 'cozinha' },
+      ],
+      financialItems: [
+        ...quote.financialItems.map((existing) => ({ id: existing.id })),
+        {
+          name: 'Tecido',
+          quantity: 2,
+          unitPriceCents: 1_500,
+          curtainRef: 'cozinha',
+        },
+      ],
+    });
+
+    const created = quote.curtains.find(
+      (curtain) => curtain.room === 'Cozinha',
+    );
+
+    expect(created).toBeDefined();
+    expect(quote.financialItemsForCurtain(created!.id)).toHaveLength(1);
+    expect(quote.financialItemsForCurtain(created!.id)[0].name).toBe('Tecido');
+  });
+
+  it('allows adding a complete curtain to a SENT quote', () => {
+    const quote = quoteWithStatus(QuoteStatus.SENT);
+
+    expect(() =>
+      quote.applyPatch({
+        curtains: [
+          ...quote.curtains.map((curtain) => ({ id: curtain.id })),
+          {
+            room: 'Cozinha',
+            material: 'Linho',
+            openingWidth: 1.5,
+            height: 2,
+            clientRef: 'cozinha',
+          },
+        ],
+        financialItems: [
+          ...quote.financialItems.map((existing) => ({ id: existing.id })),
+          {
+            name: 'Tecido',
+            quantity: 2,
+            unitPriceCents: 1_500,
+            curtainRef: 'cozinha',
+          },
+        ],
+      }),
+    ).not.toThrow();
+    expect(quote.curtains).toHaveLength(2);
+  });
+
+  it('rejects a curtain added to a SENT quote without a complete item', () => {
+    const quote = quoteWithStatus(QuoteStatus.SENT);
+
+    expect(() =>
+      quote.applyPatch({
+        curtains: [
+          ...quote.curtains.map((curtain) => ({ id: curtain.id })),
+          { room: 'Cozinha' },
+        ],
+      }),
+    ).toThrow(QuoteValidationError);
+    expect(quote.curtains).toHaveLength(1);
+  });
+
+  it('rejects unknown, duplicated or misplaced creation refs without mutating', () => {
+    const quote = quoteWithStatus(QuoteStatus.DRAFT);
+    const originalCurtains = quote.curtains;
+    const existingCurtains = quote.curtains.map((curtain) => ({
+      id: curtain.id,
+    }));
+    const existingItems = quote.financialItems.map((existing) => ({
+      id: existing.id,
+    }));
+
+    expect(() =>
+      quote.applyPatch({
+        financialItems: [
+          ...existingItems,
+          { name: 'X', curtainRef: 'missing' },
+        ],
+      }),
+    ).toThrow(UnknownQuoteItemError);
+    expect(() =>
+      quote.applyPatch({
+        curtains: [
+          ...existingCurtains,
+          { room: 'A', clientRef: 'r' },
+          { room: 'B', clientRef: 'r' },
+        ],
+      }),
+    ).toThrow(UnknownQuoteItemError);
+    expect(() =>
+      quote.applyPatch({
+        curtains: [
+          ...existingCurtains,
+          { id: quote.curtains[0].id, clientRef: 'r' },
+        ],
+      }),
+    ).toThrow(UnknownQuoteItemError);
+    expect(() =>
+      quote.applyPatch({
+        financialItems: [
+          ...existingItems,
+          { id: quote.financialItems[0].id, curtainRef: 'r' },
+        ],
+      }),
+    ).toThrow(UnknownQuoteItemError);
+    expect(() =>
+      quote.applyPatch({
+        curtains: [...existingCurtains, { room: 'A', clientRef: 'r' }],
+        financialItems: [
+          ...existingItems,
+          { name: 'X', curtainRef: 'r', curtainId: null },
+        ],
+      }),
+    ).toThrow(UnknownQuoteItemError);
+
+    expect(quote.curtains).toBe(originalCurtains);
+  });
+
   it('preserves the SENT quote validation gate', () => {
     const quote = quoteWithStatus(QuoteStatus.SENT);
     const financialItem = quote.financialItems[0];

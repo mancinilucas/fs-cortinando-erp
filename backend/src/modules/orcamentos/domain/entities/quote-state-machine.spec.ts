@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { InvalidQuoteTransitionError } from '../errors/quote-domain.errors.js';
+import {
+  InvalidQuoteTransitionError,
+  QuoteValidationError,
+} from '../errors/quote-domain.errors.js';
 import { Discount } from '../value-objects/discount.js';
 import { InstallationAddress } from '../value-objects/installation-address.js';
 import { QuoteNumber } from '../value-objects/quote-number.js';
 import { Curtain } from './curtain.js';
+import { FinancialItem } from './financial-item.js';
 import type { QuoteSnapshot } from './quote.js';
 import { Quote, QuoteStatus } from './quote.js';
 
@@ -40,18 +44,39 @@ function quoteWithValidData(): Quote {
   });
 }
 
+const SNAPSHOT_ID = 'dd3f2c1b-0a99-4e4a-9f2e-1a2b3c4d5e6f';
+
+// Confirmation revalidates the commercial composition, so snapshot quotes
+// carry a complete item by default.
 function quoteInStatus(
   status: QuoteStatus,
   overrides: Partial<QuoteSnapshot> = {},
 ): Quote {
+  const curtain = Curtain.create({
+    room: 'Sala',
+    material: 'Linho',
+    openingWidth: 2,
+    height: 2.7,
+  });
+
   return Quote.rehydrate({
-    id: 'dd3f2c1b-0a99-4e4a-9f2e-1a2b3c4d5e6f',
+    id: SNAPSHOT_ID,
     quoteNumber: QuoteNumber.create(2026, 42),
     customerId: '6f2b9f2c-3b8c-4e4a-9f2e-1a2b3c4d5e6f',
     status,
     installationAddress: null,
-    curtains: [],
-    financialItems: [],
+    curtains: [curtain],
+    financialItems: [
+      FinancialItem.rehydrate({
+        id: 'aa000000-0000-4000-8000-000000000001',
+        quoteId: SNAPSHOT_ID,
+        curtainId: curtain.id,
+        name: 'Tecido',
+        quantity: 1,
+        unit: null,
+        unitPriceCents: 1_000,
+      }),
+    ],
     discount: Discount.noDiscount(),
     commercialAdjustmentCents: null,
     notes: null,
@@ -177,6 +202,17 @@ describe('Quote state machine', () => {
     quote.confirm(now);
 
     expect(quote.status).toBe(QuoteStatus.CONFIRMED);
+  });
+
+  it('revalidates the commercial composition on confirmation', () => {
+    const quote = quoteInStatus(QuoteStatus.SENT, {
+      validUntil: future,
+      financialItems: [],
+    });
+
+    expect(() => quote.confirm(now)).toThrow(QuoteValidationError);
+    expect(quote.status).toBe(QuoteStatus.SENT);
+    expect(quote.confirmedAt).toBeNull();
   });
 
   it('blocks confirmation after expiry', () => {

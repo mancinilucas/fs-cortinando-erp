@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Curtain, type CurtainPatch } from './curtain.js';
 import {
+  assertCurtainAssociation,
   assertFinancialItemPatchesReconcilable,
   FinancialItem,
   reconcileFinancialItems,
@@ -53,12 +54,31 @@ export interface UpdateQuoteEditableDataInput {
   notes?: string | null;
 }
 
+// `clientRef` identifies a curtain created by the current patch so new items
+// can reference it before the aggregate assigns the definitive id. Existing
+// curtains are referenced by `id`; the two forms are mutually exclusive.
 export type QuoteCurtainPatch = CurtainPatch & {
   id?: string | null;
+  clientRef?: string | null;
 };
 
 export interface QuotePatch extends UpdateQuoteEditableDataInput {
   curtains?: QuoteCurtainPatch[];
+  financialItems?: FinancialItemPatch[];
+}
+
+// Patch already resolved against the aggregate: new curtains were created
+// once with their definitive ids and every item references a concrete
+// `curtainId`. Applying the same resolved patch to the validation copy and to
+// the aggregate keeps both runs consistent.
+interface ResolvedCurtainEntry {
+  existingId: string | null;
+  curtain: Curtain | null;
+  patch: CurtainPatch;
+}
+
+interface ResolvedQuotePatch extends UpdateQuoteEditableDataInput {
+  curtains?: ResolvedCurtainEntry[];
   financialItems?: FinancialItemPatch[];
 }
 
@@ -212,23 +232,23 @@ export class Quote {
 
   // Full D117 patch. Scalar fields and each editable collection follow the
   // same rules: omitted means unchanged; a sent collection is the complete
-  // state and is reconciled by id. Known and duplicated ids are checked
-  // before any mutation so a malformed patch is rejected up front.
+  // final state and is reconciled by id. The patch is resolved before any
+  // mutation (identities, refs and values), applied to a copy for final-state
+  // validation, and only then applied to the aggregate (atomic PATCH).
   applyPatch(patch: QuotePatch): void {
     if (this.status !== QuoteStatus.DRAFT && this.status !== QuoteStatus.SENT) {
       throw new QuoteNotEditableError();
     }
 
+    const resolved = this.resolvePatch(patch);
     const candidate = this.copyForPatchValidation();
-    candidate.assertPatchReconcilable(patch);
-    candidate.applyPatchChanges(patch);
+    candidate.applyResolvedPatch(resolved);
     candidate.assertPatchedStateValid();
 
-    this.assertPatchReconcilable(patch);
-    this.applyPatchChanges(patch);
+    this.applyResolvedPatch(resolved);
   }
 
-  private applyPatchChanges(patch: QuotePatch): void {
+  private applyResolvedPatch(patch: ResolvedQuotePatch): void {
     this.updateEditableData({
       installationAddress: patch.installationAddress,
       discount: patch.discount,
@@ -237,7 +257,7 @@ export class Quote {
     });
 
     if (patch.curtains !== undefined) {
-      this.reconcileCurtains(patch.curtains);
+      this.reconcileResolvedCurtains(patch.curtains);
     }
 
     if (patch.financialItems !== undefined) {
@@ -248,6 +268,32 @@ export class Quote {
         new Set(this.curtains.map((curtain) => curtain.id)),
       );
     }
+  }
+
+  private reconcileResolvedCurtains(entries: ResolvedCurtainEntry[]): void {
+    const byId = new Map(this.curtains.map((curtain) => [curtain.id, curtain]));
+
+    this.curtains = entries.map((entry) => {
+      if (entry.curtain !== null) {
+        return entry.curtain;
+      }
+
+      const existing = byId.get(entry.existingId ?? '');
+
+      if (existing === undefined) {
+        throw new UnknownQuoteItemError('Unknown curtain id');
+      }
+
+      existing.applyPatch(entry.patch);
+
+      return existing;
+    });
+
+    this.normalizeCurtainSequences();
+    const curtainIds = new Set(this.curtains.map((curtain) => curtain.id));
+    this.financialItems = this.financialItems.filter(
+      (item) => item.curtainId === null || curtainIds.has(item.curtainId),
+    );
   }
 
   private assertPatchedStateValid(): void {
@@ -470,7 +516,9 @@ export class Quote {
 
   // D99: confirmation requires SENT and a validity that has not elapsed. A
   // SENT quote without validUntil is an inconsistent state and is blocked as
-  // a transition conflict.
+  // a transition conflict. The commercial composition is revalidated because
+  // SENT quotes are editable; an inconsistent aggregate can never be
+  // confirmed.
   confirm(now: Date): void {
     this.assertStatus(QuoteStatus.SENT);
     assertValidDate(now, 'Quote confirmation instant');
@@ -485,8 +533,79 @@ export class Quote {
       throw new InvalidQuoteTransitionError('Quote has expired');
     }
 
+    const rangeViolation = this.totalRangeViolation();
+
+    if (rangeViolation !== null) {
+      throw new QuoteValidationError([rangeViolation]);
+    }
+
+    const violations = this.commercialCompositionViolations();
+
+    if (violations.length > 0) {
+      throw new QuoteValidationError(violations);
+    }
+
     this._status = QuoteStatus.CONFIRMED;
     this.confirmedAt = now;
+  }
+
+  // Commercial composition only: the financial collection must still be
+  // complete and produce a positive, coherent total.
+  private commercialCompositionViolations(): QuoteValidationViolation[] {
+    const violations: QuoteValidationViolation[] = [];
+
+    if (this.curtains.length === 0) {
+      violations.push({
+        code: 'NO_CURTAINS',
+        message: 'At least one curtain is required',
+      });
+    }
+
+    for (const curtain of this.curtains) {
+      const label = `Curtain ${curtain.sequence}`;
+      const curtainItems = this.financialItemsForCurtain(curtain.id);
+
+      if (!curtainItems.some(isCompleteItem)) {
+        violations.push({
+          code: 'CURTAIN_COMPONENT_REQUIRED',
+          message: `${label} must have at least one complete component`,
+        });
+      }
+
+      for (const item of curtainItems) {
+        if (!isCompleteItem(item)) {
+          violations.push({
+            code: 'COMPONENT_INVALID',
+            message: `${label} component "${item.name}" must have quantity and unit price greater than zero`,
+          });
+        }
+      }
+    }
+
+    for (const item of this.generalFinancialItems) {
+      if (!isCompleteItem(item)) {
+        violations.push({
+          code: 'GENERAL_ADD_ON_INVALID',
+          message: `General add-on "${item.name}" must have quantity and unit price greater than zero`,
+        });
+      }
+    }
+
+    if (!this.discount.isApplicableTo(this.subtotalCents)) {
+      violations.push({
+        code: 'DISCOUNT_EXCEEDS_SUBTOTAL',
+        message: 'Discount must not exceed the quote subtotal',
+      });
+    }
+
+    if (this.totalCents <= 0) {
+      violations.push({
+        code: 'TOTAL_NOT_POSITIVE',
+        message: 'Quote total must be greater than zero',
+      });
+    }
+
+    return violations;
   }
 
   // D100: reopening clears the confirmation and the installation schedule,
@@ -673,139 +792,203 @@ export class Quote {
     });
   }
 
-  private assertPatchReconcilable(patch: QuotePatch): void {
+  // Resolves the patch once: validates identities, refs and values and creates
+  // new curtains with their definitive ids. `curtainRef` is translated to the
+  // generated `curtainId`, so the validation copy and the aggregate apply the
+  // exact same final state (atomic PATCH over the final state).
+  private resolvePatch(patch: QuotePatch): ResolvedQuotePatch {
     if (patch.commercialAdjustmentCents !== undefined) {
       normalizeAdjustment(patch.commercialAdjustmentCents);
     }
 
-    const currentCurtainIds = new Set(
-      this.curtains.map((curtain) => curtain.id),
+    const resolved: ResolvedQuotePatch = {
+      installationAddress: patch.installationAddress,
+      discount: patch.discount,
+      commercialAdjustmentCents: patch.commercialAdjustmentCents,
+      notes: patch.notes,
+    };
+    const currentCurtains = new Map(
+      this.curtains.map((curtain) => [curtain.id, curtain]),
     );
-    const targetCurtains =
-      patch.curtains === undefined
-        ? this.curtains
-        : this.validateCurtainPatches(patch.curtains, currentCurtainIds);
-    const targetCurtainIds = new Set(
-      targetCurtains.map((curtain) => curtain.id),
-    );
+    const createdByRef = new Map<string, Curtain>();
+
+    if (patch.curtains !== undefined) {
+      resolved.curtains = this.resolveCurtainPatches(
+        patch.curtains,
+        currentCurtains,
+        createdByRef,
+      );
+    }
 
     if (patch.financialItems !== undefined) {
-      assertFinancialItemPatchesReconcilable(
-        this.financialItems,
+      const targetCurtainIds =
+        resolved.curtains === undefined
+          ? new Set(currentCurtains.keys())
+          : new Set(
+              resolved.curtains.map(
+                (entry) => entry.existingId ?? entry.curtain?.id ?? '',
+              ),
+            );
+
+      resolved.financialItems = this.resolveFinancialItemPatches(
         patch.financialItems,
-        this.id,
         targetCurtainIds,
+        createdByRef,
       );
-      this.validateFinancialItemValues(patch.financialItems);
     }
+
+    return resolved;
   }
 
-  private validateCurtainPatches(
+  private resolveCurtainPatches(
     patches: QuoteCurtainPatch[],
-    currentCurtainIds: ReadonlySet<string>,
-  ): Curtain[] {
-    const byId = new Map(this.curtains.map((curtain) => [curtain.id, curtain]));
-    const seen = new Set<string>();
+    currentCurtains: ReadonlyMap<string, Curtain>,
+    createdByRef: Map<string, Curtain>,
+  ): ResolvedCurtainEntry[] {
+    const seenIds = new Set<string>();
+    const seenRefs = new Set<string>();
 
     return patches.map((curtainPatch) => {
-      if (curtainPatch.id === undefined || curtainPatch.id === null) {
-        return Curtain.create(curtainPatch);
-      }
+      const id = curtainPatch.id ?? null;
 
-      if (seen.has(curtainPatch.id)) {
-        throw new UnknownQuoteItemError('Duplicate curtain id');
-      }
-      seen.add(curtainPatch.id);
+      if (id !== null) {
+        if (
+          curtainPatch.clientRef !== undefined &&
+          curtainPatch.clientRef !== null
+        ) {
+          throw new UnknownQuoteItemError(
+            'clientRef is only accepted for new curtains',
+          );
+        }
 
-      if (!currentCurtainIds.has(curtainPatch.id)) {
-        throw new UnknownQuoteItemError('Unknown curtain id');
-      }
-
-      const existing = byId.get(curtainPatch.id)!;
-      const validated = Curtain.rehydrate({
-        id: existing.id,
-        sequence: existing.sequence,
-        room: existing.room,
-        description: existing.description,
-        material: existing.material,
-        openingWidth: existing.openingWidth,
-        borderValue: existing.borderValue,
-        height: existing.height,
-        fabricFactor: existing.fabricFactor,
-        notes: existing.notes,
-      });
-      validated.applyPatch(curtainPatch);
-      return validated;
-    });
-  }
-
-  private validateFinancialItemValues(patches: FinancialItemPatch[]): void {
-    const byId = new Map(this.financialItems.map((item) => [item.id, item]));
-
-    for (const patch of patches) {
-      if (patch.id === undefined || patch.id === null) {
-        FinancialItem.create(
-          {
-            name: patch.name ?? '',
-            quantity: patch.quantity,
-            unit: patch.unit,
-            unitPriceCents: patch.unitPriceCents,
-            curtainId: patch.curtainId,
-          },
-          this.id,
-        );
-        continue;
-      }
-
-      const existing = byId.get(patch.id)!;
-      const validated = FinancialItem.rehydrate({
-        id: existing.id,
-        quoteId: existing.quoteId,
-        curtainId: existing.curtainId,
-        name: existing.name,
-        quantity: existing.quantity,
-        unit: existing.unit,
-        unitPriceCents: existing.unitPriceCents,
-      });
-      validated.update(patch);
-    }
-  }
-
-  private reconcileCurtains(patches: QuoteCurtainPatch[]): void {
-    const byId = new Map(this.curtains.map((curtain) => [curtain.id, curtain]));
-
-    this.curtains = patches.map((patch) => {
-      if (patch.id !== undefined && patch.id !== null) {
-        const existing = byId.get(patch.id);
-
-        if (existing === undefined) {
+        if (!currentCurtains.has(id)) {
           throw new UnknownQuoteItemError('Unknown curtain id');
         }
 
-        existing.applyPatch(patch);
+        if (seenIds.has(id)) {
+          throw new UnknownQuoteItemError('Duplicate curtain id');
+        }
 
-        return existing;
+        seenIds.add(id);
+
+        return {
+          existingId: id,
+          curtain: null,
+          patch: curtainFieldsOf(curtainPatch),
+        };
       }
 
-      const curtain = Curtain.create({
-        room: patch.room,
-        description: patch.description,
-        material: patch.material,
-        openingWidth: patch.openingWidth,
-        borderValue: patch.borderValue,
-        height: patch.height,
-        fabricFactor: patch.fabricFactor,
-        notes: patch.notes,
-      });
+      const clientRef = normalizeClientRef(curtainPatch.clientRef);
 
-      return curtain;
+      if (clientRef !== undefined) {
+        if (seenRefs.has(clientRef)) {
+          throw new UnknownQuoteItemError('Duplicate curtain clientRef');
+        }
+
+        seenRefs.add(clientRef);
+      }
+
+      const curtain = Curtain.create(curtainFieldsOf(curtainPatch));
+
+      if (clientRef !== undefined) {
+        createdByRef.set(clientRef, curtain);
+      }
+
+      return { existingId: null, curtain, patch: {} };
     });
+  }
 
-    this.normalizeCurtainSequences();
-    const curtainIds = new Set(this.curtains.map((curtain) => curtain.id));
-    this.financialItems = this.financialItems.filter(
-      (item) => item.curtainId === null || curtainIds.has(item.curtainId),
+  private resolveFinancialItemPatches(
+    patches: FinancialItemPatch[],
+    targetCurtainIds: ReadonlySet<string>,
+    createdByRef: ReadonlyMap<string, Curtain>,
+  ): FinancialItemPatch[] {
+    const currentById = new Map(
+      this.financialItems.map((item) => [item.id, item]),
     );
+    const seenIds = new Set<string>();
+
+    return patches.map((itemPatch) => {
+      const resolved: FinancialItemPatch = {
+        id: itemPatch.id ?? null,
+        name: itemPatch.name,
+        quantity: itemPatch.quantity,
+        unit: itemPatch.unit,
+        unitPriceCents: itemPatch.unitPriceCents,
+      };
+      const id = itemPatch.id ?? null;
+
+      if (id !== null) {
+        if (seenIds.has(id)) {
+          throw new UnknownQuoteItemError('Duplicate financial item id');
+        }
+
+        seenIds.add(id);
+
+        const existing = currentById.get(id);
+
+        if (existing === undefined) {
+          throw new UnknownQuoteItemError('Unknown financial item id');
+        }
+
+        if (
+          itemPatch.curtainRef !== undefined &&
+          itemPatch.curtainRef !== null
+        ) {
+          throw new UnknownQuoteItemError(
+            'curtainRef is only accepted for new items',
+          );
+        }
+
+        resolved.curtainId = itemPatch.curtainId;
+        assertCurtainAssociation(
+          itemPatch.curtainId === undefined
+            ? existing.curtainId
+            : itemPatch.curtainId,
+          targetCurtainIds,
+        );
+        validateFinancialItemUpdate(existing, resolved);
+
+        return resolved;
+      }
+
+      if (
+        itemPatch.curtainId !== undefined &&
+        itemPatch.curtainRef !== undefined &&
+        itemPatch.curtainRef !== null
+      ) {
+        throw new UnknownQuoteItemError(
+          'curtainId and curtainRef are mutually exclusive',
+        );
+      }
+
+      if (itemPatch.curtainRef !== undefined && itemPatch.curtainRef !== null) {
+        const ref = normalizeClientRef(itemPatch.curtainRef);
+        const created = ref === undefined ? undefined : createdByRef.get(ref);
+
+        if (created === undefined) {
+          throw new UnknownQuoteItemError('Unknown curtainRef');
+        }
+
+        resolved.curtainId = created.id;
+      } else if (itemPatch.curtainId !== undefined) {
+        resolved.curtainId = itemPatch.curtainId;
+      }
+
+      assertCurtainAssociation(resolved.curtainId ?? null, targetCurtainIds);
+      FinancialItem.create(
+        {
+          name: itemPatch.name ?? '',
+          quantity: itemPatch.quantity,
+          unit: itemPatch.unit,
+          unitPriceCents: itemPatch.unitPriceCents,
+          curtainId: resolved.curtainId ?? null,
+        },
+        this.id,
+      );
+
+      return resolved;
+    });
   }
 
   financialItemsForCurtain(curtainId: string): FinancialItem[] {
@@ -865,6 +1048,61 @@ export class Quote {
       Money.fromCents(this.effectiveCommercialAdjustmentCents),
     ).cents;
   }
+}
+
+// Scalar curtain fields only; identity and clientRef never reach the Entity.
+function curtainFieldsOf(patch: CurtainPatch): CurtainPatch {
+  return {
+    room: patch.room,
+    description: patch.description,
+    material: patch.material,
+    openingWidth: patch.openingWidth,
+    borderValue: patch.borderValue,
+    height: patch.height,
+    fabricFactor: patch.fabricFactor,
+    notes: patch.notes,
+  };
+}
+
+// Validates a patch against a copy so an invalid value rejects the whole
+// patch without mutating the current item.
+function validateFinancialItemUpdate(
+  existing: FinancialItem,
+  patch: FinancialItemPatch,
+): void {
+  const candidate = FinancialItem.rehydrate({
+    id: existing.id,
+    quoteId: existing.quoteId,
+    curtainId: existing.curtainId,
+    name: existing.name,
+    quantity: existing.quantity,
+    unit: existing.unit,
+    unitPriceCents: existing.unitPriceCents,
+  });
+
+  candidate.update({
+    curtainId: patch.curtainId,
+    name: patch.name,
+    quantity: patch.quantity,
+    unit: patch.unit,
+    unitPriceCents: patch.unitPriceCents,
+  });
+}
+
+export function normalizeClientRef(
+  value: string | null | undefined,
+): string | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+
+  if (normalized === '') {
+    throw new UnknownQuoteItemError('Curtain clientRef must not be empty');
+  }
+
+  return normalized;
 }
 
 function isCompleteItem(item: FinancialItem): boolean {

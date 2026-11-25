@@ -54,6 +54,7 @@ describe('ConfirmQuoteUseCase integration', () => {
     validUntil?: Date | null;
   }): Promise<{ id: string }> {
     const id = randomUUID();
+    const curtainId = randomUUID();
 
     await prisma.quote.create({
       data: {
@@ -69,6 +70,28 @@ describe('ConfirmQuoteUseCase integration', () => {
         installationAddressState: 'SP',
         firstSentAt: new Date('2026-10-01T12:00:00.000Z'),
         validUntil: input.validUntil ?? null,
+        curtains: {
+          create: [
+            {
+              id: curtainId,
+              sequence: 1,
+              room: 'Sala',
+              material: 'Linho',
+              openingWidth: 2,
+              height: 2.7,
+            },
+          ],
+        },
+        financialItems: {
+          create: [
+            {
+              curtainId,
+              name: 'Tecido',
+              quantity: '1.000000',
+              unitPriceCents: 1_000,
+            },
+          ],
+        },
       },
     });
 

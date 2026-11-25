@@ -1,14 +1,15 @@
 import type {
-  FinancialItemInput,
-  FinancialItemPatch,
-} from '../domain/entities/financial-item.js';
+  CreatableCurtainInput,
+  CreatableFinancialItemInput,
+  CreateQuoteFromCustomerInput,
+} from '../application/use-cases/create-quote-from-customer.use-case.js';
+import type { FinancialItemPatch } from '../domain/entities/financial-item.js';
 import type { QuoteCurtainPatch } from '../domain/entities/quote.js';
 import { DiscountType } from '../domain/value-objects/discount.js';
-import type { CreateQuoteFromCustomerInput } from '../application/use-cases/create-quote-from-customer.use-case.js';
 import type { QuoteDiscountInput } from '../application/use-cases/quote-discount-input.js';
 import type { UpdateQuoteInput } from '../application/use-cases/update-quote.use-case.js';
 import type { CreateQuoteDto } from './dto/create-quote.dto.js';
-import type { UpdateQuoteCurtainDto } from './dto/quote-curtain.dto.js';
+import type { CreateQuoteCurtainDto, UpdateQuoteCurtainDto } from './dto/quote-curtain.dto.js';
 import type { QuoteDiscountDto } from './dto/quote-discount.dto.js';
 import type {
   QuoteFinancialItemInputDto,
@@ -18,7 +19,8 @@ import type { UpdateQuoteDto } from './dto/update-quote.dto.js';
 
 // Converts validated DTOs to application inputs (D116/D117). The only
 // non-structural conversion is the discount discriminated union; omitted
-// fields stay undefined on update so the patch remains partial.
+// fields stay undefined on update so the patch remains partial. The financial
+// composition is one collection in both directions.
 export class QuoteRequestMapper {
   static toCreateInput(
     customerId: string,
@@ -30,18 +32,8 @@ export class QuoteRequestMapper {
       discount: discountOf(dto.discount),
       commercialAdjustmentCents: dto.commercialAdjustmentCents,
       installationAddress: dto.installationAddress,
-      curtains: dto.curtains?.map((curtain) => ({
-        room: curtain.room,
-        description: curtain.description,
-        material: curtain.material,
-        openingWidth: curtain.openingWidth,
-        borderValue: curtain.borderValue,
-        height: curtain.height,
-        fabricFactor: curtain.fabricFactor,
-        notes: curtain.notes,
-        components: curtain.components?.map(financialItemOf),
-      })),
-      generalAddOns: dto.generalAddOns?.map(financialItemOf),
+      curtains: dto.curtains?.map(creatableCurtainOf),
+      financialItems: dto.financialItems?.map(creatableItemOf),
     };
   }
 
@@ -68,8 +60,8 @@ export class QuoteRequestMapper {
       input.curtains = dto.curtains.map(curtainPatchOf);
     }
 
-    if (dto.generalAddOns !== undefined) {
-      input.generalAddOns = dto.generalAddOns.map(financialItemPatchOf);
+    if (dto.financialItems !== undefined) {
+      input.financialItems = dto.financialItems.map(financialItemPatchOf);
     }
 
     return input;
@@ -104,9 +96,28 @@ function discountOf(
   }
 }
 
-function financialItemOf(item: QuoteFinancialItemInputDto): FinancialItemInput {
+function creatableCurtainOf(
+  curtain: CreateQuoteCurtainDto,
+): CreatableCurtainInput {
+  return {
+    clientRef: curtain.clientRef,
+    room: curtain.room,
+    description: curtain.description,
+    material: curtain.material,
+    openingWidth: curtain.openingWidth,
+    borderValue: curtain.borderValue,
+    height: curtain.height,
+    fabricFactor: curtain.fabricFactor,
+    notes: curtain.notes,
+  };
+}
+
+function creatableItemOf(
+  item: QuoteFinancialItemInputDto,
+): CreatableFinancialItemInput {
   return {
     name: item.name,
+    curtainRef: item.curtainRef,
     quantity: item.quantity,
     unit: item.unit,
     unitPriceCents: item.unitPriceCents,
@@ -118,6 +129,8 @@ function financialItemPatchOf(
 ): FinancialItemPatch {
   return {
     id: item.id,
+    curtainId: item.curtainId,
+    curtainRef: item.curtainRef,
     name: item.name,
     quantity: item.quantity,
     unit: item.unit,
@@ -128,6 +141,7 @@ function financialItemPatchOf(
 function curtainPatchOf(curtain: UpdateQuoteCurtainDto): QuoteCurtainPatch {
   return {
     id: curtain.id,
+    clientRef: curtain.clientRef,
     room: curtain.room,
     description: curtain.description,
     material: curtain.material,
@@ -136,6 +150,5 @@ function curtainPatchOf(curtain: UpdateQuoteCurtainDto): QuoteCurtainPatch {
     height: curtain.height,
     fabricFactor: curtain.fabricFactor,
     notes: curtain.notes,
-    components: curtain.components?.map(financialItemPatchOf),
   };
 }

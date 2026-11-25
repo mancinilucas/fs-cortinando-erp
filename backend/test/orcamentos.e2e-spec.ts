@@ -31,6 +31,7 @@ const COMPLETE_ADDRESS = {
 
 interface QuoteFinancialItem {
   id: string;
+  curtainId: string | null;
   name: string;
   quantity: number | null;
   unit: string | null;
@@ -51,7 +52,6 @@ interface QuoteCurtain {
   fabricFactor: number | null;
   fabricQuantity: number | null;
   notes: string | null;
-  components: QuoteFinancialItem[];
   totalCents: number;
 }
 
@@ -79,7 +79,7 @@ interface QuoteDetail {
   commercialAdjustmentCents: number | null;
   installationAddress: Record<string, string | null> | null;
   curtains: QuoteCurtain[];
-  generalAddOns: QuoteFinancialItem[];
+  financialItems: QuoteFinancialItem[];
   totals: QuoteTotals;
   createdAt: string;
   updatedAt: string;
@@ -212,14 +212,24 @@ describe('Quotes (e2e)', () => {
     return curtain;
   }
 
-  function onlyComponent(curtain: QuoteCurtain): QuoteFinancialItem {
-    const [component] = curtain.components;
+  function itemsForCurtain(
+    quote: QuoteDetail,
+    curtainId: string,
+  ): QuoteFinancialItem[] {
+    return quote.financialItems.filter((item) => item.curtainId === curtainId);
+  }
 
-    if (component === undefined) {
-      throw new Error('curtain has no component');
+  function onlyItemForCurtain(
+    quote: QuoteDetail,
+    curtainId: string,
+  ): QuoteFinancialItem {
+    const [item] = itemsForCurtain(quote, curtainId);
+
+    if (item === undefined) {
+      throw new Error('curtain has no item');
     }
 
-    return component;
+    return item;
   }
 
   function eventOfType(
@@ -299,15 +309,22 @@ describe('Quotes (e2e)', () => {
       installationAddress: COMPLETE_ADDRESS,
       curtains: [
         {
+          clientRef: 'sala',
           room: 'Sala',
           material: 'Linho',
           openingWidth: 2,
           borderValue: 0,
           height: 2.2,
           fabricFactor: 2,
-          components: [
-            { name: 'Tecido', quantity: 1, unit: 'm', unitPriceCents: 10_000 },
-          ],
+        },
+      ],
+      financialItems: [
+        {
+          curtainRef: 'sala',
+          name: 'Tecido',
+          quantity: 1,
+          unit: 'm',
+          unitPriceCents: 10_000,
         },
       ],
     };
@@ -330,7 +347,7 @@ describe('Quotes (e2e)', () => {
       commercialAdjustmentCents: null,
       installationAddress: null,
       curtains: [],
-      generalAddOns: [],
+      financialItems: [],
       discount: {
         type: 'NO_DISCOUNT',
         percentage: null,
@@ -363,6 +380,7 @@ describe('Quotes (e2e)', () => {
     const withCurtain = await patchQuote(created.id, {
       curtains: [
         {
+          clientRef: 'sala',
           room: 'Sala',
           material: 'Linho',
           openingWidth: 2.5,
@@ -383,22 +401,22 @@ describe('Quotes (e2e)', () => {
       height: 2.2,
       fabricFactor: 2.5,
       fabricQuantity: 6.75,
-      components: [],
       totalCents: 0,
     });
     expect(withCurtain.totals).toEqual(ZERO_TOTALS);
 
     const withComponent = await patchQuote(created.id, {
-      curtains: [
+      financialItems: [
         {
-          id: curtain.id,
-          components: [
-            { name: 'Tecido', quantity: 2, unit: 'm', unitPriceCents: 10_000 },
-          ],
+          name: 'Tecido',
+          curtainId: curtain.id,
+          quantity: 2,
+          unit: 'm',
+          unitPriceCents: 10_000,
         },
       ],
     });
-    const component = onlyComponent(onlyCurtain(withComponent));
+    const component = onlyItemForCurtain(withComponent, curtain.id);
     expect(component).toMatchObject({
       name: 'Tecido',
       quantity: 2,
@@ -417,11 +435,14 @@ describe('Quotes (e2e)', () => {
     });
 
     const withAddOn = await patchQuote(created.id, {
-      generalAddOns: [
+      financialItems: [
+        { id: component.id },
         { name: 'Instalação', quantity: 3, unit: 'h', unitPriceCents: 5_000 },
       ],
     });
-    const addOn = withAddOn.generalAddOns[0];
+    const addOn = withAddOn.financialItems.find(
+      (item) => item.curtainId === null,
+    );
     expect(addOn).toMatchObject({
       name: 'Instalação',
       quantity: 3,
@@ -624,20 +645,22 @@ describe('Quotes (e2e)', () => {
         installationAddress: COMPLETE_ADDRESS,
         curtains: [
           {
+            clientRef: 'sala',
             room: 'Sala',
             material: 'Linho',
             openingWidth: 2,
             borderValue: 0,
             height: 2.2,
             fabricFactor: 2,
-            components: [
-              {
-                name: 'Tecido',
-                quantity: 999_999,
-                unit: 'm',
-                unitPriceCents: 2_147_483_647,
-              },
-            ],
+          },
+        ],
+        financialItems: [
+          {
+            curtainRef: 'sala',
+            name: 'Tecido',
+            quantity: 999_999,
+            unit: 'm',
+            unitPriceCents: 2_147_483_647,
           },
         ],
       })
@@ -730,7 +753,7 @@ describe('Quotes (e2e)', () => {
     const foreign = await createQuote(customerId, completeQuoteBody());
     const target = await createQuote(customerId, completeQuoteBody());
     const foreignCurtain = onlyCurtain(foreign);
-    const foreignComponent = onlyComponent(foreignCurtain);
+    const foreignComponent = onlyItemForCurtain(foreign, foreignCurtain.id);
     const targetCurtain = onlyCurtain(target);
 
     const foreignCurtainResponse = await request(server())
@@ -749,9 +772,7 @@ describe('Quotes (e2e)', () => {
       .set('Origin', ORIGIN)
       .set('Cookie', cookie)
       .send({
-        curtains: [
-          { id: targetCurtain.id, components: [{ id: foreignComponent.id }] },
-        ],
+        financialItems: [{ id: foreignComponent.id }],
       })
       .expect(422);
     expect(foreignComponentResponse.body).toMatchObject({
@@ -765,8 +786,8 @@ describe('Quotes (e2e)', () => {
       .expect(200);
     const unchangedQuote = unchanged.body as QuoteDetail;
     expect(onlyCurtain(unchangedQuote).id).toBe(targetCurtain.id);
-    expect(onlyComponent(onlyCurtain(unchangedQuote)).id).toBe(
-      onlyComponent(targetCurtain).id,
+    expect(onlyItemForCurtain(unchangedQuote, targetCurtain.id).id).toBe(
+      onlyItemForCurtain(target, targetCurtain.id).id,
     );
   });
 });

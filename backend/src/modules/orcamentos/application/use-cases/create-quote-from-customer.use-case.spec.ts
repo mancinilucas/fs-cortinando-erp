@@ -151,27 +151,30 @@ describe('CreateQuoteFromCustomerUseCase integration', () => {
       },
       curtains: [
         {
+          clientRef: 'sala',
           room: 'Sala',
           material: 'Linho',
           openingWidth: 2.65,
           height: 2.7,
-          components: [
-            {
-              name: 'Tecido',
-              quantity: 8.05,
-              unit: 'm',
-              unitPriceCents: 3_000,
-            },
-          ],
+        },
+        { clientRef: 'quarto', room: 'Quarto' },
+      ],
+      financialItems: [
+        {
+          curtainRef: 'sala',
+          name: 'Tecido',
+          quantity: 8.05,
+          unit: 'm',
+          unitPriceCents: 3_000,
         },
         {
-          room: 'Quarto',
-          components: [
-            { name: 'Mão de obra', quantity: 1, unitPriceCents: 20_000 },
-          ],
+          curtainRef: 'quarto',
+          name: 'Mão de obra',
+          quantity: 1,
+          unitPriceCents: 20_000,
         },
+        { name: 'Frete', quantity: 1, unitPriceCents: 5_000 },
       ],
-      generalAddOns: [{ name: 'Frete', quantity: 1, unitPriceCents: 5_000 }],
     });
 
     expect(quote.notes).toBe('Instalação urgente');

@@ -34,9 +34,15 @@ export interface FinancialItemSnapshot {
 // Partial update of an existing item (D117). Omitted fields keep their
 // current value; null clears the field when absence is allowed. The optional
 // id is used by collection reconciliation and ignored by update().
+//
+// `curtainRef` associates a *new* item with a curtain created in the same
+// patch (clientRef/curtainRef decision): the aggregate resolves it to the
+// definitive id it generates, since the caller cannot know it in advance.
+// Existing items and existing curtains always use `curtainId`.
 export interface FinancialItemPatch {
   id?: string | null;
   curtainId?: string | null;
+  curtainRef?: string | null;
   name?: string | null;
   quantity?: number | null;
   unit?: string | null;
@@ -267,7 +273,7 @@ export function reconcileFinancialItems(
   });
 }
 
-function assertCurtainAssociation(
+export function assertCurtainAssociation(
   curtainId: string | null,
   curtainIds: ReadonlySet<string>,
 ): void {

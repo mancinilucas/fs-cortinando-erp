@@ -30,6 +30,7 @@ const COMPLETE_ADDRESS = {
 
 interface QuoteFinancialItem {
   id: string;
+  curtainId: string | null;
   name: string;
   quantity: number | null;
   unit: string | null;
@@ -50,7 +51,6 @@ interface QuoteCurtain {
   fabricFactor: number | null;
   fabricQuantity: number | null;
   notes: string | null;
-  components: QuoteFinancialItem[];
   totalCents: number;
 }
 
@@ -78,7 +78,7 @@ interface QuoteDetail {
   commercialAdjustmentCents: number | null;
   installationAddress: Record<string, string | null> | null;
   curtains: QuoteCurtain[];
-  generalAddOns: QuoteFinancialItem[];
+  financialItems: QuoteFinancialItem[];
   totals: QuoteTotals;
   createdAt: string;
   updatedAt: string;
@@ -310,30 +310,46 @@ describe('Quotes alternate lifecycle (e2e)', () => {
       commercialAdjustmentCents: 1_000,
       curtains: [
         {
+          clientRef: 'sala',
           room: 'Sala',
           material: 'Linho',
           openingWidth: 2,
           borderValue: 0,
           height: 2.2,
           fabricFactor: 2,
-          components: [
-            { name: 'Tecido', quantity: 2, unit: 'm', unitPriceCents: 10_000 },
-            { name: 'Forro', quantity: 1, unit: 'm', unitPriceCents: 5_000 },
-          ],
         },
         {
+          clientRef: 'quarto',
           room: 'Quarto',
           material: 'Voal',
           openingWidth: 1.5,
           borderValue: 0,
           height: 2,
           fabricFactor: 2,
-          components: [
-            { name: 'Tecido', quantity: 1, unit: 'm', unitPriceCents: 10_000 },
-          ],
         },
       ],
-      generalAddOns: [
+      financialItems: [
+        {
+          curtainRef: 'sala',
+          name: 'Tecido',
+          quantity: 2,
+          unit: 'm',
+          unitPriceCents: 10_000,
+        },
+        {
+          curtainRef: 'sala',
+          name: 'Forro',
+          quantity: 1,
+          unit: 'm',
+          unitPriceCents: 5_000,
+        },
+        {
+          curtainRef: 'quarto',
+          name: 'Tecido',
+          quantity: 1,
+          unit: 'm',
+          unitPriceCents: 10_000,
+        },
         { name: 'Frete', quantity: 1, unit: 'un', unitPriceCents: 5_000 },
       ],
     };
@@ -361,7 +377,7 @@ describe('Quotes alternate lifecycle (e2e)', () => {
     expect(notesOnly.discount).toEqual(initial.discount);
     expect(notesOnly.commercialAdjustmentCents).toBe(1_000);
     expect(notesOnly.curtains).toEqual(initial.curtains);
-    expect(notesOnly.generalAddOns).toEqual(initial.generalAddOns);
+    expect(notesOnly.financialItems).toEqual(initial.financialItems);
     expect(notesOnly.totals).toEqual(initial.totals);
 
     const cleared = await patchQuote(initial.id, {
@@ -372,7 +388,7 @@ describe('Quotes alternate lifecycle (e2e)', () => {
     expect(cleared.commercialAdjustmentCents).toBeNull();
     expect(cleared.discount).toEqual(initial.discount);
     expect(cleared.curtains).toEqual(initial.curtains);
-    expect(cleared.generalAddOns).toEqual(initial.generalAddOns);
+    expect(cleared.financialItems).toEqual(initial.financialItems);
     expect(cleared.totals).toEqual({
       ...initial.totals,
       commercialAdjustmentCents: 0,
@@ -396,8 +412,11 @@ describe('Quotes alternate lifecycle (e2e)', () => {
     const initial = await createEditableQuote();
     const sala = onlyCurtain(initial, 0);
     const quarto = onlyCurtain(initial, 1);
-    const [tecido, forro] = sala.components;
-    const frete = initial.generalAddOns[0];
+    const salaItems = initial.financialItems.filter(
+      (item) => item.curtainId === sala.id,
+    );
+    const [tecido, forro] = salaItems;
+    const frete = initial.financialItems.find((item) => item.curtainId === null);
 
     if (!tecido || !forro || !frete) {
       throw new Error('fixture is incomplete');
@@ -405,25 +424,28 @@ describe('Quotes alternate lifecycle (e2e)', () => {
 
     const reconciled = await patchQuote(initial.id, {
       curtains: [
+        { id: sala.id, room: 'Sala de Estar' },
         {
-          id: sala.id,
-          room: 'Sala de Estar',
-          components: [
-            { id: tecido.id, quantity: 3 },
-            { name: 'Ilhós', quantity: 1, unit: 'm', unitPriceCents: 2_000 },
-          ],
-        },
-        {
+          clientRef: 'cozinha',
           room: 'Cozinha',
           material: 'Linho',
           openingWidth: 1,
           borderValue: 0.05,
           height: 1.5,
           fabricFactor: 2,
-          components: [
-            { name: 'Tecido', quantity: 1, unit: 'm', unitPriceCents: 4_000 },
-          ],
         },
+      ],
+      financialItems: [
+        { id: tecido.id, quantity: 3 },
+        { name: 'Ilhós', curtainId: sala.id, quantity: 1, unit: 'm', unitPriceCents: 2_000 },
+        {
+          name: 'Tecido',
+          curtainRef: 'cozinha',
+          quantity: 1,
+          unit: 'm',
+          unitPriceCents: 4_000,
+        },
+        { id: frete.id },
       ],
     });
 
@@ -441,8 +463,11 @@ describe('Quotes alternate lifecycle (e2e)', () => {
       fabricFactor: 2,
       totalCents: 32_000,
     });
-    expect(reconciledSala.components).toHaveLength(2);
-    expect(reconciledSala.components[0]).toMatchObject({
+    const reconciledSalaItems = reconciled.financialItems.filter(
+      (item) => item.curtainId === reconciledSala.id,
+    );
+    expect(reconciledSalaItems).toHaveLength(2);
+    expect(reconciledSalaItems[0]).toMatchObject({
       id: tecido.id,
       name: 'Tecido',
       quantity: 3,
@@ -450,17 +475,20 @@ describe('Quotes alternate lifecycle (e2e)', () => {
       unitPriceCents: 10_000,
       totalCents: 30_000,
     });
-    expect(reconciledSala.components[1]).toMatchObject({
+    expect(reconciledSalaItems[1]).toMatchObject({
       name: 'Ilhós',
       quantity: 1,
       unit: 'm',
       unitPriceCents: 2_000,
       totalCents: 2_000,
     });
-    const ilhos = reconciledSala.components[1];
+    const ilhos = reconciledSalaItems[1];
     expect(ilhos?.id).toMatch(UUID);
 
     const reconciledCozinha = onlyCurtain(reconciled, 1);
+    const cozinhaItem = reconciled.financialItems.find(
+      (item) => item.curtainId === reconciledCozinha.id,
+    );
     expect(reconciledCozinha.id).toMatch(UUID);
     expect(reconciledCozinha.id).not.toBe(quarto.id);
     expect(reconciledCozinha).toMatchObject({
@@ -488,28 +516,38 @@ describe('Quotes alternate lifecycle (e2e)', () => {
       totalCents: 37_900,
     });
 
+    if (!ilhos || !cozinhaItem) {
+      throw new Error('reconciled fixture is incomplete');
+    }
+
     const withAddOns = await patchQuote(initial.id, {
-      generalAddOns: [
+      financialItems: [
+        { id: tecido.id },
+        { id: ilhos.id },
+        { id: cozinhaItem.id },
         { id: frete.id, quantity: 2 },
         { name: 'Montagem', quantity: 1, unit: 'un', unitPriceCents: 3_000 },
       ],
     });
-    expect(withAddOns.generalAddOns).toHaveLength(2);
-    expect(withAddOns.generalAddOns[0]).toMatchObject({
+    const generalItems = withAddOns.financialItems.filter(
+      (item) => item.curtainId === null,
+    );
+    expect(generalItems).toHaveLength(2);
+    expect(generalItems[0]).toMatchObject({
       id: frete.id,
       name: 'Frete',
       quantity: 2,
       unitPriceCents: 5_000,
       totalCents: 10_000,
     });
-    expect(withAddOns.generalAddOns[1]).toMatchObject({
+    expect(generalItems[1]).toMatchObject({
       name: 'Montagem',
       quantity: 1,
       unit: 'un',
       unitPriceCents: 3_000,
       totalCents: 3_000,
     });
-    expect(withAddOns.generalAddOns[1]?.id).toMatch(UUID);
+    expect(generalItems[1]?.id).toMatch(UUID);
     expect(withAddOns.totals).toEqual({
       curtainsSubtotalCents: 36_000,
       generalAddOnsSubtotalCents: 13_000,
@@ -525,21 +563,23 @@ describe('Quotes alternate lifecycle (e2e)', () => {
       prisma.curtain.findUnique({ where: { id: quarto.id } }),
     ).resolves.toBeNull();
     await expect(
-      prisma.financialComponent.findUnique({ where: { id: forro.id } }),
+      prisma.financialItem.findUnique({ where: { id: forro.id } }),
     ).resolves.toBeNull();
     await expect(
-      prisma.financialComponent.findUnique({ where: { id: tecido.id } }),
+      prisma.financialItem.findUnique({ where: { id: tecido.id } }),
     ).resolves.not.toBeNull();
     await expect(
       prisma.curtain.count({ where: { quoteId: initial.id } }),
     ).resolves.toBe(2);
     await expect(
-      prisma.financialComponent.count({
+      prisma.financialItem.count({
         where: { curtainId: reconciledSala.id },
       }),
     ).resolves.toBe(2);
     await expect(
-      prisma.generalAddOn.count({ where: { quoteId: initial.id } }),
+      prisma.financialItem.count({
+        where: { quoteId: initial.id, curtainId: null },
+      }),
     ).resolves.toBe(2);
 
     expect(await getQuote(initial.id)).toEqual(withAddOns);
@@ -770,9 +810,11 @@ describe('Quotes alternate lifecycle (e2e)', () => {
     const customerId = await createCustomer();
     const draft = await createQuote(customerId, editableBody());
     const removedCurtain = onlyCurtain(draft, 0);
-    const removedComponent = removedCurtain.components[0];
+    const removedItem = draft.financialItems.find(
+      (item) => item.curtainId === removedCurtain.id,
+    );
 
-    if (!removedComponent) {
+    if (!removedItem) {
       throw new Error('fixture is incomplete');
     }
 
@@ -798,10 +840,10 @@ describe('Quotes alternate lifecycle (e2e)', () => {
       prisma.curtain.count({ where: { quoteId: draft.id } }),
     ).resolves.toBe(0);
     await expect(
-      prisma.financialComponent.count({ where: { id: removedComponent.id } }),
+      prisma.financialItem.count({ where: { id: removedItem.id } }),
     ).resolves.toBe(0);
     await expect(
-      prisma.generalAddOn.count({ where: { quoteId: draft.id } }),
+      prisma.financialItem.count({ where: { quoteId: draft.id } }),
     ).resolves.toBe(0);
     await expect(
       prisma.quoteHistory.count({ where: { quoteId: draft.id } }),

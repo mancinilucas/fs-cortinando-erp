@@ -155,22 +155,22 @@ function sampleDetail(
         fabricFactor: 3.5,
         fabricQuantity: 9.275,
         notes: 'Sem forro',
-        components: [
-          {
-            id: COMPONENT_ID,
-            name: 'Tecido',
-            quantity: 8.05,
-            unit: 'm',
-            unitPriceCents: 3000,
-            totalCents: 24150,
-          },
-        ],
         totalCents: 24150,
       },
     ],
-    generalAddOns: [
+    financialItems: [
+      {
+        id: COMPONENT_ID,
+        curtainId: CURTAIN_ID,
+        name: 'Tecido',
+        quantity: 8.05,
+        unit: 'm',
+        unitPriceCents: 3000,
+        totalCents: 24150,
+      },
       {
         id: ADD_ON_ID,
+        curtainId: null,
         name: 'Instalação',
         quantity: 1,
         unit: null,
@@ -232,22 +232,22 @@ const DETAIL_BODY = {
       fabricFactor: 3.5,
       fabricQuantity: 9.275,
       notes: 'Sem forro',
-      components: [
-        {
-          id: COMPONENT_ID,
-          name: 'Tecido',
-          quantity: 8.05,
-          unit: 'm',
-          unitPriceCents: 3000,
-          totalCents: 24150,
-        },
-      ],
       totalCents: 24150,
     },
   ],
-  generalAddOns: [
+  financialItems: [
+    {
+      id: COMPONENT_ID,
+      curtainId: CURTAIN_ID,
+      name: 'Tecido',
+      quantity: 8.05,
+      unit: 'm',
+      unitPriceCents: 3000,
+      totalCents: 24150,
+    },
     {
       id: ADD_ON_ID,
+      curtainId: null,
       name: 'Instalação',
       quantity: 1,
       unit: null,
@@ -524,19 +524,19 @@ describe('OrcamentosController (HTTP)', () => {
           installationAddress: { state: 'sp' },
           curtains: [
             {
+              clientRef: ' sala ',
               room: ' Sala ',
               openingWidth: 2.5,
-              components: [
-                {
-                  name: ' Tecido ',
-                  quantity: 8.05,
-                  unit: ' m ',
-                  unitPriceCents: 3000,
-                },
-              ],
             },
           ],
-          generalAddOns: [
+          financialItems: [
+            {
+              curtainRef: ' sala ',
+              name: ' Tecido ',
+              quantity: 8.05,
+              unit: ' m ',
+              unitPriceCents: 3000,
+            },
             { name: ' Instalação ', quantity: 1, unitPriceCents: 15000 },
           ],
         })
@@ -550,20 +550,16 @@ describe('OrcamentosController (HTTP)', () => {
         commercialAdjustmentCents: -500,
         installationAddress: { state: 'SP' },
         curtains: [
-          {
-            room: 'Sala',
-            openingWidth: 2.5,
-            components: [
-              {
-                name: 'Tecido',
-                quantity: 8.05,
-                unit: 'm',
-                unitPriceCents: 3000,
-              },
-            ],
-          },
+          { clientRef: 'sala', room: 'Sala', openingWidth: 2.5 },
         ],
-        generalAddOns: [
+        financialItems: [
+          {
+            curtainRef: 'sala',
+            name: 'Tecido',
+            quantity: 8.05,
+            unit: 'm',
+            unitPriceCents: 3000,
+          },
           { name: 'Instalação', quantity: 1, unitPriceCents: 15000 },
         ],
       });
@@ -588,7 +584,7 @@ describe('OrcamentosController (HTTP)', () => {
         commercialAdjustmentCents: undefined,
         installationAddress: undefined,
         curtains: undefined,
-        generalAddOns: undefined,
+        financialItems: undefined,
       });
     });
 
@@ -862,7 +858,7 @@ describe('OrcamentosController (HTTP)', () => {
       expect(input.discount).toBeUndefined();
       expect(input.installationAddress).toBeUndefined();
       expect(input.curtains).toBeUndefined();
-      expect(input.generalAddOns).toBeUndefined();
+      expect(input.financialItems).toBeUndefined();
       expect(mocks.get).toHaveBeenCalledWith({ id: QUOTE_ID });
       expect(response.body).toEqual(DETAIL_BODY);
     });
@@ -887,11 +883,10 @@ describe('OrcamentosController (HTTP)', () => {
         .set(COOKIE)
         .send({
           discount: null,
-          curtains: [
-            {
-              id: CURTAIN_ID,
-              components: [{ id: COMPONENT_ID, quantity: 9 }],
-            },
+          curtains: [{ id: CURTAIN_ID }, { clientRef: 'quarto', room: 'Quarto' }],
+          financialItems: [
+            { id: COMPONENT_ID, curtainId: CURTAIN_ID, quantity: 9 },
+            { name: 'Argola', curtainRef: 'quarto', unitPriceCents: 200 },
           ],
         })
         .expect(200);
@@ -902,6 +897,7 @@ describe('OrcamentosController (HTTP)', () => {
       expect(input.curtains).toEqual([
         {
           id: CURTAIN_ID,
+          clientRef: undefined,
           room: undefined,
           description: undefined,
           material: undefined,
@@ -910,15 +906,38 @@ describe('OrcamentosController (HTTP)', () => {
           height: undefined,
           fabricFactor: undefined,
           notes: undefined,
-          components: [
-            {
-              id: COMPONENT_ID,
-              name: undefined,
-              quantity: 9,
-              unit: undefined,
-              unitPriceCents: undefined,
-            },
-          ],
+        },
+        {
+          id: undefined,
+          clientRef: 'quarto',
+          room: 'Quarto',
+          description: undefined,
+          material: undefined,
+          openingWidth: undefined,
+          borderValue: undefined,
+          height: undefined,
+          fabricFactor: undefined,
+          notes: undefined,
+        },
+      ]);
+      expect(input.financialItems).toEqual([
+        {
+          id: COMPONENT_ID,
+          curtainId: CURTAIN_ID,
+          curtainRef: undefined,
+          name: undefined,
+          quantity: 9,
+          unit: undefined,
+          unitPriceCents: undefined,
+        },
+        {
+          id: undefined,
+          curtainId: undefined,
+          curtainRef: 'quarto',
+          name: 'Argola',
+          quantity: undefined,
+          unit: undefined,
+          unitPriceCents: 200,
         },
       ]);
     });
