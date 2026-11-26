@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { Curtain } from './curtain.js';
-import { FinancialItem } from './financial-item.js';
 
 describe('Curtain', () => {
   it('applies the domain defaults on creation', () => {
@@ -12,10 +11,8 @@ describe('Curtain', () => {
     expect(curtain.openingWidth).toBeNull();
     expect(curtain.height).toBeNull();
     expect(curtain.room).toBeNull();
-    expect(curtain.components).toEqual([]);
     expect(curtain.finalWidth).toBeNull();
     expect(curtain.fabricQuantity).toBeNull();
-    expect(curtain.financialTotalCents).toBe(0);
   });
 
   it('keeps custom values and normalizes optional text', () => {
@@ -83,40 +80,6 @@ describe('Curtain', () => {
     expect(lower.fabricQuantity).toBe(taller.fabricQuantity);
   });
 
-  it('sums the financial components', () => {
-    const curtain = Curtain.create({
-      components: [
-        FinancialItem.create({
-          name: 'Tecido',
-          quantity: 8.05,
-          unitPriceCents: 3_000,
-        }),
-        FinancialItem.create({
-          name: 'Mão de obra',
-          quantity: 8.05,
-          unitPriceCents: 3_000,
-        }),
-      ],
-    });
-
-    expect(curtain.financialTotalCents).toBe(48_300);
-  });
-
-  it('ignores incomplete components while the quote is a draft', () => {
-    const curtain = Curtain.create({
-      components: [
-        FinancialItem.create({
-          name: 'Tecido',
-          quantity: 2,
-          unitPriceCents: 1_500,
-        }),
-        FinancialItem.create({ name: 'Mão de obra' }),
-      ],
-    });
-
-    expect(curtain.financialTotalCents).toBe(3_000);
-  });
-
   it('rejects negative measures', () => {
     expect(() => Curtain.create({ openingWidth: -1 })).toThrow(RangeError);
     expect(() => Curtain.create({ height: -1 })).toThrow(RangeError);
@@ -144,14 +107,7 @@ describe('Curtain', () => {
     expect(() => Curtain.create({ sequence: 1.5 })).toThrow(RangeError);
   });
 
-  it('keeps identity and components when rehydrated', () => {
-    const component = FinancialItem.rehydrate({
-      id: '0b9f4f4e-3d0c-4c81-b4a8-4d1d81a0f001',
-      name: 'Tecido',
-      quantity: 2,
-      unit: 'm',
-      unitPriceCents: 1_000,
-    });
+  it('keeps identity when rehydrated', () => {
     const curtain = Curtain.rehydrate({
       id: '1a0e9c6e-7b2f-4f0a-8b5e-3d3f2c1b0a99',
       sequence: 2,
@@ -163,14 +119,10 @@ describe('Curtain', () => {
       height: 2.7,
       fabricFactor: 3.5,
       notes: null,
-      components: [component],
     });
 
     expect(curtain.id).toBe('1a0e9c6e-7b2f-4f0a-8b5e-3d3f2c1b0a99');
     expect(curtain.sequence).toBe(2);
-    expect(curtain.components).toHaveLength(1);
-    expect(curtain.components[0]).toBe(component);
-    expect(curtain.financialTotalCents).toBe(2_000);
   });
 
   it('generates a different identity for each new curtain', () => {

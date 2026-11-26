@@ -7,6 +7,7 @@ import { Curtain } from './curtain.js';
 import { FinancialItem } from './financial-item.js';
 import { Quote, QuoteStatus, type QuoteSnapshot } from './quote.js';
 
+const curtainsFixtureId = 'fixture-curtain-id';
 const createdAt = new Date('2026-10-19T12:00:00.000Z');
 const confirmedAt = new Date('2026-10-25T12:00:00.000Z');
 const past = new Date('2026-10-01T12:00:00.000Z');
@@ -27,21 +28,30 @@ function quoteWith(overrides: Partial<QuoteSnapshot> = {}): Quote {
       city: 'São Paulo',
     }),
     curtains: [
-      Curtain.create({
+      Curtain.rehydrate({
+        id: curtainsFixtureId,
+        sequence: 1,
         room: 'Sala',
+        description: null,
         material: 'Linho',
         openingWidth: 2,
+        borderValue: 0.15,
         height: 2.7,
-        components: [
-          FinancialItem.create({
-            name: 'Tecido',
-            quantity: 2,
-            unitPriceCents: 3_000,
-          }),
-        ],
+        fabricFactor: 3.5,
+        notes: null,
       }),
     ],
-    generalAddOns: [],
+    financialItems: [
+      FinancialItem.rehydrate({
+        id: 'fixture-item',
+        quoteId: 'dd3f2c1b-0a99-4e4a-9f2e-1a2b3c4d5e6f',
+        curtainId: curtainsFixtureId,
+        name: 'Tecido',
+        quantity: 2,
+        unit: null,
+        unitPriceCents: 3_000,
+      }),
+    ],
     discount: Discount.noDiscount(),
     commercialAdjustmentCents: null,
     notes: null,

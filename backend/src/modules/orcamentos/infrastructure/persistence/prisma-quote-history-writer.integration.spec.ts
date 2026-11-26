@@ -13,6 +13,7 @@ describe('PrismaQuoteHistoryWriter integration', () => {
 
   async function seedQuote(): Promise<string> {
     const id = randomUUID();
+    const curtainId = randomUUID();
     quoteSequence += 1;
 
     await prisma.quote.create({
@@ -25,6 +26,7 @@ describe('PrismaQuoteHistoryWriter integration', () => {
         curtains: {
           create: [
             {
+              id: curtainId,
               sequence: 1,
               room: 'Sala',
               material: 'Linho',
@@ -32,21 +34,18 @@ describe('PrismaQuoteHistoryWriter integration', () => {
               borderValue: '0.150',
               height: '2.650',
               fabricFactor: '3.500',
-              components: {
-                create: [
-                  {
-                    name: 'SENTINELA-COMPONENTE',
-                    quantity: '1.000000',
-                    unit: 'un',
-                    unitPriceCents: 1_000,
-                  },
-                ],
-              },
             },
           ],
         },
-        generalAddOns: {
+        financialItems: {
           create: [
+            {
+              curtainId,
+              name: 'SENTINELA-COMPONENTE',
+              quantity: '1.000000',
+              unit: 'un',
+              unitPriceCents: 1_000,
+            },
             {
               name: 'SENTINELA-ADICIONAL',
               quantity: '2.000000',
@@ -67,9 +66,8 @@ describe('PrismaQuoteHistoryWriter integration', () => {
       curtains: await prisma.curtain.findMany({
         where: { quoteId },
         orderBy: { sequence: 'asc' },
-        include: { components: { orderBy: { name: 'asc' } } },
       }),
-      generalAddOns: await prisma.generalAddOn.findMany({
+      financialItems: await prisma.financialItem.findMany({
         where: { quoteId },
         orderBy: { name: 'asc' },
       }),

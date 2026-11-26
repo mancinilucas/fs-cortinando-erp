@@ -81,9 +81,9 @@ export function captureEditableState(quote: Quote): QuoteEditableState {
       height: curtain.height,
       fabricFactor: curtain.fabricFactor,
       notes: curtain.notes,
-      components: curtain.components.map(captureItem),
+      components: quote.financialItemsForCurtain(curtain.id).map(captureItem),
     })),
-    generalAddOns: quote.generalAddOns.map(captureItem),
+    generalAddOns: quote.generalFinancialItems.map(captureItem),
   };
 }
 
@@ -260,6 +260,17 @@ function pushCurtainChanges(
 
   for (const curtain of before) {
     if (!afterIds.has(curtain.id)) {
+      for (const component of curtain.components) {
+        changes.push({
+          field: 'component',
+          previous: component.name,
+          next: null,
+          curtainSequence: curtain.sequence,
+          curtainRoom: curtain.room,
+          componentName: component.name,
+        });
+      }
+
       changes.push({
         field: 'curtain',
         previous: curtain.room,

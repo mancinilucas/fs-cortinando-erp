@@ -7,11 +7,22 @@ import { formatMoney } from '@/shared/format/money'
 import { ComponentsEditor } from './ComponentsEditor'
 import { curtainFormDefaults } from './curtain-form'
 import { DecimalInput } from './DecimalInput'
+import type { FinancialFieldArray } from './financial-form'
 import type { QuoteFormValues } from './quote-form'
-import type { QuoteCurtain } from './types'
+import type { QuoteCurtain, QuoteFinancialItem } from './types'
 
-export function CurtainsEditor({ form, confirmed = [] }: { form: UseFormReturn<QuoteFormValues>; confirmed?: QuoteCurtain[] }) {
+export function CurtainsEditor({ form, financial, confirmed = [], confirmedItems = [] }: {
+  form: UseFormReturn<QuoteFormValues>; financial: FinancialFieldArray; confirmed?: QuoteCurtain[]; confirmedItems?: QuoteFinancialItem[]
+}) {
   const { fields, append, remove, move } = useFieldArray({ control: form.control, name: 'curtains' })
+  // Removing a curtain also removes its financial items, so the sent collection
+  // never references a curtain absent from the same patch.
+  function removeCurtain(index: number) {
+    const key = fields[index].serverId ?? fields[index].clientRef
+    const itemIndices = financial.fields.map((item, itemIndex) => item.curtainKey === key ? itemIndex : -1).filter((itemIndex) => itemIndex >= 0)
+    if (itemIndices.length > 0) financial.remove(itemIndices)
+    remove(index)
+  }
   return <section aria-labelledby="curtains-title" className="space-y-6 rounded-md border border-border-default bg-surface-primary p-4 sm:p-6">
     <h2 id="curtains-title" className="text-section-title font-semibold">Cortinas</h2>
     <Button variant="secondary" onClick={() => append(curtainFormDefaults())}>Adicionar cortina</Button>
@@ -20,12 +31,13 @@ export function CurtainsEditor({ form, confirmed = [] }: { form: UseFormReturn<Q
       const prefix = `curtains.${index}` as const
       const errors = form.formState.errors.curtains?.[index]
       const saved = confirmed.find((curtain) => curtain.id === field.serverId)
+      const curtainKey = field.serverId ?? field.clientRef ?? ''
       return <fieldset key={field.id} className="min-w-0 space-y-4 border-t border-border-default pt-4">
         <legend className="text-section-title font-semibold">Cortina {index + 1}</legend>
         <div className="flex flex-wrap gap-3">
           <Button variant="secondary" disabled={index === 0} onClick={() => move(index, index - 1)}>Subir cortina</Button>
           <Button variant="secondary" disabled={index === fields.length - 1} onClick={() => move(index, index + 1)}>Descer cortina</Button>
-          <Button variant="destructive" onClick={() => remove(index)}>Remover cortina</Button>
+          <Button variant="destructive" onClick={() => removeCurtain(index)}>Remover cortina</Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField label="Ambiente" {...form.register(`${prefix}.room`)} error={errors?.room?.message} />
@@ -44,7 +56,7 @@ export function CurtainsEditor({ form, confirmed = [] }: { form: UseFormReturn<Q
           {saved.fabricQuantity !== null && <p>Quantidade de tecido salva: {formatQuantity(saved.fabricQuantity)} m</p>}
           <p>Total salvo da cortina: {formatMoney(saved.totalCents)}</p>
         </div>}
-        <ComponentsEditor key={prefix} form={form} index={index} confirmed={saved} />
+        <ComponentsEditor key={curtainKey} form={form} financial={financial} curtainKey={curtainKey} confirmed={saved} confirmedItems={confirmedItems} />
       </fieldset>
     })}
   </section>

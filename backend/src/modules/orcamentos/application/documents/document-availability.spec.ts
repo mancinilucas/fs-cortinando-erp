@@ -23,7 +23,7 @@ function makeQuote(overrides: Partial<QuoteSnapshot> = {}): Quote {
     status: QuoteStatus.SENT,
     installationAddress: null,
     curtains: [],
-    generalAddOns: [],
+    financialItems: [],
     discount: Discount.noDiscount(),
     commercialAdjustmentCents: null,
     notes: null,

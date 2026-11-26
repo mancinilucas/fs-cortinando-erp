@@ -1,6 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import type { FinancialItemPatch } from './financial-item.js';
-import { FinancialItem, reconcileFinancialItems } from './financial-item.js';
 import {
   calculateFabricQuantity,
   calculateFinalWidth,
@@ -32,7 +30,6 @@ export interface CreateCurtainInput {
   height?: number | null;
   fabricFactor?: number | null;
   notes?: string | null;
-  components?: FinancialItem[];
 }
 
 export interface CurtainSnapshot {
@@ -46,12 +43,11 @@ export interface CurtainSnapshot {
   height: number | null;
   fabricFactor: number | null;
   notes: string | null;
-  components: FinancialItem[];
 }
 
 // Partial update of an existing curtain (D117). Sequence is aggregate-owned
-// and is not part of the patch. Components omitted keep the current set; a
-// sent components array replaces it completely by id reconciliation.
+// and is not part of the patch. Only curtain-specific data belongs to this
+// Entity; financial items are owned by the Quote aggregate.
 export interface CurtainPatch {
   room?: string | null;
   description?: string | null;
@@ -61,7 +57,6 @@ export interface CurtainPatch {
   height?: number | null;
   fabricFactor?: number | null;
   notes?: string | null;
-  components?: FinancialItemPatch[];
 }
 
 export class Curtain {
@@ -76,7 +71,6 @@ export class Curtain {
     public height: number | null,
     public fabricFactor: number | null,
     public notes: string | null,
-    public components: FinancialItem[],
   ) {}
 
   static create(input: CreateCurtainInput): Curtain {
@@ -103,7 +97,6 @@ export class Curtain {
         MAX_FABRIC_FACTOR_MILLI,
       ),
       normalizeText(input.notes),
-      [...(input.components ?? [])],
     );
   }
 
@@ -119,7 +112,6 @@ export class Curtain {
       snapshot.height,
       snapshot.fabricFactor,
       snapshot.notes,
-      snapshot.components,
     );
   }
 
@@ -171,13 +163,6 @@ export class Curtain {
     if (patch.notes !== undefined) {
       this.notes = normalizeText(patch.notes);
     }
-
-    if (patch.components !== undefined) {
-      this.components = reconcileFinancialItems(
-        this.components,
-        patch.components,
-      );
-    }
   }
 
   get finalWidth(): number | null {
@@ -194,15 +179,6 @@ export class Curtain {
     }
 
     return calculateFabricQuantity(this.finalWidth, this.fabricFactor);
-  }
-
-  // Incomplete items contribute nothing to the draft total; the send gate
-  // requires every present component to be complete.
-  get financialTotalCents(): number {
-    return this.components.reduce(
-      (total, component) => total + (component.totalCents ?? 0),
-      0,
-    );
   }
 }
 

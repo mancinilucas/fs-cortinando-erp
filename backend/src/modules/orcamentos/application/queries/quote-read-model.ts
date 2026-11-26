@@ -7,6 +7,7 @@ import type { DiscountType } from '../../domain/value-objects/discount.js';
 
 export interface FinancialItemView {
   id: string;
+  curtainId: string | null;
   name: string;
   quantity: number | null;
   unit: string | null;
@@ -27,7 +28,6 @@ export interface CurtainView {
   fabricFactor: number | null;
   fabricQuantity: number | null;
   notes: string | null;
-  components: FinancialItemView[];
   totalCents: number;
 }
 
@@ -69,7 +69,7 @@ export interface QuoteDetailView {
   commercialAdjustmentCents: number | null;
   installationAddress: InstallationAddressView | null;
   curtains: CurtainView[];
-  generalAddOns: FinancialItemView[];
+  financialItems: FinancialItemView[];
   totals: QuoteTotalsView;
   createdAt: Date;
   updatedAt: Date;

@@ -47,6 +47,7 @@ function validCreatePayload(): Record<string, unknown> {
     },
     curtains: [
       {
+        clientRef: '  sala ',
         room: 'Sala',
         description: 'Cortina principal',
         material: 'Linho',
@@ -55,17 +56,16 @@ function validCreatePayload(): Record<string, unknown> {
         height: 2.7,
         fabricFactor: 3.5,
         notes: '  Sem forro ',
-        components: [
-          {
-            name: '  Tecido ',
-            quantity: 8.05,
-            unit: ' m ',
-            unitPriceCents: 3_000,
-          },
-        ],
       },
     ],
-    generalAddOns: [
+    financialItems: [
+      {
+        curtainRef: '  sala ',
+        name: '  Tecido ',
+        quantity: 8.05,
+        unit: ' m ',
+        unitPriceCents: 3_000,
+      },
       { name: 'Instalação', quantity: 1, unitPriceCents: 15_000 },
     ],
   };
@@ -89,6 +89,7 @@ describe('CreateQuoteDto', () => {
     });
     expect(dto.curtains).toHaveLength(1);
     expect(dto.curtains?.[0]).toMatchObject({
+      clientRef: 'sala',
       room: 'Sala',
       openingWidth: 2.5,
       borderValue: 0.15,
@@ -96,17 +97,19 @@ describe('CreateQuoteDto', () => {
       fabricFactor: 3.5,
       notes: 'Sem forro',
     });
-    expect(dto.curtains?.[0]?.components?.[0]).toMatchObject({
+    expect(dto.financialItems?.[0]).toMatchObject({
+      curtainRef: 'sala',
       name: 'Tecido',
       quantity: 8.05,
       unit: 'm',
       unitPriceCents: 3_000,
     });
-    expect(dto.generalAddOns?.[0]).toMatchObject({
+    expect(dto.financialItems?.[1]).toMatchObject({
       name: 'Instalação',
       quantity: 1,
       unitPriceCents: 15_000,
     });
+    expect(dto.financialItems?.[1]?.curtainRef).toBeUndefined();
   });
 
   it('accepts a minimal payload and null optional fields', async () => {
@@ -121,7 +124,7 @@ describe('CreateQuoteDto', () => {
           commercialAdjustmentCents: null,
           installationAddress: null,
           curtains: null,
-          generalAddOns: null,
+          financialItems: null,
         },
         CreateQuoteDto,
       ),
@@ -149,23 +152,23 @@ describe('CreateQuoteDto', () => {
       transform({ curtains: 'not-an-array' }, CreateQuoteDto),
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
-      transform({ curtains: [{ components: [{ name: '' }] }] }, CreateQuoteDto),
+      transform({ financialItems: [{ name: '' }] }, CreateQuoteDto),
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
       transform(
-        { generalAddOns: [{ name: 'Tecido', quantity: 0 }] },
+        { financialItems: [{ name: 'Tecido', quantity: 0 }] },
         CreateQuoteDto,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
       transform(
-        { generalAddOns: [{ name: 'Tecido', quantity: 1.1234567 }] },
+        { financialItems: [{ name: 'Tecido', quantity: 1.1234567 }] },
         CreateQuoteDto,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
       transform(
-        { generalAddOns: [{ name: 'Tecido', unitPriceCents: 12.5 }] },
+        { financialItems: [{ name: 'Tecido', unitPriceCents: 12.5 }] },
         CreateQuoteDto,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -243,7 +246,7 @@ describe('UpdateQuoteDto', () => {
     expect(omitted.notes).toBeUndefined();
     expect(omitted.discount).toBeUndefined();
     expect(omitted.curtains).toBeUndefined();
-    expect(omitted.generalAddOns).toBeUndefined();
+    expect(omitted.financialItems).toBeUndefined();
 
     const cleared = await transform(
       { notes: null, discount: null, installationAddress: null },
@@ -255,30 +258,29 @@ describe('UpdateQuoteDto', () => {
     expect(cleared.installationAddress).toBeNull();
   });
 
-  it('accepts nested ids and items without id', async () => {
+  it('accepts ids for existing associations and refs for new ones', async () => {
     const dto = await transform(
       {
         curtains: [
-          {
-            id: curtainId,
-            room: 'Sala',
-            components: [{ id: componentId, name: 'Tecido', quantity: 8 }],
-          },
-          {
-            room: 'Quarto',
-            components: [{ name: 'Nova argola', unitPriceCents: 200 }],
-          },
+          { id: curtainId, room: 'Sala' },
+          { clientRef: ' quarto ', room: 'Quarto' },
         ],
-        generalAddOns: [{ name: 'Frete', unitPriceCents: 5_000 }],
+        financialItems: [
+          { id: componentId, name: 'Tecido', quantity: 8, curtainId: null },
+          { name: 'Nova argola', curtainRef: 'quarto', unitPriceCents: 200 },
+          { name: 'Frete', unitPriceCents: 5_000 },
+        ],
       },
       UpdateQuoteDto,
     );
 
     expect(dto.curtains?.[0]?.id).toBe(curtainId);
-    expect(dto.curtains?.[0]?.components?.[0]?.id).toBe(componentId);
     expect(dto.curtains?.[1]?.id).toBeUndefined();
-    expect(dto.curtains?.[1]?.components?.[0]?.id).toBeUndefined();
-    expect(dto.generalAddOns?.[0]?.id).toBeUndefined();
+    expect(dto.curtains?.[1]?.clientRef).toBe('quarto');
+    expect(dto.financialItems?.[0]?.curtainId).toBeNull();
+    expect(dto.financialItems?.[1]?.curtainRef).toBe('quarto');
+    expect(dto.financialItems?.[1]?.id).toBeUndefined();
+    expect(dto.financialItems?.[2]?.id).toBeUndefined();
   });
 
   it('rejects unknown ids and cleared required names', async () => {
@@ -287,13 +289,19 @@ describe('UpdateQuoteDto', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
       transform(
-        { generalAddOns: [{ id: randomUUID(), name: null }] },
+        { financialItems: [{ id: randomUUID(), name: null }] },
         UpdateQuoteDto,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
       transform(
-        { curtains: [{ components: [{ name: '   ', quantity: 1 }] }] },
+        { financialItems: [{ id: randomUUID(), curtainId: 'not-a-uuid' }] },
+        UpdateQuoteDto,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      transform(
+        { financialItems: [{ name: '   ', quantity: 1 }] },
         UpdateQuoteDto,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -301,17 +309,11 @@ describe('UpdateQuoteDto', () => {
 
   it('requires a name for new items but not for known ids', async () => {
     await expect(
-      transform({ generalAddOns: [{ quantity: 1 }] }, UpdateQuoteDto),
+      transform({ financialItems: [{ quantity: 1 }] }, UpdateQuoteDto),
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
       transform(
-        { curtains: [{ components: [{ quantity: 1 }] }] },
-        UpdateQuoteDto,
-      ),
-    ).rejects.toBeInstanceOf(BadRequestException);
-    await expect(
-      transform(
-        { generalAddOns: [{ id: randomUUID(), quantity: 1 }] },
+        { financialItems: [{ id: randomUUID(), quantity: 1 }] },
         UpdateQuoteDto,
       ),
     ).resolves.toBeInstanceOf(UpdateQuoteDto);

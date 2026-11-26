@@ -41,7 +41,7 @@ export interface QuoteRecord {
   scheduledInstallationAt: Date | null;
   completedAt: Date | null;
   curtains: CurtainRecord[];
-  generalAddOns: FinancialItemRecord[];
+  financialItems: FinancialItemRecord[];
 }
 
 export interface CurtainRecord {
@@ -55,11 +55,12 @@ export interface CurtainRecord {
   height: NumericColumn | null;
   fabricFactor: NumericColumn | null;
   notes: string | null;
-  components: FinancialItemRecord[];
 }
 
 export interface FinancialItemRecord {
   id: string;
+  quoteId: string;
+  curtainId: string | null;
   name: string;
   quantity: NumericColumn | null;
   unit: string | null;
@@ -107,6 +108,8 @@ export interface CurtainPersistenceData {
 
 export interface FinancialItemPersistenceData {
   id: string;
+  quoteId: string;
+  curtainId: string | null;
   name: string;
   quantity: number | null;
   unit: string | null;
@@ -122,7 +125,7 @@ export class QuoteMapper {
       status: toQuoteStatus(record.status),
       installationAddress: toInstallationAddress(record),
       curtains: record.curtains.map(toCurtain),
-      generalAddOns: record.generalAddOns.map(toFinancialItem),
+      financialItems: record.financialItems.map(toFinancialItem),
       discount: Discount.fromPersistence({
         type: toDiscountType(record.discountType),
         percentage: toNumber(record.discountPercentage),
@@ -192,6 +195,8 @@ export class QuoteMapper {
   ): FinancialItemPersistenceData {
     return {
       id: item.id,
+      quoteId: item.quoteId,
+      curtainId: item.curtainId,
       name: item.name,
       quantity: item.quantity,
       unit: item.unit,
@@ -212,13 +217,14 @@ function toCurtain(record: CurtainRecord): Curtain {
     height: toNumber(record.height),
     fabricFactor: toNumber(record.fabricFactor),
     notes: record.notes,
-    components: record.components.map(toFinancialItem),
   });
 }
 
 function toFinancialItem(record: FinancialItemRecord): FinancialItem {
   return FinancialItem.rehydrate({
     id: record.id,
+    quoteId: record.quoteId,
+    curtainId: record.curtainId,
     name: record.name,
     quantity: toNumber(record.quantity),
     unit: record.unit,

@@ -55,8 +55,8 @@ interface QuoteDetail {
 
 interface QuoteState {
   quote: Record<string, unknown>;
-  curtains: { id: string; components: { id: string }[] }[];
-  generalAddOns: { id: string }[];
+  curtains: { id: string }[];
+  financialItems: { id: string }[];
 }
 
 class FailingRenderer extends QuoteDocumentRenderer {
@@ -176,6 +176,7 @@ describe('Documents integration (e2e-style Application + PostgreSQL)', () => {
       installationAddress: COMPLETE_ADDRESS,
       curtains: [
         {
+          clientRef: 'sala',
           room: 'Sala',
           description: 'Janela principal',
           material: 'Linho',
@@ -183,12 +184,16 @@ describe('Documents integration (e2e-style Application + PostgreSQL)', () => {
           borderValue: 0,
           height: 2.2,
           fabricFactor: 2,
-          components: [
-            { name: 'Tecido', quantity: 1, unit: 'm', unitPriceCents: 10_000 },
-          ],
         },
       ],
-      generalAddOns: [
+      financialItems: [
+        {
+          curtainRef: 'sala',
+          name: 'Tecido',
+          quantity: 1,
+          unit: 'm',
+          unitPriceCents: 10_000,
+        },
         { name: 'Instalação', quantity: 1, unitPriceCents: 15_000 },
       ],
     };
@@ -267,20 +272,13 @@ describe('Documents integration (e2e-style Application + PostgreSQL)', () => {
     const row = await prisma.quote.findUniqueOrThrow({
       where: { id },
       include: {
-        curtains: {
-          include: { components: true },
-          orderBy: { sequence: 'asc' },
-        },
-        generalAddOns: true,
+        curtains: { orderBy: { sequence: 'asc' } },
+        financialItems: true,
       },
     });
     const state = JSON.parse(JSON.stringify(row)) as QuoteState;
 
-    state.generalAddOns.sort((left, right) => left.id.localeCompare(right.id));
-
-    for (const curtain of state.curtains) {
-      curtain.components.sort((left, right) => left.id.localeCompare(right.id));
-    }
+    state.financialItems.sort((left, right) => left.id.localeCompare(right.id));
 
     return state;
   }

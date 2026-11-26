@@ -14,15 +14,28 @@ import { toProductionOrderProjection } from './build-production-order-projection
 
 const NOW = new Date('2026-10-20T12:00:00.000Z');
 
-function makeQuote(overrides: Partial<QuoteSnapshot> = {}): Quote {
+interface ItemFixture {
+  id?: string;
+  curtainId?: string | null;
+  name?: string;
+  quantity?: number | null;
+  unit?: string | null;
+  unitPriceCents?: number | null;
+}
+
+type QuoteFixture = Omit<Partial<QuoteSnapshot>, 'financialItems'> & {
+  financialItems?: ItemFixture[];
+};
+
+function makeQuote(overrides: QuoteFixture = {}): Quote {
+  const id = overrides.id ?? randomUUID();
+
   return Quote.rehydrate({
-    id: randomUUID(),
     quoteNumber: QuoteNumber.create(2026, 1),
     customerId: randomUUID(),
     status: QuoteStatus.CONFIRMED,
     installationAddress: null,
     curtains: [],
-    generalAddOns: [],
     discount: Discount.noDiscount(),
     commercialAdjustmentCents: null,
     notes: null,
@@ -35,6 +48,18 @@ function makeQuote(overrides: Partial<QuoteSnapshot> = {}): Quote {
     scheduledInstallationAt: null,
     completedAt: null,
     ...overrides,
+    id,
+    financialItems: (overrides.financialItems ?? []).map((item) =>
+      FinancialItem.rehydrate({
+        id: item.id ?? randomUUID(),
+        quoteId: id,
+        curtainId: item.curtainId ?? null,
+        name: item.name ?? 'SENTINELA-COMPONENTE',
+        quantity: item.quantity ?? 1,
+        unit: item.unit ?? 'un',
+        unitPriceCents: item.unitPriceCents ?? 1_000,
+      }),
+    ),
   });
 }
 
@@ -49,7 +74,6 @@ function makeCurtain(
     height?: number | null;
     fabricFactor?: number | null;
     notes?: string | null;
-    components?: FinancialItem[];
   } = {},
 ): Curtain {
   return Curtain.create({
@@ -62,7 +86,6 @@ function makeCurtain(
     height: input.height === undefined ? 2.65 : input.height,
     fabricFactor: input.fabricFactor ?? 3.5,
     notes: input.notes ?? null,
-    components: input.components ?? [],
   });
 }
 
@@ -178,7 +201,6 @@ describe('toProductionOrderProjection', () => {
           height: base.height,
           fabricFactor: base.fabricFactor,
           notes: base.notes,
-          components: base.components,
         }),
       ],
     });
@@ -200,30 +222,24 @@ describe('toProductionOrderProjection', () => {
         city: 'São Paulo',
         state: 'SP',
       }),
-      generalAddOns: [
-        FinancialItem.create({
+      financialItems: [
+        {
           name: 'SENTINELA-ADICIONAL',
           quantity: 1,
           unit: 'un',
           unitPriceCents: 20_000,
-        }),
+        },
+        {
+          name: 'SENTINELA-COMPONENTE',
+          quantity: 1,
+          unit: 'un',
+          unitPriceCents: 123_456,
+        },
       ],
       discount: Discount.fixedAmount(5_000),
       commercialAdjustmentCents: 1_000,
       notes: 'SENTINELA-NOTA-INTERNA',
-      curtains: [
-        makeCurtain({
-          notes: 'SENTINELA-NOTA-CORTINA',
-          components: [
-            FinancialItem.create({
-              name: 'SENTINELA-COMPONENTE',
-              quantity: 1,
-              unit: 'un',
-              unitPriceCents: 123_456,
-            }),
-          ],
-        }),
-      ],
+      curtains: [makeCurtain({ notes: 'SENTINELA-NOTA-CORTINA' })],
     });
 
     const projection = build(quote);

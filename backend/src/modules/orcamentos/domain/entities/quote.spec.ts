@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { InvalidQuoteTransitionError } from '../errors/quote-domain.errors.js';
 import { Curtain } from './curtain.js';
-import { FinancialItem } from './financial-item.js';
+import { FinancialItem, type FinancialItemInput } from './financial-item.js';
 import type { CreateQuoteInput } from './quote.js';
 import { Quote, QuoteStatus } from './quote.js';
 import { Discount } from '../value-objects/discount.js';
@@ -10,24 +10,49 @@ import { QuoteNumber } from '../value-objects/quote-number.js';
 
 const createdAt = new Date('2026-10-19T12:00:00.000Z');
 
+const itemsByCurtain = new WeakMap<Curtain, FinancialItemInput[]>();
+
 function item(
   name: string,
   quantity: number,
   unitPriceCents: number,
-): FinancialItem {
-  return FinancialItem.create({ name, quantity, unitPriceCents });
+): FinancialItemInput {
+  return { name, quantity, unitPriceCents };
 }
 
-function curtainWith(items: FinancialItem[]): Curtain {
-  return Curtain.create({ components: items });
+function curtainWith(items: FinancialItemInput[]): Curtain {
+  const curtain = Curtain.create({});
+  itemsByCurtain.set(curtain, items);
+  return curtain;
 }
 
-function createQuote(overrides: Partial<CreateQuoteInput> = {}): Quote {
+type QuoteTestInput = Partial<CreateQuoteInput> & {
+  generalAddOns?: FinancialItemInput[];
+};
+
+function createQuote(overrides: QuoteTestInput = {}): Quote {
+  const curtains = overrides.curtains ?? [];
+  const financialItems = [
+    ...(overrides.financialItems ?? []),
+    ...curtains.flatMap((curtain) =>
+      (itemsByCurtain.get(curtain) ?? []).map((item) => ({
+        ...item,
+        curtainId: curtain.id,
+      })),
+    ),
+    ...(overrides.generalAddOns ?? []).map((item) => ({
+      ...item,
+      curtainId: null,
+    })),
+  ];
+  const { generalAddOns: _generalAddOns, ...input } = overrides;
   return Quote.create({
     quoteNumber: QuoteNumber.create(2026, 42),
     customerId: '6f2b9f2c-3b8c-4e4a-9f2e-1a2b3c4d5e6f',
     createdAt,
-    ...overrides,
+    ...input,
+    curtains,
+    financialItems,
   });
 }
 
@@ -143,13 +168,64 @@ describe('Quote', () => {
     const quote = createQuote();
 
     expect(quote.curtains).toEqual([]);
-    expect(quote.generalAddOns).toEqual([]);
+    expect(quote.generalFinancialItems).toEqual([]);
     expect(quote.curtainsSubtotalCents).toBe(0);
     expect(quote.generalAddOnsSubtotalCents).toBe(0);
     expect(quote.subtotalCents).toBe(0);
     expect(quote.discountValueCents).toBe(0);
     expect(quote.calculatedTotalCents).toBe(0);
     expect(quote.totalCents).toBe(0);
+  });
+
+  it('rejects financial items associated with a curtain outside the quote', () => {
+    expect(() =>
+      createQuote({
+        financialItems: [
+          {
+            name: 'Tecido',
+            curtainId: 'foreign-curtain',
+            quantity: 1,
+            unitPriceCents: 100,
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it('rejects duplicate financial item IDs across the quote composition on rehydration', () => {
+    const quoteId = 'dd3f2c1b-0a99-4e4a-9f2e-1a2b3c4d5e6f';
+    const duplicate = FinancialItem.rehydrate({
+      id: '0b9f4f4e-3d0c-4c81-b4a8-4d1d81a0f001',
+      quoteId,
+      curtainId: null,
+      name: 'Frete',
+      quantity: 1,
+      unit: null,
+      unitPriceCents: 500,
+    });
+
+    expect(() =>
+      Quote.rehydrate({
+        id: quoteId,
+        quoteNumber: QuoteNumber.create(2026, 42),
+        customerId: '6f2b9f2c-3b8c-4e4a-9f2e-1a2b3c4d5e6f',
+        status: QuoteStatus.DRAFT,
+        installationAddress: null,
+        curtains: [],
+        financialItems: [duplicate, duplicate],
+        discount: Discount.noDiscount(),
+        commercialAdjustmentCents: null,
+        notes: null,
+        createdAt,
+        updatedAt: createdAt,
+        firstSentAt: null,
+        validUntil: null,
+        confirmedAt: null,
+        productionStartedAt: null,
+        scheduledInstallationAt: null,
+        completedAt: null,
+      }),
+    ).toThrow();
   });
 
   it('normalizes curtain sequences to 1..N on creation', () => {
@@ -179,6 +255,8 @@ describe('Quote', () => {
   it('rehydrates persisted state without regenerating identity', () => {
     const component = FinancialItem.rehydrate({
       id: '0b9f4f4e-3d0c-4c81-b4a8-4d1d81a0f001',
+      quoteId: 'dd3f2c1b-0a99-4e4a-9f2e-1a2b3c4d5e6f',
+      curtainId: '1a0e9c6e-7b2f-4f0a-8b5e-3d3f2c1b0a99',
       name: 'Tecido',
       quantity: 2,
       unit: 'm',
@@ -195,7 +273,6 @@ describe('Quote', () => {
       height: 2.7,
       fabricFactor: 3.5,
       notes: null,
-      components: [component],
     });
     const updatedAt = new Date('2026-10-20T12:00:00.000Z');
     const quote = Quote.rehydrate({
@@ -205,7 +282,7 @@ describe('Quote', () => {
       status: QuoteStatus.SENT,
       installationAddress: null,
       curtains: [curtain],
-      generalAddOns: [],
+      financialItems: [component],
       discount: Discount.noDiscount(),
       commercialAdjustmentCents: null,
       notes: null,
@@ -224,7 +301,7 @@ describe('Quote', () => {
     expect(quote.updatedAt).toBe(updatedAt);
     expect(quote.curtains[0]).toBe(curtain);
     expect(quote.curtains[0].sequence).toBe(5);
-    expect(quote.curtains[0].components[0]).toBe(component);
+    expect(quote.financialItems[0]).toBe(component);
     expect(quote.totalCents).toBe(2_000);
   });
 
@@ -252,7 +329,7 @@ describe('Quote', () => {
     expect(quote.discount.equals(Discount.percentage(10))).toBe(true);
     expect(quote.commercialAdjustmentCents).toBe(700);
     expect(quote.curtains).toEqual([curtain]);
-    expect(quote.generalAddOns).toHaveLength(1);
+    expect(quote.generalFinancialItems).toHaveLength(1);
   });
 
   it('clears scalar fields with null and canonicalizes zero adjustment', () => {

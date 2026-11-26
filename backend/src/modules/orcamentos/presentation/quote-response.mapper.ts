@@ -43,7 +43,7 @@ export class QuoteResponseMapper {
               state: view.installationAddress.state,
             },
       curtains: view.curtains.map(toCurtain),
-      generalAddOns: view.generalAddOns.map(toFinancialItem),
+      financialItems: view.financialItems.map(toFinancialItem),
       totals: toTotals(view.totals),
       createdAt: view.createdAt.toISOString(),
       updatedAt: view.updatedAt.toISOString(),
@@ -96,7 +96,6 @@ function toCurtain(curtain: CurtainView): QuoteCurtainResponseDto {
     fabricFactor: curtain.fabricFactor,
     fabricQuantity: curtain.fabricQuantity,
     notes: curtain.notes,
-    components: curtain.components.map(toFinancialItem),
     totalCents: curtain.totalCents,
   };
 }
@@ -106,6 +105,7 @@ function toFinancialItem(
 ): QuoteFinancialItemResponseDto {
   return {
     id: item.id,
+    curtainId: item.curtainId,
     name: item.name,
     quantity: item.quantity,
     unit: item.unit,

@@ -5,11 +5,9 @@ import {
   Curtain,
   type CreateCurtainInput,
 } from '../../domain/entities/curtain.js';
-import {
-  FinancialItem,
-  type FinancialItemInput,
-} from '../../domain/entities/financial-item.js';
-import { Quote } from '../../domain/entities/quote.js';
+import type { FinancialItemInput } from '../../domain/entities/financial-item.js';
+import { normalizeClientRef, Quote } from '../../domain/entities/quote.js';
+import { UnknownQuoteItemError } from '../../domain/errors/quote-domain.errors.js';
 import { QuoteHistoryDetails } from '../../domain/history/quote-history.js';
 import { QuoteRepository } from '../../domain/repositories/quote.repository.js';
 import {
@@ -20,13 +18,20 @@ import { commercialYearFrom } from '../../domain/value-objects/quote-number.js';
 import { QuoteCustomerNotFoundError } from '../errors/quote-customer-not-found.error.js';
 import { toDiscount, type QuoteDiscountInput } from './quote-discount-input.js';
 
-// Creation input: the editable data of a first save (D79/D116). Ids and
-// sequence are not accepted; the aggregate generates them.
-export type CreatableCurtainInput = Omit<
-  CreateCurtainInput,
-  'sequence' | 'components'
+// Creation input: the editable data of a first save (D79/D116). Curtain ids
+// and sequences are not accepted; the aggregate generates them. A curtain
+// created in the payload is referenced by `clientRef`, and an item created in
+// the payload references it by `curtainRef`; the use case resolves the refs to
+// the definitive ids the aggregate generated.
+export type CreatableCurtainInput = Omit<CreateCurtainInput, 'sequence'> & {
+  clientRef?: string | null;
+};
+
+export type CreatableFinancialItemInput = Omit<
+  FinancialItemInput,
+  'curtainId'
 > & {
-  components?: FinancialItemInput[];
+  curtainRef?: string | null;
 };
 
 export interface CreateQuoteFromCustomerInput {
@@ -36,7 +41,7 @@ export interface CreateQuoteFromCustomerInput {
   commercialAdjustmentCents?: number | null;
   installationAddress?: InstallationAddressInput | null;
   curtains?: CreatableCurtainInput[];
-  generalAddOns?: FinancialItemInput[];
+  financialItems?: CreatableFinancialItemInput[];
 }
 
 /**
@@ -59,6 +64,8 @@ export class CreateQuoteFromCustomerUseCase {
 
     const now = this.clock.now();
     const year = commercialYearFrom(now);
+    const curtains = (input.curtains ?? []).map(toCurtain);
+    const idsByRef = resolveCurtainRefs(input.curtains ?? [], curtains);
 
     return this.quotes.create(year, (quoteNumber) => ({
       quote: Quote.create({
@@ -68,9 +75,9 @@ export class CreateQuoteFromCustomerUseCase {
         installationAddress: InstallationAddress.create(
           input.installationAddress,
         ),
-        curtains: (input.curtains ?? []).map(toCurtain),
-        generalAddOns: (input.generalAddOns ?? []).map((item) =>
-          FinancialItem.create(item),
+        curtains,
+        financialItems: (input.financialItems ?? []).map((item) =>
+          toFinancialItemInput(item, idsByRef),
         ),
         discount: toDiscount(input.discount),
         commercialAdjustmentCents: input.commercialAdjustmentCents,
@@ -94,8 +101,48 @@ function toCurtain(input: CreatableCurtainInput): Curtain {
     height: input.height,
     fabricFactor: input.fabricFactor,
     notes: input.notes,
-    components: (input.components ?? []).map((item) =>
-      FinancialItem.create(item),
-    ),
   });
+}
+
+function resolveCurtainRefs(
+  inputs: CreatableCurtainInput[],
+  curtains: Curtain[],
+): Map<string, string> {
+  const idsByRef = new Map<string, string>();
+
+  inputs.forEach((input, index) => {
+    const ref = normalizeClientRef(input.clientRef);
+
+    if (ref === undefined) {
+      return;
+    }
+
+    if (idsByRef.has(ref)) {
+      throw new UnknownQuoteItemError('Duplicate curtain clientRef');
+    }
+
+    idsByRef.set(ref, curtains[index].id);
+  });
+
+  return idsByRef;
+}
+
+function toFinancialItemInput(
+  item: CreatableFinancialItemInput,
+  idsByRef: ReadonlyMap<string, string>,
+): FinancialItemInput {
+  const ref = normalizeClientRef(item.curtainRef);
+  const curtainId = ref === undefined ? null : idsByRef.get(ref);
+
+  if (curtainId === undefined) {
+    throw new UnknownQuoteItemError('Unknown curtainRef');
+  }
+
+  return {
+    name: item.name,
+    quantity: item.quantity,
+    unit: item.unit,
+    unitPriceCents: item.unitPriceCents,
+    curtainId,
+  };
 }

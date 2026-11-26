@@ -8,18 +8,27 @@ import {
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   ValidateIf,
 } from 'class-validator';
 import { trimOptionalText } from './dto-transforms.js';
 
-// FinancialItem payload shared by curtain components and general add-ons
-// (D87/D88/D116). Quantities allow up to 6 decimals and money stays in
-// integer cents; incomplete items are valid while the quote is a draft.
+// FinancialItem payload of the quote's single collection (D87/D88/D116).
+// Quantities allow up to 6 decimals and money stays in integer cents;
+// incomplete items are valid while the quote is a draft. `curtainRef`
+// associates the item with a curtain created in the same payload; existing
+// curtains are referenced by definitive `curtainId`.
 export class QuoteFinancialItemInputDto {
   @Transform(({ value }) => trimOptionalText(value))
   @IsString()
   @IsNotEmpty()
   name: string;
+
+  @Transform(({ value }) => trimOptionalText(value))
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  curtainRef?: string | null;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 6, allowNaN: false, allowInfinity: false })
@@ -42,10 +51,22 @@ export class QuoteFinancialItemInputDto {
 // Edit payload (D117). A sent item without `id` is created; with a known id
 // it is updated. Omitted scalars keep their value and null clears them, except
 // `name`, which is required for a new item and, when sent, for a known one.
+// An existing or new item for a known curtain uses `curtainId`; a new item for
+// a curtain created in the same patch uses `curtainRef`.
 export class QuoteFinancialItemUpdateDto {
   @IsOptional()
   @IsUUID()
   id?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  curtainId?: string | null;
+
+  @Transform(({ value }) => trimOptionalText(value))
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  curtainRef?: string | null;
 
   @Transform(({ value }) => trimOptionalText(value))
   @ValidateIf(

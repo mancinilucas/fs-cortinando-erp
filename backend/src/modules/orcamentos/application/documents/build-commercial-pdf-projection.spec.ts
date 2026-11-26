@@ -1,11 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Curtain } from '../../domain/entities/curtain.js';
 import { FinancialItem } from '../../domain/entities/financial-item.js';
-import {
-  Quote,
-  QuoteStatus,
-  type QuoteSnapshot,
-} from '../../domain/entities/quote.js';
+import { Quote, QuoteStatus } from '../../domain/entities/quote.js';
 import { Discount } from '../../domain/value-objects/discount.js';
 import { QuoteNumber } from '../../domain/value-objects/quote-number.js';
 import {
@@ -25,27 +21,46 @@ const BUSINESS_IDENTITY: CommercialPdfProjectionInput['businessIdentity'] = {
 
 const CUSTOMER = { name: 'Maria Silva', phone: '(11) 98888-7777' };
 
-function makeQuote(overrides: Partial<QuoteSnapshot> = {}): Quote {
+interface QuoteFixtureInput {
+  status?: QuoteStatus;
+  notes?: string | null;
+  validUntil?: Date | null;
+  curtains?: Curtain[];
+  items?: Array<{ curtainId: string | null; unitPriceCents: number }>;
+}
+
+function makeQuote(input: QuoteFixtureInput = {}): Quote {
+  const id = randomUUID();
+
   return Quote.rehydrate({
-    id: randomUUID(),
+    id,
     quoteNumber: QuoteNumber.create(2026, 1),
     customerId: randomUUID(),
-    status: QuoteStatus.DRAFT,
+    status: input.status ?? QuoteStatus.DRAFT,
     installationAddress: null,
-    curtains: [],
-    generalAddOns: [],
+    curtains: input.curtains ?? [],
+    financialItems: (input.items ?? []).map((item) =>
+      FinancialItem.rehydrate({
+        id: randomUUID(),
+        quoteId: id,
+        curtainId: item.curtainId,
+        name: 'SENTINELA-COMPONENTE',
+        quantity: 1,
+        unit: 'un',
+        unitPriceCents: item.unitPriceCents,
+      }),
+    ),
     discount: Discount.noDiscount(),
     commercialAdjustmentCents: null,
-    notes: null,
+    notes: input.notes ?? null,
     createdAt: NOW,
     updatedAt: NOW,
     firstSentAt: null,
-    validUntil: null,
+    validUntil: input.validUntil ?? null,
     confirmedAt: null,
     productionStartedAt: null,
     scheduledInstallationAt: null,
     completedAt: null,
-    ...overrides,
   });
 }
 
@@ -53,7 +68,6 @@ function makeCurtain(
   input: {
     room?: string | null;
     description?: string | null;
-    unitPriceCents?: number;
   } = {},
 ): Curtain {
   return Curtain.create({
@@ -65,17 +79,6 @@ function makeCurtain(
     borderValue: 0.15,
     fabricFactor: 3.5,
     notes: 'SENTINELA-NOTA-CORTINA',
-    components:
-      input.unitPriceCents === undefined
-        ? []
-        : [
-            FinancialItem.create({
-              name: 'SENTINELA-COMPONENTE',
-              quantity: 1,
-              unit: 'un',
-              unitPriceCents: input.unitPriceCents,
-            }),
-          ],
   });
 }
 
@@ -147,10 +150,12 @@ describe('toCommercialPdfProjection', () => {
   });
 
   it('includes the consolidated total outside DRAFT', () => {
+    const curtain = makeCurtain();
     const quote = makeQuote({
       status: QuoteStatus.SENT,
       validUntil: VALID_UNTIL,
-      curtains: [makeCurtain({ unitPriceCents: 123_456 })],
+      curtains: [curtain],
+      items: [{ curtainId: curtain.id, unitPriceCents: 123_456 }],
     });
 
     expect(build(quote).totalCents).toBe(123_456);
@@ -163,8 +168,10 @@ describe('toCommercialPdfProjection', () => {
   });
 
   it('keeps a non-zero DRAFT total', () => {
+    const curtain = makeCurtain();
     const quote = makeQuote({
-      curtains: [makeCurtain({ unitPriceCents: 50_000 })],
+      curtains: [curtain],
+      items: [{ curtainId: curtain.id, unitPriceCents: 50_000 }],
     });
 
     expect(build(quote).totalCents).toBe(50_000);
@@ -178,11 +185,13 @@ describe('toCommercialPdfProjection', () => {
   });
 
   it('exposes only the authorized fields and no forbidden data', () => {
+    const curtain = makeCurtain();
     const quote = makeQuote({
       status: QuoteStatus.SENT,
       validUntil: VALID_UNTIL,
       notes: 'SENTINELA-NOTA-INTERNA',
-      curtains: [makeCurtain({ unitPriceCents: 123_456 })],
+      curtains: [curtain],
+      items: [{ curtainId: curtain.id, unitPriceCents: 123_456 }],
     });
 
     const projection = build(quote);

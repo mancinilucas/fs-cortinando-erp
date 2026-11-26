@@ -18,10 +18,13 @@ export interface FinancialItemInput {
   quantity?: number | null;
   unit?: string | null;
   unitPriceCents?: number | null;
+  curtainId?: string | null;
 }
 
 export interface FinancialItemSnapshot {
   id: string;
+  quoteId: string;
+  curtainId: string | null;
   name: string;
   quantity: number | null;
   unit: string | null;
@@ -31,8 +34,15 @@ export interface FinancialItemSnapshot {
 // Partial update of an existing item (D117). Omitted fields keep their
 // current value; null clears the field when absence is allowed. The optional
 // id is used by collection reconciliation and ignored by update().
+//
+// `curtainRef` associates a *new* item with a curtain created in the same
+// patch (clientRef/curtainRef decision): the aggregate resolves it to the
+// definitive id it generates, since the caller cannot know it in advance.
+// Existing items and existing curtains always use `curtainId`.
 export interface FinancialItemPatch {
   id?: string | null;
+  curtainId?: string | null;
+  curtainRef?: string | null;
   name?: string | null;
   quantity?: number | null;
   unit?: string | null;
@@ -47,15 +57,19 @@ const MAX_QUANTITY_MICRO = 999_999_999_999;
 export class FinancialItem {
   private constructor(
     readonly id: string,
+    readonly quoteId: string,
+    public curtainId: string | null,
     public name: string,
     public quantity: number | null,
     public unit: string | null,
     public unitPriceCents: number | null,
   ) {}
 
-  static create(input: FinancialItemInput): FinancialItem {
+  static create(input: FinancialItemInput, quoteId: string): FinancialItem {
     return new FinancialItem(
       randomUUID(),
+      quoteId,
+      input.curtainId ?? null,
       requiredName(input.name),
       validatedQuantity(input.quantity),
       normalizeUnit(input.unit),
@@ -66,6 +80,8 @@ export class FinancialItem {
   static rehydrate(snapshot: FinancialItemSnapshot): FinancialItem {
     return new FinancialItem(
       snapshot.id,
+      snapshot.quoteId,
+      snapshot.curtainId,
       snapshot.name,
       snapshot.quantity,
       snapshot.unit,
@@ -74,6 +90,9 @@ export class FinancialItem {
   }
 
   update(patch: FinancialItemScalarPatch): void {
+    if (patch.curtainId !== undefined) {
+      this.curtainId = patch.curtainId;
+    }
     if (patch.name !== undefined) {
       this.name = requiredName(patch.name);
     }
@@ -181,8 +200,10 @@ function validatedUnitPrice(value: number | null | undefined): number | null {
 export function assertFinancialItemPatchesReconcilable(
   current: FinancialItem[],
   patches: FinancialItemPatch[],
+  quoteId: string,
+  curtainIds: ReadonlySet<string>,
 ): void {
-  const currentIds = new Set(current.map((item) => item.id));
+  const currentById = new Map(current.map((item) => [item.id, item]));
   const seen = new Set<string>();
 
   for (const patch of patches) {
@@ -196,17 +217,33 @@ export function assertFinancialItemPatchesReconcilable(
 
     seen.add(patch.id);
 
-    if (!currentIds.has(patch.id)) {
+    const existing = currentById.get(patch.id);
+
+    if (existing === undefined || existing.quoteId !== quoteId) {
       throw new UnknownQuoteItemError('Unknown financial item id');
     }
+
+    const targetCurtainId =
+      patch.curtainId === undefined ? existing.curtainId : patch.curtainId;
+    assertCurtainAssociation(targetCurtainId, curtainIds);
+  }
+
+  for (const patch of patches) {
+    if (patch.id !== undefined && patch.id !== null) {
+      continue;
+    }
+
+    assertCurtainAssociation(patch.curtainId ?? null, curtainIds);
   }
 }
 
 export function reconcileFinancialItems(
   current: FinancialItem[],
   patches: FinancialItemPatch[],
+  quoteId: string,
+  curtainIds: ReadonlySet<string>,
 ): FinancialItem[] {
-  assertFinancialItemPatchesReconcilable(current, patches);
+  assertFinancialItemPatchesReconcilable(current, patches, quoteId, curtainIds);
 
   const byId = new Map(current.map((item) => [item.id, item]));
 
@@ -223,11 +260,24 @@ export function reconcileFinancialItems(
       return existing;
     }
 
-    return FinancialItem.create({
-      name: patch.name ?? '',
-      quantity: patch.quantity,
-      unit: patch.unit,
-      unitPriceCents: patch.unitPriceCents,
-    });
+    return FinancialItem.create(
+      {
+        name: patch.name ?? '',
+        quantity: patch.quantity,
+        unit: patch.unit,
+        unitPriceCents: patch.unitPriceCents,
+        curtainId: patch.curtainId,
+      },
+      quoteId,
+    );
   });
+}
+
+export function assertCurtainAssociation(
+  curtainId: string | null,
+  curtainIds: ReadonlySet<string>,
+): void {
+  if (curtainId !== null && !curtainIds.has(curtainId)) {
+    throw new UnknownQuoteItemError('Unknown curtain id');
+  }
 }

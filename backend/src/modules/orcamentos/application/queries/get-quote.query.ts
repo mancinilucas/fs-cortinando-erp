@@ -62,8 +62,8 @@ export function toQuoteDetail(quote: Quote, now: Date): QuoteDetailView {
             city: quote.installationAddress.city,
             state: quote.installationAddress.state,
           },
-    curtains: quote.curtains.map(toCurtainView),
-    generalAddOns: quote.generalAddOns.map(toFinancialItemView),
+    curtains: quote.curtains.map((curtain) => toCurtainView(quote, curtain)),
+    financialItems: quote.financialItems.map(toFinancialItemView),
     totals: {
       curtainsSubtotalCents: quote.curtainsSubtotalCents,
       generalAddOnsSubtotalCents: quote.generalAddOnsSubtotalCents,
@@ -86,7 +86,7 @@ export function toQuoteDetail(quote: Quote, now: Date): QuoteDetailView {
   };
 }
 
-function toCurtainView(curtain: Curtain): CurtainView {
+function toCurtainView(quote: Quote, curtain: Curtain): CurtainView {
   return {
     id: curtain.id,
     sequence: curtain.sequence,
@@ -100,14 +100,16 @@ function toCurtainView(curtain: Curtain): CurtainView {
     fabricFactor: curtain.fabricFactor,
     fabricQuantity: curtain.fabricQuantity,
     notes: curtain.notes,
-    components: curtain.components.map(toFinancialItemView),
-    totalCents: curtain.financialTotalCents,
+    totalCents: quote
+      .financialItemsForCurtain(curtain.id)
+      .reduce((total, item) => total + (item.totalCents ?? 0), 0),
   };
 }
 
 function toFinancialItemView(item: FinancialItem): FinancialItemView {
   return {
     id: item.id,
+    curtainId: item.curtainId,
     name: item.name,
     quantity: item.quantity,
     unit: item.unit,

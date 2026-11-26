@@ -156,6 +156,7 @@ describe('Documents (e2e)', () => {
       installationAddress: COMPLETE_ADDRESS,
       curtains: [
         {
+          clientRef: 'sala',
           room: 'Sala',
           description: 'Janela principal',
           material: 'Linho',
@@ -163,12 +164,16 @@ describe('Documents (e2e)', () => {
           borderValue: 0,
           height: 2.2,
           fabricFactor: 2,
-          components: [
-            { name: 'Tecido', quantity: 1, unit: 'm', unitPriceCents: 10_000 },
-          ],
         },
       ],
-      generalAddOns: [
+      financialItems: [
+        {
+          curtainRef: 'sala',
+          name: 'Tecido',
+          quantity: 1,
+          unit: 'm',
+          unitPriceCents: 10_000,
+        },
         { name: 'Instalação', quantity: 1, unitPriceCents: 15_000 },
       ],
     };

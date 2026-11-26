@@ -40,26 +40,17 @@ describe('PrismaQuoteRepository integration — deletion guard', () => {
         customerId,
         status: 'SENT',
         curtains: {
+          create: [{ id: seeded.curtainId, sequence: 1, room: 'Sala' }],
+        },
+        financialItems: {
           create: [
             {
-              id: seeded.curtainId,
-              sequence: 1,
-              room: 'Sala',
-              components: {
-                create: [
-                  {
-                    id: seeded.componentId,
-                    name: 'Tecido',
-                    quantity: '2.000000',
-                    unitPriceCents: 1_000,
-                  },
-                ],
-              },
+              id: seeded.componentId,
+              curtainId: seeded.curtainId,
+              name: 'Tecido',
+              quantity: '2.000000',
+              unitPriceCents: 1_000,
             },
-          ],
-        },
-        generalAddOns: {
-          create: [
             {
               id: seeded.addOnId,
               name: 'Frete',
@@ -118,16 +109,13 @@ describe('PrismaQuoteRepository integration — deletion guard', () => {
 
     await expect(repository.deleteDraft(seeded.quoteId)).resolves.toBe(false);
 
-    const [quotes, curtains, components, addOns, history] = await Promise.all([
+    const [quotes, curtains, items, history] = await Promise.all([
       prisma.quote.count({ where: { id: seeded.quoteId } }),
       prisma.curtain.count({ where: { quoteId: seeded.quoteId } }),
-      prisma.financialComponent.count({ where: { id: seeded.componentId } }),
-      prisma.generalAddOn.count({ where: { quoteId: seeded.quoteId } }),
+      prisma.financialItem.count({ where: { quoteId: seeded.quoteId } }),
       prisma.quoteHistory.count({ where: { quoteId: seeded.quoteId } }),
     ]);
 
-    expect([quotes, curtains, components, addOns, history]).toEqual([
-      1, 1, 1, 1, 1,
-    ]);
+    expect([quotes, curtains, items, history]).toEqual([1, 1, 2, 1]);
   });
 });

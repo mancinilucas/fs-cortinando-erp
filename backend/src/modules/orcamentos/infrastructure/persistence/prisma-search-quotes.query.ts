@@ -86,27 +86,18 @@ export class PrismaSearchQuotesQuery extends QuoteSearchQueryRepository {
 
     // D93: totals are never persisted. Each item is rounded before the sum
     // (Postgres numeric ROUND is HALF_UP, matching the domain), and the discount
-    // follows D91 and the adjustment D92.
+    // follows D91 and the adjustment D92. The single financial collection holds
+    // both curtain and general items, so one aggregate covers the subtotal.
     const rows = await this.prisma.$queryRaw<QuoteSummaryRow[]>(Prisma.sql`
-      WITH curtain_totals AS (
-        SELECT cu.quote_id,
-               SUM(COALESCE(ROUND(fc.quantity * fc.unit_price_cents), 0)) AS total
-        FROM curtains cu
-        JOIN financial_components fc ON fc.curtain_id = cu.id
-        GROUP BY cu.quote_id
-      ),
-      add_on_totals AS (
-        SELECT ga.quote_id,
-               SUM(COALESCE(ROUND(ga.quantity * ga.unit_price_cents), 0)) AS total
-        FROM general_add_ons ga
-        GROUP BY ga.quote_id
-      ),
-      quote_totals AS (
+      WITH quote_totals AS (
         SELECT q.id,
-               COALESCE(ct.total, 0) + COALESCE(at.total, 0) AS subtotal
+               COALESCE(
+                 SUM(COALESCE(ROUND(fi.quantity * fi.unit_price_cents), 0)),
+                 0
+               ) AS subtotal
         FROM quotes q
-        LEFT JOIN curtain_totals ct ON ct.quote_id = q.id
-        LEFT JOIN add_on_totals at ON at.quote_id = q.id
+        LEFT JOIN financial_items fi ON fi.quote_id = q.id
+        GROUP BY q.id
       )
       SELECT
         q.id,

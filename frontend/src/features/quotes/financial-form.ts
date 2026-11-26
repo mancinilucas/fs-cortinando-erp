@@ -1,11 +1,27 @@
 import { z } from 'zod'
-import { componentFormSchema, decimalInputValue, moneyInputValue } from './curtain-form'
+import { decimalInputValue, moneyField, moneyInputValue, numericField } from './curtain-form'
 import { parseDecimalInput, parseMoneyInput } from './numeric-input'
-import type { QuoteDetail, QuoteDiscountPayload, UpdateFinancialItemPayload } from './types'
+import type { CurtainFormValues } from './curtain-form'
+import type { QuoteDetail, QuoteDiscountPayload, QuoteFinancialItem, UpdateFinancialItemPayload } from './types'
 
-export const addOnFormSchema = componentFormSchema.extend({ name: z.string().refine((value) => Boolean(value.trim()), 'Informe o nome do adicional.') })
+// Every financial item is one row of the quote's single collection. `curtainKey`
+// is the local association: the server id of a persisted curtain, the clientRef
+// of a curtain created in this draft, or null for the general composition.
+export const financialItemFormSchema = z.object({
+  serverId: z.string().optional(),
+  curtainKey: z.string().nullable(),
+  name: z.string().refine((value) => Boolean(value.trim()), 'Informe o nome.'),
+  quantity: numericField(6, { strictlyPositive: true, max: 999999.999999 }), unit: z.string(),
+  unitPrice: moneyField({ strictlyPositive: true }),
+})
+export type FinancialItemFormValues = z.infer<typeof financialItemFormSchema>
+export type FinancialFieldArray = {
+  fields: Array<FinancialItemFormValues & { id: string }>
+  append: (value: FinancialItemFormValues) => void
+  remove: (index?: number | number[]) => void
+  move: (from: number, to: number) => void
+}
 export const financialFormSchema = z.object({
-  generalAddOns: z.array(addOnFormSchema),
   discountType: z.enum(['NO_DISCOUNT', 'PERCENTAGE', 'FIXED_AMOUNT']),
   discountPercentage: z.string(), discountFixedAmount: z.string(), commercialAdjustment: z.string(),
 }).superRefine((values, context) => {
@@ -20,9 +36,12 @@ export const financialFormSchema = z.object({
   catch (error) { context.addIssue({ code: 'custom', path: ['commercialAdjustment'], message: error instanceof Error ? error.message : 'Informe um ajuste válido.' }) }
 })
 export type FinancialFormValues = z.infer<typeof financialFormSchema>
+export function financialItemFormDefaults(item: QuoteFinancialItem): FinancialItemFormValues {
+  return { serverId: item.id, curtainKey: item.curtainId, name: item.name, quantity: decimalInputValue(item.quantity),
+    unit: item.unit ?? '', unitPrice: moneyInputValue(item.unitPriceCents) }
+}
 export function financialFormDefaults(quote?: QuoteDetail): FinancialFormValues {
   return {
-    generalAddOns: quote?.generalAddOns.map((item) => ({ serverId: item.id, name: item.name, quantity: decimalInputValue(item.quantity), unit: item.unit ?? '', unitPrice: moneyInputValue(item.unitPriceCents) })) ?? [],
     discountType: quote?.discount.type ?? 'NO_DISCOUNT', discountPercentage: decimalInputValue(quote?.discount.percentage ?? null),
     discountFixedAmount: moneyInputValue(quote?.discount.fixedAmountCents ?? null), commercialAdjustment: moneyInputValue(quote?.commercialAdjustmentCents ?? null),
   }
@@ -34,7 +53,19 @@ export function discountFormPayload(values: FinancialFormValues): QuoteDiscountP
     case 'NO_DISCOUNT': return { type: 'NO_DISCOUNT', percentage: null, fixedAmountCents: null }
   }
 }
-export function addOnsFormPayload(values: FinancialFormValues): UpdateFinancialItemPayload[] {
-  return values.generalAddOns.map((item) => ({ ...(item.serverId ? { id: item.serverId } : {}), name: item.name,
-    quantity: parseDecimalInput(item.quantity, 6), unit: item.unit.trim() ? item.unit : null, unitPriceCents: parseMoneyInput(item.unitPrice) }))
+// `target` is the curtain form row resolved from `curtainKey`; null means the
+// item belongs to the general composition. New items for a curtain created in
+// this draft use `curtainRef`; existing items and existing curtains use
+// `curtainId`, which the server reconciles by id.
+export function financialItemFormPayload(item: FinancialItemFormValues, target: CurtainFormValues | null): UpdateFinancialItemPayload {
+  const association = target === null
+    ? { curtainId: null }
+    : target.serverId
+      ? { curtainId: target.serverId }
+      : { curtainRef: target.clientRef }
+  const optional = (value: string) => value.trim() ? value : null
+  return {
+    ...(item.serverId ? { id: item.serverId } : {}), ...association, name: item.name,
+    quantity: parseDecimalInput(item.quantity, 6), unit: optional(item.unit), unitPriceCents: parseMoneyInput(item.unitPrice),
+  }
 }

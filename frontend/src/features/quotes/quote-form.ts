@@ -2,12 +2,17 @@ import { z } from 'zod'
 import { parseMoneyInput } from './numeric-input'
 import type { FieldErrors, Resolver } from 'react-hook-form'
 import { curtainFormDefaults, curtainFormPayload, curtainFormSchema } from './curtain-form'
-import { addOnsFormPayload, discountFormPayload, financialFormDefaults, financialFormSchema } from './financial-form'
+import type { CurtainFormValues } from './curtain-form'
+import {
+  discountFormPayload, financialFormDefaults, financialFormSchema, financialItemFormDefaults,
+  financialItemFormPayload, financialItemFormSchema,
+} from './financial-form'
 import type { QuoteDiscountPayload, UpdateFinancialItemPayload, UpdateCurtainPayload } from './types'
 import type { QuoteDetail, InstallationAddressPayload } from './types'
 
 export const quoteFormSchema = financialFormSchema.safeExtend({
   curtains: z.array(curtainFormSchema),
+  financialItems: z.array(financialItemFormSchema),
   notes: z.string(), postalCode: z.string(), street: z.string(), number: z.string(), complement: z.string(),
   neighborhood: z.string(), city: z.string(), state: z.string(),
 }).superRefine((value, context) => {
@@ -15,7 +20,7 @@ export const quoteFormSchema = financialFormSchema.safeExtend({
   if (value.state.trim() && !/^[a-zA-Z]{2}$/.test(value.state.trim())) context.addIssue({ code: 'custom', path: ['state'], message: 'Informe uma UF com 2 letras.' })
 })
 export type QuoteFormValues = z.infer<typeof quoteFormSchema>
-export type QuoteFormPayload = { notes?: string | null; installationAddress?: InstallationAddressPayload | null; curtains?: UpdateCurtainPayload[]; generalAddOns?: UpdateFinancialItemPayload[]; discount?: QuoteDiscountPayload; commercialAdjustmentCents?: number | null }
+export type QuoteFormPayload = { notes?: string | null; installationAddress?: InstallationAddressPayload | null; curtains?: UpdateCurtainPayload[]; financialItems?: UpdateFinancialItemPayload[]; discount?: QuoteDiscountPayload; commercialAdjustmentCents?: number | null }
 export const quoteFormResolver: Resolver<QuoteFormValues> = (values) => {
   const result = quoteFormSchema.safeParse(values)
   if (result.success) return { values: result.data, errors: {} }
@@ -34,13 +39,26 @@ export const quoteFormResolver: Resolver<QuoteFormValues> = (values) => {
 }
 const addressFields = ['postalCode', 'street', 'number', 'complement', 'neighborhood', 'city', 'state'] as const
 export function quoteFormDefaults(quote?: QuoteDetail): QuoteFormValues {
-  return { ...financialFormDefaults(quote), curtains: quote?.curtains.map(curtainFormDefaults) ?? [], notes: quote?.notes ?? '', ...Object.fromEntries(addressFields.map((key) => [key, quote?.installationAddress?.[key] ?? ''])) } as QuoteFormValues
+  return {
+    ...financialFormDefaults(quote),
+    financialItems: quote?.financialItems.map(financialItemFormDefaults) ?? [],
+    curtains: quote?.curtains.map(curtainFormDefaults) ?? [],
+    notes: quote?.notes ?? '',
+    ...Object.fromEntries(addressFields.map((key) => [key, quote?.installationAddress?.[key] ?? ''])),
+  } as QuoteFormValues
+}
+function resolveCurtain(curtains: CurtainFormValues[], key: string | null): CurtainFormValues | null {
+  if (key === null) return null
+  const curtain = curtains.find((candidate) => candidate.serverId === key || candidate.clientRef === key)
+  if (!curtain) throw new Error('Financial item references an unknown curtain')
+  return curtain
 }
 export function quoteFormPayload(values: QuoteFormValues, baseline?: QuoteFormValues): QuoteFormPayload {
   const optional = (value: string) => value.trim() ? value : null
   const address = Object.fromEntries(addressFields.map((key) => [key, optional(values[key])]))
   const curtains = !baseline || JSON.stringify(values.curtains) !== JSON.stringify(baseline.curtains) ? { curtains: values.curtains.map(curtainFormPayload) } : {}
-  const generalAddOns = !baseline || JSON.stringify(values.generalAddOns) !== JSON.stringify(baseline.generalAddOns) ? { generalAddOns: addOnsFormPayload(values) } : {}
+  const financialItems = !baseline || JSON.stringify(values.financialItems) !== JSON.stringify(baseline.financialItems)
+    ? { financialItems: values.financialItems.map((item) => financialItemFormPayload(item, resolveCurtain(values.curtains, item.curtainKey))) } : {}
   const discount = discountFormPayload(values)
   const discountFields = !baseline || JSON.stringify(discount) !== JSON.stringify(discountFormPayload(baseline)) ? { discount } : {}
   const adjustment = parseMoneyInput(values.commercialAdjustment)
@@ -49,5 +67,5 @@ export function quoteFormPayload(values: QuoteFormValues, baseline?: QuoteFormVa
   const notesFields = !baseline || notes !== optional(baseline.notes) ? { notes } : {}
   const installationAddress = Object.values(address).some((value) => value !== null) ? address : null
   const addressChanged = !baseline || addressFields.some((key) => optional(values[key]) !== optional(baseline[key]))
-  return { ...curtains, ...generalAddOns, ...discountFields, ...adjustmentFields, ...notesFields, ...(addressChanged ? { installationAddress } : {}) }
+  return { ...curtains, ...financialItems, ...discountFields, ...adjustmentFields, ...notesFields, ...(addressChanged ? { installationAddress } : {}) }
 }

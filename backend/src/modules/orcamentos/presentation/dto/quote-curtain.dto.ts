@@ -1,23 +1,20 @@
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
-  IsArray,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
-  ValidateNested,
 } from 'class-validator';
 import { trimOptionalText } from './dto-transforms.js';
-import {
-  QuoteFinancialItemInputDto,
-  QuoteFinancialItemUpdateDto,
-} from './quote-financial-item.dto.js';
 
 // Editable curtain fields (D83–D86/D116). `sequence` is aggregate-owned and
 // not accepted; the server derives it from the array order. Measures use at
-// most 3 decimals and negative values are rejected.
+// most 3 decimals and negative values are rejected. `clientRef` identifies a
+// curtain created by the payload so its items can reference it before the
+// server assigns the definitive id.
 class QuoteCurtainFieldsDto {
   @Transform(({ value }) => trimOptionalText(value))
   @IsOptional()
@@ -62,27 +59,21 @@ class QuoteCurtainFieldsDto {
   @IsOptional()
   @IsString()
   notes?: string | null;
-}
 
-export class CreateQuoteCurtainDto extends QuoteCurtainFieldsDto {
+  @Transform(({ value }) => trimOptionalText(value))
   @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => QuoteFinancialItemInputDto)
-  components?: QuoteFinancialItemInputDto[];
+  @IsString()
+  @MaxLength(100)
+  clientRef?: string | null;
 }
 
-// A sent curtains array is the complete collection (D117). Items without `id`
-// are created and known ids are reconciled; `components` follows the same
-// collection rule inside each curtain.
+export class CreateQuoteCurtainDto extends QuoteCurtainFieldsDto {}
+
+// A sent curtains array is the complete collection (D117): items without `id`
+// are created and known ids are reconciled; `clientRef` is accepted only for
+// the new ones.
 export class UpdateQuoteCurtainDto extends QuoteCurtainFieldsDto {
   @IsOptional()
   @IsUUID()
   id?: string | null;
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => QuoteFinancialItemUpdateDto)
-  components?: QuoteFinancialItemUpdateDto[];
 }

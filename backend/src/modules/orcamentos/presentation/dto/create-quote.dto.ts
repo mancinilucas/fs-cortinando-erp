@@ -49,5 +49,5 @@ export class CreateQuoteDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => QuoteFinancialItemInputDto)
-  generalAddOns?: QuoteFinancialItemInputDto[];
+  financialItems?: QuoteFinancialItemInputDto[];
 }

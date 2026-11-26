@@ -19,8 +19,11 @@ import { QuoteNotFoundError } from '../errors/quote-not-found.error.js';
 import { toDiscount, type QuoteDiscountInput } from './quote-discount-input.js';
 
 // Editable payload of a PATCH (D116/D117). Every field is optional: omitted
-// means unchanged; null clears scalar values where absence is allowed; a sent
-// collection is the complete state and is reconciled by id.
+// means unchanged; null clears scalar values where absence is allowed. The
+// financial composition is one collection (PROJECT_SPEC §2.4-2.5): a sent
+// `financialItems` array is the complete state, reconciled by id, and an item
+// may change its `curtainId` to move between a curtain and the general
+// composition of the same quote.
 export interface UpdateQuoteInput {
   id: string;
   installationAddress?: InstallationAddressInput | null;
@@ -28,7 +31,7 @@ export interface UpdateQuoteInput {
   commercialAdjustmentCents?: number | null;
   notes?: string | null;
   curtains?: QuoteCurtainPatch[];
-  generalAddOns?: FinancialItemPatch[];
+  financialItems?: FinancialItemPatch[];
 }
 
 /**
@@ -91,8 +94,8 @@ function toQuotePatch(input: UpdateQuoteInput): QuotePatch {
     patch.curtains = input.curtains;
   }
 
-  if (input.generalAddOns !== undefined) {
-    patch.generalAddOns = input.generalAddOns;
+  if (input.financialItems !== undefined) {
+    patch.financialItems = input.financialItems;
   }
 
   return patch;

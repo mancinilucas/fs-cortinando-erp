@@ -6,6 +6,7 @@ import type { QuoteInstallationAddressDto } from './quote-installation-address.d
 // 8601 strings and derived values are read-only fields of the response.
 export class QuoteFinancialItemResponseDto {
   id: string;
+  curtainId: string | null;
   name: string;
   quantity: number | null;
   unit: string | null;
@@ -26,7 +27,6 @@ export class QuoteCurtainResponseDto {
   fabricFactor: number | null;
   fabricQuantity: number | null;
   notes: string | null;
-  components: QuoteFinancialItemResponseDto[];
   totalCents: number;
 }
 
@@ -56,7 +56,7 @@ export class QuoteDetailResponseDto {
   commercialAdjustmentCents: number | null;
   installationAddress: QuoteInstallationAddressDto | null;
   curtains: QuoteCurtainResponseDto[];
-  generalAddOns: QuoteFinancialItemResponseDto[];
+  financialItems: QuoteFinancialItemResponseDto[];
   totals: QuoteTotalsResponseDto;
   createdAt: string;
   updatedAt: string;

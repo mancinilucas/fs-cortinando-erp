@@ -111,7 +111,7 @@ describe('CreateQuoteFromCustomerUseCase integration', () => {
     expect(quote.commercialAdjustmentCents).toBeNull();
     expect(quote.notes).toBeNull();
     expect(quote.curtains).toEqual([]);
-    expect(quote.generalAddOns).toEqual([]);
+    expect(quote.financialItems).toEqual([]);
     expect(quote.firstSentAt).toBeNull();
     expect(quote.validUntil).toBeNull();
 
@@ -151,27 +151,30 @@ describe('CreateQuoteFromCustomerUseCase integration', () => {
       },
       curtains: [
         {
+          clientRef: 'sala',
           room: 'Sala',
           material: 'Linho',
           openingWidth: 2.65,
           height: 2.7,
-          components: [
-            {
-              name: 'Tecido',
-              quantity: 8.05,
-              unit: 'm',
-              unitPriceCents: 3_000,
-            },
-          ],
+        },
+        { clientRef: 'quarto', room: 'Quarto' },
+      ],
+      financialItems: [
+        {
+          curtainRef: 'sala',
+          name: 'Tecido',
+          quantity: 8.05,
+          unit: 'm',
+          unitPriceCents: 3_000,
         },
         {
-          room: 'Quarto',
-          components: [
-            { name: 'Mão de obra', quantity: 1, unitPriceCents: 20_000 },
-          ],
+          curtainRef: 'quarto',
+          name: 'Mão de obra',
+          quantity: 1,
+          unitPriceCents: 20_000,
         },
+        { name: 'Frete', quantity: 1, unitPriceCents: 5_000 },
       ],
-      generalAddOns: [{ name: 'Frete', quantity: 1, unitPriceCents: 5_000 }],
     });
 
     expect(quote.notes).toBe('Instalação urgente');
@@ -182,26 +185,31 @@ describe('CreateQuoteFromCustomerUseCase integration', () => {
     expect(quote.installationAddress?.isComplete()).toBe(true);
     expect(quote.curtains.map((curtain) => curtain.sequence)).toEqual([1, 2]);
     expect(quote.curtains[0].room).toBe('Sala');
-    expect(quote.curtains[0].components[0].quantity).toBe(8.05);
-    expect(quote.curtains[1].components[0].unitPriceCents).toBe(20_000);
-    expect(quote.generalAddOns[0].name).toBe('Frete');
+    expect(
+      quote.financialItemsForCurtain(quote.curtains[0].id)[0].quantity,
+    ).toBe(8.05);
+    expect(
+      quote.financialItemsForCurtain(quote.curtains[1].id)[0].unitPriceCents,
+    ).toBe(20_000);
+    expect(quote.generalFinancialItems[0].name).toBe('Frete');
 
     const stored = await prisma.quote.findUniqueOrThrow({
       where: { id: quote.id },
       include: {
-        curtains: {
-          orderBy: { sequence: 'asc' },
-          include: { components: true },
-        },
-        generalAddOns: true,
+        curtains: { orderBy: { sequence: 'asc' } },
+        financialItems: true,
       },
     });
+    const itemsOf = (curtainId: string) =>
+      stored.financialItems.filter((item) => item.curtainId === curtainId);
 
     expect(stored.curtains).toHaveLength(2);
-    expect(stored.curtains[0].components).toHaveLength(1);
+    expect(itemsOf(stored.curtains[0].id)).toHaveLength(1);
     expect(Number(stored.curtains[0].openingWidth)).toBe(2.65);
-    expect(stored.curtains[1].components[0].name).toBe('Mão de obra');
-    expect(stored.generalAddOns).toHaveLength(1);
+    expect(itemsOf(stored.curtains[1].id)[0].name).toBe('Mão de obra');
+    expect(
+      stored.financialItems.filter((item) => item.curtainId === null),
+    ).toHaveLength(1);
     expect(stored.discountType).toBe('PERCENTAGE');
     expect(stored.commercialAdjustmentCents).toBe(-500);
   });

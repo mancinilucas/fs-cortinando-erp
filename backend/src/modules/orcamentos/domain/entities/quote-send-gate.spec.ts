@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { QuoteValidationError } from '../errors/quote-domain.errors.js';
 import { Discount } from '../value-objects/discount.js';
 import { InstallationAddress } from '../value-objects/installation-address.js';
+import { MONEY_MAX_CENTS } from '../value-objects/money.js';
 import { QuoteNumber } from '../value-objects/quote-number.js';
 import type { CreateCurtainInput } from './curtain.js';
 import { Curtain } from './curtain.js';
@@ -12,23 +13,27 @@ import { Quote, QuoteStatus } from './quote.js';
 const createdAt = new Date('2026-10-19T12:00:00.000Z');
 const now = new Date('2026-10-20T12:00:00.000Z');
 
+const curtainItems = new WeakMap<Curtain, FinancialItem[]>();
+
 function validItem(): FinancialItem {
-  return FinancialItem.create({
-    name: 'Tecido',
-    quantity: 8.05,
-    unitPriceCents: 3_000,
-  });
+  return FinancialItem.create(
+    { name: 'Tecido', quantity: 8.05, unitPriceCents: 3_000 },
+    'fixture-quote',
+  );
 }
 
-function validCurtain(overrides: CreateCurtainInput = {}): Curtain {
-  return Curtain.create({
+type CurtainFixture = CreateCurtainInput & { components?: FinancialItem[] };
+function validCurtain(overrides: CurtainFixture = {}): Curtain {
+  const { components = [validItem()], ...input } = overrides;
+  const curtain = Curtain.create({
     room: 'Sala',
     material: 'Linho',
     openingWidth: 2,
     height: 2.7,
-    components: [validItem()],
-    ...overrides,
+    ...input,
   });
+  curtainItems.set(curtain, components);
+  return curtain;
 }
 
 function validAddress(): InstallationAddress {
@@ -40,14 +45,66 @@ function validAddress(): InstallationAddress {
   }) as InstallationAddress;
 }
 
-function quoteWith(overrides: Partial<CreateQuoteInput> = {}): Quote {
-  return Quote.create({
+type QuoteFixture = Partial<CreateQuoteInput> & {
+  generalAddOns?: FinancialItem[];
+};
+function quoteWith(overrides: QuoteFixture = {}): Quote {
+  const curtains = overrides.curtains ?? [validCurtain()];
+  const { generalAddOns = [], ...input } = overrides;
+  const base = Quote.create({
     quoteNumber: QuoteNumber.create(2026, 42),
     customerId: '6f2b9f2c-3b8c-4e4a-9f2e-1a2b3c4d5e6f',
     createdAt,
     installationAddress: validAddress(),
-    curtains: [validCurtain()],
-    ...overrides,
+    curtains,
+    financialItems: [],
+    ...input,
+  });
+  const financialItems = [
+    ...curtains.flatMap((curtain) =>
+      (curtainItems.get(curtain) ?? []).map((item) =>
+        FinancialItem.rehydrate({
+          id: item.id,
+          quoteId: base.id,
+          curtainId: curtain.id,
+          name: item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPriceCents: item.unitPriceCents,
+        }),
+      ),
+    ),
+    ...generalAddOns.map((item) =>
+      FinancialItem.rehydrate({
+        id: item.id,
+        quoteId: base.id,
+        curtainId: null,
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        unitPriceCents: item.unitPriceCents,
+      }),
+    ),
+  ];
+  return Quote.rehydrate({
+    id: base.id,
+    quoteNumber: base.quoteNumber,
+    customerId: base.customerId,
+    status: base.status,
+    installationAddress: base.installationAddress,
+    curtains,
+    financialItems,
+    discount: base.discount,
+    commercialAdjustmentCents: base.commercialAdjustmentCents,
+    notes: base.notes,
+    createdAt: base.createdAt,
+    updatedAt: base.updatedAt,
+    firstSentAt: null,
+    validUntil: null,
+    confirmedAt: null,
+    productionStartedAt: null,
+    scheduledInstallationAt: null,
+    completedAt: null,
   });
 }
 
@@ -150,10 +207,13 @@ describe('Quote.validateForSend', () => {
       codes(quoteWith({ curtains: [validCurtain({ components: [] })] })),
     ).toContain('CURTAIN_COMPONENT_REQUIRED');
 
-    const incomplete = FinancialItem.create({
-      name: 'Tecido',
-      quantity: 2,
-    });
+    const incomplete = FinancialItem.create(
+      {
+        name: 'Tecido',
+        quantity: 2,
+      },
+      'fixture-quote',
+    );
     const violations = codes(
       quoteWith({ curtains: [validCurtain({ components: [incomplete] })] }),
     );
@@ -163,37 +223,33 @@ describe('Quote.validateForSend', () => {
   });
 
   it('rejects zero quantities or prices on rehydrated items', () => {
-    const withoutQuantity = Curtain.create({
-      room: 'Sala',
-      material: 'Linho',
-      openingWidth: 2,
-      height: 2.7,
+    const withoutQuantity = validCurtain({
+      components: [
+        FinancialItem.rehydrate({
+          id: '0b9f4f4e-3d0c-4c81-b4a8-4d1d81a0f001',
+          quoteId: 'fixture-quote',
+          curtainId: null,
+          name: 'Tecido',
+          quantity: 0,
+          unit: 'm',
+          unitPriceCents: 1_000,
+        }),
+      ],
     });
-    withoutQuantity.components = [
-      FinancialItem.rehydrate({
-        id: '0b9f4f4e-3d0c-4c81-b4a8-4d1d81a0f001',
-        name: 'Tecido',
-        quantity: 0,
-        unit: 'm',
-        unitPriceCents: 1_000,
-      }),
-    ];
 
-    const withoutPrice = Curtain.create({
-      room: 'Sala',
-      material: 'Linho',
-      openingWidth: 2,
-      height: 2.7,
+    const withoutPrice = validCurtain({
+      components: [
+        FinancialItem.rehydrate({
+          id: '0b9f4f4e-3d0c-4c81-b4a8-4d1d81a0f002',
+          quoteId: 'fixture-quote',
+          curtainId: null,
+          name: 'Tecido',
+          quantity: 1,
+          unit: 'm',
+          unitPriceCents: 0,
+        }),
+      ],
     });
-    withoutPrice.components = [
-      FinancialItem.rehydrate({
-        id: '0b9f4f4e-3d0c-4c81-b4a8-4d1d81a0f002',
-        name: 'Tecido',
-        quantity: 1,
-        unit: 'm',
-        unitPriceCents: 0,
-      }),
-    ];
 
     expect(codes(quoteWith({ curtains: [withoutQuantity] }))).toContain(
       'COMPONENT_INVALID',
@@ -204,10 +260,13 @@ describe('Quote.validateForSend', () => {
   });
 
   it('rejects incomplete general add-ons', () => {
-    const incomplete = FinancialItem.create({
-      name: 'Frete',
-      unitPriceCents: 5_000,
-    });
+    const incomplete = FinancialItem.create(
+      {
+        name: 'Frete',
+        unitPriceCents: 5_000,
+      },
+      'fixture-quote',
+    );
 
     expect(codes(quoteWith({ generalAddOns: [incomplete] }))).toContain(
       'GENERAL_ADD_ON_INVALID',
@@ -219,11 +278,14 @@ describe('Quote.validateForSend', () => {
       curtains: [
         validCurtain({
           components: [
-            FinancialItem.create({
-              name: 'Tecido',
-              quantity: 2,
-              unitPriceCents: 5_000,
-            }),
+            FinancialItem.create(
+              {
+                name: 'Tecido',
+                quantity: 2,
+                unitPriceCents: 5_000,
+              },
+              'fixture-quote',
+            ),
           ],
         }),
       ],
@@ -239,11 +301,14 @@ describe('Quote.validateForSend', () => {
       curtains: [
         validCurtain({
           components: [
-            FinancialItem.create({
-              name: 'Tecido',
-              quantity: 2,
-              unitPriceCents: 5_000,
-            }),
+            FinancialItem.create(
+              {
+                name: 'Tecido',
+                quantity: 2,
+                unitPriceCents: 5_000,
+              },
+              'fixture-quote',
+            ),
           ],
         }),
       ],
@@ -259,6 +324,27 @@ describe('Quote.validateForSend', () => {
     const quote = quoteWith({ discount: Discount.percentage(100) });
 
     expect(codes(quote)).toContain('TOTAL_NOT_POSITIVE');
+  });
+
+  it('reports TOTAL_OUT_OF_RANGE as the only send violation', () => {
+    const overflow = FinancialItem.create(
+      {
+        name: 'Tecido',
+        quantity: 999_999,
+        unitPriceCents: MONEY_MAX_CENTS,
+      },
+      'fixture-quote',
+    );
+    const quote = quoteWith({
+      curtains: [validCurtain({ components: [overflow] })],
+    });
+
+    expect(quote.validateForSend()).toEqual([
+      {
+        code: 'TOTAL_OUT_OF_RANGE',
+        message: 'Quote totals must fit the supported monetary range',
+      },
+    ]);
   });
 
   it('reports multiple violations at once', () => {

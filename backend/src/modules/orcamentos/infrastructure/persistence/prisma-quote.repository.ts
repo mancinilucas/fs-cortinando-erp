@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../shared/database/prisma.service.js';
-import type { Curtain } from '../../domain/entities/curtain.js';
 import type { Quote } from '../../domain/entities/quote.js';
 import { InvalidQuoteTransitionError } from '../../domain/errors/quote-domain.errors.js';
 import type { QuoteHistoryEventDraft } from '../../domain/history/quote-history.js';
@@ -37,15 +36,28 @@ export class PrismaQuoteRepository extends QuoteRepository {
   private async load(
     client: Prisma.TransactionClient,
     id: string,
+    options: { lock?: boolean } = {},
   ): Promise<Quote | null> {
+    if (options.lock === true) {
+      // Prisma loads relations with separate statements, so a concurrent hard
+      // delete could commit between them and yield a partial aggregate under
+      // READ COMMITTED. Locking the quote row first makes the whole load
+      // consistent: the delete either finishes before it (no row) or waits
+      // for the write transaction (D119/D120).
+      const locked = await client.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM quotes WHERE id = ${id}::uuid FOR UPDATE
+      `;
+
+      if (locked.length === 0) {
+        return null;
+      }
+    }
+
     const record = await client.quote.findUnique({
       where: { id },
       include: {
-        curtains: {
-          include: { components: true },
-          orderBy: { sequence: 'asc' },
-        },
-        generalAddOns: true,
+        curtains: { orderBy: { sequence: 'asc' } },
+        financialItems: true,
       },
     });
 
@@ -65,22 +77,23 @@ export class PrismaQuoteRepository extends QuoteRepository {
           id: quote.id,
           ...QuoteMapper.toPersistence(quote),
           curtains: {
-            create: quote.curtains.map((curtain) => ({
-              ...QuoteMapper.curtainToPersistence(curtain),
-              components: {
-                create: curtain.components.map((component) =>
-                  QuoteMapper.financialItemToPersistence(component),
-                ),
-              },
-            })),
-          },
-          generalAddOns: {
-            create: quote.generalAddOns.map((addOn) =>
-              QuoteMapper.financialItemToPersistence(addOn),
+            create: quote.curtains.map((curtain) =>
+              QuoteMapper.curtainToPersistence(curtain),
             ),
           },
         },
       });
+
+      // Financial items are written after their quote and curtains exist in
+      // the same transaction, so the optional composite foreign key can bind
+      // each item to a curtain of the same quote.
+      if (quote.financialItems.length > 0) {
+        await tx.financialItem.createMany({
+          data: quote.financialItems.map((item) =>
+            QuoteMapper.financialItemToPersistence(item),
+          ),
+        });
+      }
 
       await this.insertHistory(tx, quote.id, event);
 
@@ -99,14 +112,14 @@ export class PrismaQuoteRepository extends QuoteRepository {
       });
 
       await this.reconcileCurtains(tx, quote);
-      await this.reconcileGeneralAddOns(tx, quote);
+      await this.reconcileFinancialItems(tx, quote);
       await this.insertHistory(tx, quote.id, event);
     });
   }
 
   async mutate(id: string, operation: QuoteMutation): Promise<Quote | null> {
     return this.prisma.$transaction(async (tx) => {
-      const quote = await this.load(tx, id);
+      const quote = await this.load(tx, id, { lock: true });
 
       if (quote === null) {
         return null;
@@ -147,7 +160,7 @@ export class PrismaQuoteRepository extends QuoteRepository {
       }
 
       await this.reconcileCurtains(tx, quote);
-      await this.reconcileGeneralAddOns(tx, quote);
+      await this.reconcileFinancialItems(tx, quote);
       await this.insertHistory(tx, quote.id, event);
 
       return quote;
@@ -203,66 +216,40 @@ export class PrismaQuoteRepository extends QuoteRepository {
           data: { ...data, quoteId: quote.id },
         });
       }
-
-      await this.reconcileComponents(tx, curtain);
     }
   }
 
-  private async reconcileComponents(
-    tx: Prisma.TransactionClient,
-    curtain: Curtain,
-  ): Promise<void> {
-    const existing = await tx.financialComponent.findMany({
-      where: { curtainId: curtain.id },
-      select: { id: true },
-    });
-    const existingIds = new Set(existing.map((row) => row.id));
-    const requestedIds = curtain.components.map((component) => component.id);
-
-    await tx.financialComponent.deleteMany({
-      where: { curtainId: curtain.id, id: { notIn: requestedIds } },
-    });
-
-    for (const component of curtain.components) {
-      const data = QuoteMapper.financialItemToPersistence(component);
-
-      if (existingIds.has(component.id)) {
-        await tx.financialComponent.update({
-          where: { id: component.id },
-          data,
-        });
-      } else {
-        await tx.financialComponent.create({
-          data: { ...data, curtainId: curtain.id },
-        });
-      }
-    }
-  }
-
-  private async reconcileGeneralAddOns(
+  // The financial composition is one collection whose items are optionally
+  // associated with a curtain (PROJECT_SPEC §2.4-2.5). Updates run after
+  // curtains, so an item can move between curtains and the general
+  // composition while keeping its id; items omitted from the aggregate are
+  // removed. Deleting a curtain cascades to its items, and the aggregate never
+  // keeps them in that case.
+  private async reconcileFinancialItems(
     tx: Prisma.TransactionClient,
     quote: Quote,
   ): Promise<void> {
-    const existing = await tx.generalAddOn.findMany({
+    const existing = await tx.financialItem.findMany({
       where: { quoteId: quote.id },
       select: { id: true },
     });
     const existingIds = new Set(existing.map((row) => row.id));
-    const requestedIds = quote.generalAddOns.map((addOn) => addOn.id);
+    const requestedIds = quote.financialItems.map((item) => item.id);
 
-    await tx.generalAddOn.deleteMany({
+    await tx.financialItem.deleteMany({
       where: { quoteId: quote.id, id: { notIn: requestedIds } },
     });
 
-    for (const addOn of quote.generalAddOns) {
-      const data = QuoteMapper.financialItemToPersistence(addOn);
+    for (const item of quote.financialItems) {
+      const data = QuoteMapper.financialItemToPersistence(item);
 
-      if (existingIds.has(addOn.id)) {
-        await tx.generalAddOn.update({ where: { id: addOn.id }, data });
-      } else {
-        await tx.generalAddOn.create({
-          data: { ...data, quoteId: quote.id },
+      if (existingIds.has(item.id)) {
+        await tx.financialItem.update({
+          where: { id: item.id },
+          data,
         });
+      } else {
+        await tx.financialItem.create({ data });
       }
     }
   }

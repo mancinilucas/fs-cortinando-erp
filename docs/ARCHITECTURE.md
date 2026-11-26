@@ -125,8 +125,7 @@ Orcamento (AR)
 ├── status
 ├── enderecoInstalacao
 ├── Cortina[]
-│   └── ItemFinanceiro[]
-├── adicionaisGerais: ItemFinanceiro[]
+├── ItemFinanceiro[]
 ├── descontoGlobal
 ├── ajusteComercial
 ├── observacoes
@@ -152,26 +151,35 @@ quantidadeTecido = larguraFinal × fatorTecido
 
 ### 3.4 Itens financeiros
 
-Componentes financeiros de cortinas e adicionais gerais compartilham o mesmo modelo de domínio, provisoriamente denominado `ItemFinanceiro`.
+`ItemFinanceiro` representa todo lançamento da composição financeira do orçamento, seja associado a uma cortina ou diretamente ao orçamento.
 
 ```text
 ItemFinanceiro
 - id
-- nome
-- quantidade
-- unidade
-- valorUnitario
-- total derivado
+- quoteId
+- curtainId? (quando associado a uma cortina)
+- name
+- quantity
+- unit
+- unitPriceCents
+- totalCents derivado
 ```
 
-O modelo é uma Entity interna do aggregate.
+`ItemFinanceiro` é uma Entity interna do aggregate `Orcamento`, mantida em uma única coleção. O vínculo com o orçamento é obrigatório; o vínculo com uma cortina é opcional. Quando presente, a cortina deve pertencer ao mesmo orçamento do lançamento.
 
-As coleções permanecem semanticamente separadas:
+Os identificadores técnicos permanecem em inglês. `name` corresponde à descrição livre de `PROJECT_SPEC.md`; `unitPriceCents` representa o valor unitário em centavos inteiros, e `totalCents` é derivado.
 
-```text
-Cortina.componentesFinanceiros[]
-Orcamento.adicionaisGerais[]
-```
+O aggregate calcula o total de cada cortina a partir dos lançamentos associados a ela e o total dos lançamentos gerais a partir dos itens sem cortina. As regras de cálculo, desconto e ajuste permanecem no domínio do orçamento.
+
+A associação de um lançamento existente pode ser alterada entre cortinas do mesmo orçamento, respeitada a integridade referencial.
+
+Os IDs dos lançamentos são únicos dentro de todo o orçamento. Um ID existente só pode ser atualizado no orçamento ao qual pertence; ele pode mudar de cortina dentro desse orçamento. IDs que não pertençam à coleção atual do orçamento são rejeitados como desconhecidos, sem consulta a outros orçamentos. IDs repetidos e associações a cortinas inexistentes ou pertencentes a outro orçamento também são rejeitados. A validação ocorre antes de aplicar as alterações ao aggregate.
+
+Ao remover cortinas por PATCH, se `financialItems` for omitida, o domínio remove os lançamentos vinculados às cortinas removidas e mantém os lançamentos gerais. Se a coleção for enviada, ela deve descrever um estado final válido: referências às cortinas removidas no mesmo PATCH são rejeitadas antes da aplicação das alterações. O domínio não filtra silenciosamente itens enviados para corrigir inconsistências.
+
+Cortinas e lançamentos criados na mesma operação usam referências locais ao payload: a cortina criada recebe `clientRef` e o lançamento criado referencia-a por `curtainRef`. O aggregate gera os ids definitivos, resolve as referências antes de validar e aplica o PATCH uma única vez sobre o estado final (validação em cópia, depois aplicação atômica). Associações a cortinas existentes usam `curtainId` definitivo; `curtainId: null` representa a composição geral. `clientRef`/`curtainRef` e `id`/`curtainId` são mutuamente exclusivos, e referências desconhecidas ou repetidas rejeitam o PATCH inteiro.
+
+Edições em `ENVIADO` são permitidas desde que o estado final preserve a completude exigida pelo gate de envio. A confirmação revalida a composição comercial do aggregate antes da transição.
 
 Nomes como `Tecido`, `Mão de obra`, `Trilho`, `Entretela`, `Frete` e `Instalação` são presets de UX, não enums do domínio.
 
@@ -538,29 +546,21 @@ observacoes?
 
 `larguraFinal` e `quantidadeTecido` não serão persistidos inicialmente porque são deterministicamente derivados.
 
-#### `componentes_financeiros`
+#### `lancamentos_financeiros`
 
 ```text
 id UUID PK
-cortina_id FK
+orcamento_id FK obrigatório
+cortina_id FK opcional
 nome
 quantidade
 unidade
 valor_unitario_centavos
 ```
 
-#### `adicionais_gerais`
+O banco deve garantir que, quando `cortina_id` estiver presente, a cortina pertença ao mesmo orçamento indicado por `orcamento_id`. A associação opcional à cortina não substitui o vínculo obrigatório ao orçamento. A representação relacional e sua declaração no Prisma devem preservar essa integridade.
 
-```text
-id UUID PK
-orcamento_id FK
-nome
-quantidade
-unidade
-valor_unitario_centavos
-```
-
-Componentes e adicionais compartilham o mesmo modelo de domínio, mas utilizam tabelas diferentes por clareza referencial.
+Excluir uma cortina exclui seus lançamentos associados e mantém os lançamentos gerais do orçamento. Excluir o orçamento exclui todos os seus lançamentos. As políticas referenciais do banco devem preservar esses comportamentos e impedir associações inválidas.
 
 Totais derivados não serão persistidos inicialmente.
 
@@ -647,6 +647,8 @@ Essa política se aplica apenas a dinheiro. Medidas e quantidade de tecido não 
 ## 11. Transações
 
 A Application Layer controla transações quando uma operação precisa persistir múltiplas alterações atomicamente.
+
+Quando integradas à persistência, atualizações da composição financeira são coordenadas com a atualização do orçamento e o registro do histórico na mesma transação. Essa atomicidade pertence à integração da Application Layer e do repositório; a validação do aggregate e seus testes unitários não dependem de banco ou transação.
 
 Exemplo:
 
@@ -817,6 +819,8 @@ Os nomes exatos podem sofrer pequenos refinamentos sem alterar a decisão arquit
 DTOs HTTP são separados dos objetos de domínio.
 
 Entities não são retornadas diretamente pela API.
+
+A API expõe a composição financeira como uma coleção única, conforme a semântica PATCH e as regras de identidade descritas na seção 3.4. Criação e atualização aceitam `financialItems` como a coleção completa: cortinas novas no payload usam `clientRef`, itens de cortinas novas usam `curtainRef`, itens de cortinas existentes usam `curtainId` definitivo e `curtainId: null` representa a composição geral. A leitura expõe `financialItems[].curtainId` e as cortinas sem coleção `components` aninhada. A validação do estado proposto pertence ao aggregate. A reconciliação persistida, incluindo transfers, e a atomicidade com orçamento e histórico são tratadas em UFIN-04; a integração HTTP dessa coleção, em UFIN-05.
 
 ---
 

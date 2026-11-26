@@ -25,6 +25,7 @@ describe('GetQuoteQuery integration', () => {
 
   async function seedRichQuote(): Promise<string> {
     const id = randomUUID();
+    const curtainId = randomUUID();
 
     await prisma.quote.create({
       data: {
@@ -47,6 +48,7 @@ describe('GetQuoteQuery integration', () => {
         curtains: {
           create: [
             {
+              id: curtainId,
               sequence: 1,
               room: 'Sala',
               description: 'Cortina principal',
@@ -56,27 +58,25 @@ describe('GetQuoteQuery integration', () => {
               height: 2.7,
               fabricFactor: 3.5,
               notes: 'Sob medida',
-              components: {
-                create: [
-                  {
-                    name: 'Tecido',
-                    quantity: 8.05,
-                    unit: 'm',
-                    unitPriceCents: 3_000,
-                  },
-                  {
-                    name: 'Argola',
-                    quantity: 10,
-                    unit: 'un',
-                    unitPriceCents: 200,
-                  },
-                ],
-              },
             },
           ],
         },
-        generalAddOns: {
+        financialItems: {
           create: [
+            {
+              curtainId,
+              name: 'Tecido',
+              quantity: 8.05,
+              unit: 'm',
+              unitPriceCents: 3_000,
+            },
+            {
+              curtainId,
+              name: 'Argola',
+              quantity: 10,
+              unit: 'un',
+              unitPriceCents: 200,
+            },
             {
               name: 'Instalação',
               quantity: 1,
@@ -180,13 +180,23 @@ describe('GetQuoteQuery integration', () => {
     expect(curtain.material).toBe('Linho');
     expect(curtain.finalWidth).toBe(domainCurtain.finalWidth);
     expect(curtain.fabricQuantity).toBe(domainCurtain.fabricQuantity);
-    expect(curtain.totalCents).toBe(domainCurtain.financialTotalCents);
-    expect(curtain.components.map((item) => item.totalCents)).toEqual(
-      domainCurtain.components.map((item) => item.totalCents),
+    expect(curtain.totalCents).toBe(
+      domain
+        .financialItemsForCurtain(curtain.id)
+        .reduce((total, item) => total + (item.totalCents ?? 0), 0),
     );
-    expect(view.generalAddOns[0].totalCents).toBe(
-      domain.generalAddOns[0].totalCents,
+    expect(
+      view.financialItems
+        .filter((item) => item.curtainId === curtain.id)
+        .map((item) => item.totalCents),
+    ).toEqual(
+      domain
+        .financialItemsForCurtain(curtain.id)
+        .map((item) => item.totalCents),
     );
+    expect(
+      view.financialItems.find((item) => item.curtainId === null)?.totalCents,
+    ).toBe(domain.generalFinancialItems[0].totalCents);
 
     expect(view.totals).toEqual({
       curtainsSubtotalCents: domain.curtainsSubtotalCents,
