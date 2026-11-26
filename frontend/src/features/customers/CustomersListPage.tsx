@@ -1,3 +1,4 @@
+import { ChevronRight } from 'lucide-react'
 import { Link } from 'react-router'
 import { ApiError } from '@/shared/api/api-error'
 import { TextField } from '@/shared/components/FormFields'
@@ -24,12 +25,18 @@ export function CustomersListPage() {
           : query.data.length === 0 ? <EmptyState title={search ? 'Nenhum cliente encontrado para esta busca.' : 'Nenhum cliente cadastrado.'} />
             : <ul className="divide-y divide-border-default">
               {query.data.map((customer) => <li key={customer.id}>
-                <Link to={`/clientes/${encodeURIComponent(customer.id)}`} className="flex min-h-14 min-w-0 flex-col gap-2 p-4 hover:bg-surface-alt sm:flex-row sm:items-center sm:justify-between">
-                  <span className="min-w-0 break-words font-medium text-brand-navy">{customer.name}</span>
-                  <span className="min-w-0 break-words text-label text-text-secondary">
-                    <span className="block">{customer.phone}</span>
-                    {customer.email && <span className="block">{customer.email}</span>}
+                <Link to={`/clientes/${encodeURIComponent(customer.id)}`} className="flex min-h-14 min-w-0 items-center gap-3 p-4 hover:bg-surface-alt">
+                  <span className="min-w-0 flex-1">
+                    <span className="block break-words font-semibold text-brand-navy">{customer.name}</span>
+                    <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-text-secondary">
+                      <span>{customer.phone}</span>
+                      {customer.email && <>
+                        <span aria-hidden="true" className="text-border-strong">•</span>
+                        <span className="break-all">{customer.email}</span>
+                      </>}
+                    </span>
                   </span>
+                  <ChevronRight aria-hidden="true" size={20} className="shrink-0 text-text-secondary" />
                 </Link>
               </li>)}
             </ul>}
