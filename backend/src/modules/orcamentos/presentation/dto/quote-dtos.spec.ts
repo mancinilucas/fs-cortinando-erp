@@ -56,6 +56,7 @@ function validCreatePayload(): Record<string, unknown> {
         height: 2.7,
         fabricFactor: 3.5,
         notes: '  Sem forro ',
+        fabricUnitPriceCents: 12_500,
       },
     ],
     financialItems: [
@@ -96,6 +97,7 @@ describe('CreateQuoteDto', () => {
       height: 2.7,
       fabricFactor: 3.5,
       notes: 'Sem forro',
+      fabricUnitPriceCents: 12_500,
     });
     expect(dto.financialItems?.[0]).toMatchObject({
       curtainRef: 'sala',
@@ -185,6 +187,18 @@ describe('CreateQuoteDto', () => {
       transform({ curtains: [{ fabricFactor: '3.5' }] }, CreateQuoteDto),
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
+      transform({ curtains: [{ fabricUnitPriceCents: 0 }] }, CreateQuoteDto),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      transform({ curtains: [{ fabricUnitPriceCents: 12.5 }] }, CreateQuoteDto),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      transform(
+        { curtains: [{ fabricUnitPriceCents: 2_147_483_648 }] },
+        CreateQuoteDto,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
       transform({ commercialAdjustmentCents: 10.5 }, CreateQuoteDto),
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
@@ -263,7 +277,11 @@ describe('UpdateQuoteDto', () => {
       {
         curtains: [
           { id: curtainId, room: 'Sala' },
-          { clientRef: ' quarto ', room: 'Quarto' },
+          {
+            clientRef: ' quarto ',
+            room: 'Quarto',
+            fabricUnitPriceCents: 9_900,
+          },
         ],
         financialItems: [
           { id: componentId, name: 'Tecido', quantity: 8, curtainId: null },
@@ -277,6 +295,7 @@ describe('UpdateQuoteDto', () => {
     expect(dto.curtains?.[0]?.id).toBe(curtainId);
     expect(dto.curtains?.[1]?.id).toBeUndefined();
     expect(dto.curtains?.[1]?.clientRef).toBe('quarto');
+    expect(dto.curtains?.[1]?.fabricUnitPriceCents).toBe(9_900);
     expect(dto.financialItems?.[0]?.curtainId).toBeNull();
     expect(dto.financialItems?.[1]?.curtainRef).toBe('quarto');
     expect(dto.financialItems?.[1]?.id).toBeUndefined();

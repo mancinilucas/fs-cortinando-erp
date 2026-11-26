@@ -102,6 +102,23 @@ test('creates a unified financial collection without ids, sequences or derived f
   await waitFor(() => expect(screen.getByLabelText('Location')).toHaveTextContent('/orcamentos/quote-1/editar'))
   expect(post).toHaveBeenCalledOnce()
 })
+test('saves a new curtain with its fabric price and the complete financial collection', async () => {
+  const post = vi.fn(async ({ request }: { request: Request }) => {
+    const body = await request.json() as { curtains: Array<Record<string, unknown>>; financialItems: unknown[] }
+    expect(body.curtains[0]).toMatchObject({ fabricUnitPriceCents: 1250 })
+    expect(body.financialItems).toEqual([])
+    return HttpResponse.json(quoteFixture, { status: 201 })
+  })
+  server.use(http.post('*/clientes/customer-1/orcamentos', post))
+  mount(); await ready()
+  fireEvent.click(screen.getByRole('button', { name: 'Adicionar cortina' }))
+  fireEvent.change(screen.getByLabelText('Ambiente'), { target: { value: 'Sala' } })
+  fireEvent.change(screen.getByLabelText('Largura do vão (m)'), { target: { value: '2,5' } })
+  fireEvent.change(screen.getByLabelText('Preço do tecido (R$/m)'), { target: { value: '12,50' } })
+  save()
+  await waitFor(() => expect(screen.getByLabelText('Location')).toHaveTextContent('/orcamentos/quote-1/editar'))
+  expect(post).toHaveBeenCalledOnce()
+})
 test('PATCH preserves untouched children when editing a scalar and skips unchanged optional blocks', async () => {
   const patch = vi.fn(async ({ request }: { request: Request }) => {
     expect(await request.json()).toEqual({ notes: 'Only notes' })

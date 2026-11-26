@@ -3,6 +3,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { PrismaService } from '../../../../shared/database/prisma.service.js';
 import {
   QuoteNotEditableError,
+  QuoteValidationError,
   UnknownQuoteItemError,
 } from '../../domain/errors/quote-domain.errors.js';
 import { PrismaQuoteRepository } from '../../infrastructure/persistence/prisma-quote.repository.js';
@@ -358,6 +359,98 @@ describe('UpdateQuoteUseCase integration', () => {
         },
       ],
     });
+  });
+
+  it('adds the fabric item from a new curtain price in the same patch', async () => {
+    const seeded = await seedQuote();
+
+    const quote = await useCase.execute({
+      id: seeded.id,
+      curtains: [
+        { id: seeded.curtainId },
+        {
+          clientRef: 'quarto',
+          room: 'Quarto',
+          material: 'Voil',
+          openingWidth: 2,
+          height: 2.4,
+          fabricUnitPriceCents: 9_900,
+        },
+      ],
+      financialItems: [{ id: seeded.componentId }, { id: seeded.addOnId }],
+    });
+
+    const added = quote.curtains.find((curtain) => curtain.room === 'Quarto');
+    expect(added).toBeDefined();
+
+    const items = quote.financialItemsForCurtain(added!.id);
+    const [fabric] = items;
+
+    expect(items).toHaveLength(1);
+    expect(fabric).toMatchObject({
+      name: 'Tecido',
+      unit: 'm',
+      unitPriceCents: 9_900,
+    });
+    expect(fabric.quantity).toBe(added!.fabricQuantity);
+
+    const stored = await prisma.financialItem.findMany({
+      where: { quoteId: seeded.id },
+    });
+
+    expect(stored.filter((item) => item.curtainId === added!.id)).toHaveLength(
+      1,
+    );
+    expect(stored.find((item) => item.id === seeded.componentId)).toBeDefined();
+    expect(stored.find((item) => item.id === seeded.addOnId)).toBeDefined();
+  });
+
+  it('rejects a fabric price on an existing curtain', async () => {
+    const seeded = await seedQuote();
+
+    await expect(
+      useCase.execute({
+        id: seeded.id,
+        curtains: [{ id: seeded.curtainId, fabricUnitPriceCents: 1_000 }],
+        financialItems: [],
+      }),
+    ).rejects.toBeInstanceOf(UnknownQuoteItemError);
+  });
+
+  it('requires the complete financial collection when adding a fabric price', async () => {
+    const seeded = await seedQuote();
+
+    await expect(
+      useCase.execute({
+        id: seeded.id,
+        curtains: [
+          {
+            clientRef: 'quarto',
+            room: 'Quarto',
+            openingWidth: 2,
+            fabricUnitPriceCents: 1_000,
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(UnknownQuoteItemError);
+  });
+
+  it('rejects a fabric price without an opening width', async () => {
+    const seeded = await seedQuote();
+
+    await expect(
+      useCase.execute({
+        id: seeded.id,
+        curtains: [
+          {
+            clientRef: 'quarto',
+            room: 'Quarto',
+            fabricUnitPriceCents: 1_000,
+          },
+        ],
+        financialItems: [],
+      }),
+    ).rejects.toBeInstanceOf(QuoteValidationError);
   });
 
   it('moves an item to another curtain preserving its id', async () => {

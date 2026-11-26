@@ -54,6 +54,8 @@ A Fase 9 foi concluída em 2026-10-20: `docs/development/09-queries-dashboard.md
 
 A iniciativa complementar **Unificação da composição financeira** foi incorporada à seção 3 sem reclassificar as fases concluídas. UFIN-01 a UFIN-07 estão concluídas e a iniciativa está encerrada. Com isso, a próxima etapa planejada do projeto é a Fase 12 — Hardening e entrega, em rodada própria.
 
+A iniciativa complementar **Valor do tecido no bloco da cortina** foi concluída em 2026-11-26 (TECIDO-01 a TECIDO-03) e não reclassifica fases anteriores. Ela completa o requisito de `PROJECT_SPEC.md` §2.3/§7.3 que não fazia parte da UFIN e estava implementado apenas parcialmente na Fase 11. A Fase 12 permanece a próxima etapa planejada.
+
 ### 2.3 Classificação das fases
 
 | Fase | Estado anterior no plano | Estado real | Motivo/evidência |
@@ -422,6 +424,22 @@ negócio permanece concluído.
 **Regras preservadas:** as regras de quantidade, preço unitário, total, desconto, ajuste, cálculo dos subtotais e envio permanecem as definidas em `PROJECT_SPEC.md`; esta iniciativa altera a estrutura e os contratos para representá-las de forma unificada.
 
 **Escopo da migração de desenvolvimento:** conforme o estado atual informado, o banco de desenvolvimento contém um cliente e um orçamento em rascunho sem dados históricos relevantes; esse orçamento pode ser descartado ou recriado. UFIN-03 pode descartar os dados das tabelas financeiras antigas e removê-las, sem mecanismo de remapeamento de UUIDs ou preservação dos registros atuais. Essa simplificação vale somente para essa migração no ambiente de desenvolvimento e não define política para futuras migrações com dados relevantes.
+
+---
+
+### Iniciativa complementar — Valor do tecido no bloco da cortina
+
+**Estado:** CONCLUÍDA em 2026-11-26. Spec: `docs/development/13-cortina-valor-tecido.md` (D346–D347).
+
+**Objetivo:** completar o `PROJECT_SPEC.md` §2.3/§2.4/§7.3 permitindo que o preenchimento da cortina inclua material e preço do tecido e que o primeiro salvamento já devolva o valor base da cortina, sem cálculo local e sem duplicar estado financeiro.
+
+| Task | Objetivo e dependências | Critério de conclusão |
+|---|---|---|
+| TECIDO-01 — Contrato e aplicação **[x]** | Aceitar `fabricUnitPriceCents` em cortina nova e materializar o lançamento `Tecido` com quantidade derivada pelo domínio. | Contrato, mapper, caso de uso de criação e de edição implementados; item criado na mesma transação; validações de medidas, cortina existente e coleção completa cobertas por testes. |
+| TECIDO-02 — Frontend **[x]** | Exibir o campo de preço no bloco da cortina nova e enviar o valor no mesmo salvamento. | Campo monetário, validação de medidas, envio de `fabricUnitPriceCents` e força da coleção financeira cobertos por testes; nenhum cálculo local de valores derivados. |
+| TECIDO-03 — Regressão e documentação **[x]** | Validar o fluxo completo e atualizar as fontes. | Build, lint, 1095 testes unitários/integração, 86 E2E em PostgreSQL limpo, `prisma validate`/`migrate status`; frontend com typecheck, lint, 713 testes e build; `ARCHITECTURE.md`, `04-orcamentos.md`, `11-frontend.md` e este plano atualizados. |
+
+**Limites:** não há catálogo de material, preço automático por material, campo persistido na cortina, cálculo local nem alteração das regras de desconto, ajuste ou gate de envio.
 
 ---
 

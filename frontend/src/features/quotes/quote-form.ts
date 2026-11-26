@@ -18,6 +18,11 @@ export const quoteFormSchema = financialFormSchema.safeExtend({
 }).superRefine((value, context) => {
   if (value.postalCode.trim() && !/^\d{8}$/.test(value.postalCode.replace(/[-\s]/g, ''))) context.addIssue({ code: 'custom', path: ['postalCode'], message: 'Informe um CEP com 8 dígitos.' })
   if (value.state.trim() && !/^[a-zA-Z]{2}$/.test(value.state.trim())) context.addIssue({ code: 'custom', path: ['state'], message: 'Informe uma UF com 2 letras.' })
+  value.curtains.forEach((curtain, index) => {
+    if (curtain.serverId || !curtain.fabricPrice.trim()) return
+    if (!curtain.openingWidth.trim()) context.addIssue({ code: 'custom', path: ['curtains', index, 'fabricPrice'], message: 'Informe a largura do vão para calcular o tecido.' })
+    if (!curtain.fabricFactor.trim()) context.addIssue({ code: 'custom', path: ['curtains', index, 'fabricPrice'], message: 'Informe o fator de tecido para calcular o tecido.' })
+  })
 })
 export type QuoteFormValues = z.infer<typeof quoteFormSchema>
 export type QuoteFormPayload = { notes?: string | null; installationAddress?: InstallationAddressPayload | null; curtains?: UpdateCurtainPayload[]; financialItems?: UpdateFinancialItemPayload[]; discount?: QuoteDiscountPayload; commercialAdjustmentCents?: number | null }
@@ -57,7 +62,10 @@ export function quoteFormPayload(values: QuoteFormValues, baseline?: QuoteFormVa
   const optional = (value: string) => value.trim() ? value : null
   const address = Object.fromEntries(addressFields.map((key) => [key, optional(values[key])]))
   const curtains = !baseline || JSON.stringify(values.curtains) !== JSON.stringify(baseline.curtains) ? { curtains: values.curtains.map(curtainFormPayload) } : {}
-  const financialItems = !baseline || JSON.stringify(values.financialItems) !== JSON.stringify(baseline.financialItems)
+  // A new curtain's fabric price asks the backend to add the "Tecido" item, so
+  // the complete financial collection must travel with it for reconciliation.
+  const addsFabricPrice = values.curtains.some((curtain) => !curtain.serverId && curtain.fabricPrice.trim() !== '')
+  const financialItems = !baseline || addsFabricPrice || JSON.stringify(values.financialItems) !== JSON.stringify(baseline.financialItems)
     ? { financialItems: values.financialItems.map((item) => financialItemFormPayload(item, resolveCurtain(values.curtains, item.curtainKey))) } : {}
   const discount = discountFormPayload(values)
   const discountFields = !baseline || JSON.stringify(discount) !== JSON.stringify(discountFormPayload(baseline)) ? { discount } : {}

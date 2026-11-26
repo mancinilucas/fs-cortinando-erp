@@ -1,7 +1,9 @@
 import { Transform } from 'class-transformer';
 import {
+  IsInt,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   IsUUID,
   Max,
@@ -59,6 +61,16 @@ class QuoteCurtainFieldsDto {
   @IsOptional()
   @IsString()
   notes?: string | null;
+
+  // Creation convenience accepted on new curtains only: the application
+  // materializes a normal "Tecido" financial item whose quantity is the
+  // curtain's server-computed fabric quantity. Existing curtains edit that
+  // item through `financialItems`.
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  @Max(2_147_483_647)
+  fabricUnitPriceCents?: number | null;
 
   @Transform(({ value }) => trimOptionalText(value))
   @IsOptional()

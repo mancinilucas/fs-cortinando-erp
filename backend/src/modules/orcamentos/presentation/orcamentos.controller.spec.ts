@@ -527,6 +527,7 @@ describe('OrcamentosController (HTTP)', () => {
               clientRef: ' sala ',
               room: ' Sala ',
               openingWidth: 2.5,
+              fabricUnitPriceCents: 12_500,
             },
           ],
           financialItems: [
@@ -550,7 +551,12 @@ describe('OrcamentosController (HTTP)', () => {
         commercialAdjustmentCents: -500,
         installationAddress: { state: 'SP' },
         curtains: [
-          { clientRef: 'sala', room: 'Sala', openingWidth: 2.5 },
+          {
+            clientRef: 'sala',
+            room: 'Sala',
+            openingWidth: 2.5,
+            fabricUnitPriceCents: 12_500,
+          },
         ],
         financialItems: [
           {
@@ -883,7 +889,10 @@ describe('OrcamentosController (HTTP)', () => {
         .set(COOKIE)
         .send({
           discount: null,
-          curtains: [{ id: CURTAIN_ID }, { clientRef: 'quarto', room: 'Quarto' }],
+          curtains: [
+            { id: CURTAIN_ID },
+            { clientRef: 'quarto', room: 'Quarto' },
+          ],
           financialItems: [
             { id: COMPONENT_ID, curtainId: CURTAIN_ID, quantity: 9 },
             { name: 'Argola', curtainRef: 'quarto', unitPriceCents: 200 },
@@ -906,6 +915,7 @@ describe('OrcamentosController (HTTP)', () => {
           height: undefined,
           fabricFactor: undefined,
           notes: undefined,
+          fabricUnitPriceCents: undefined,
         },
         {
           id: undefined,
@@ -918,6 +928,7 @@ describe('OrcamentosController (HTTP)', () => {
           height: undefined,
           fabricFactor: undefined,
           notes: undefined,
+          fabricUnitPriceCents: undefined,
         },
       ]);
       expect(input.financialItems).toEqual([

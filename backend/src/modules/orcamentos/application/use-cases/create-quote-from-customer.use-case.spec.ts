@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { randomInt, randomUUID } from 'node:crypto';
 import { PrismaService } from '../../../../shared/database/prisma.service.js';
 import { QuoteStatus } from '../../domain/entities/quote.js';
+import { QuoteValidationError } from '../../domain/errors/quote-domain.errors.js';
 import { Discount, DiscountType } from '../../domain/value-objects/discount.js';
 import { PrismaQuoteRepository } from '../../infrastructure/persistence/prisma-quote.repository.js';
 import { PrismaQuoteSequence } from '../../infrastructure/persistence/prisma-quote-sequence.js';
@@ -212,6 +213,58 @@ describe('CreateQuoteFromCustomerUseCase integration', () => {
     ).toHaveLength(1);
     expect(stored.discountType).toBe('PERCENTAGE');
     expect(stored.commercialAdjustmentCents).toBe(-500);
+  });
+
+  it('creates the fabric item from a new curtain price in the same save', async () => {
+    const quote = await useCase.execute({
+      customerId: activeCustomerId,
+      curtains: [
+        {
+          clientRef: 'sala',
+          room: 'Sala',
+          material: 'Linho',
+          openingWidth: 2.5,
+          borderValue: 0.15,
+          height: 2.7,
+          fabricFactor: 3.5,
+          fabricUnitPriceCents: 12_500,
+        },
+      ],
+    });
+
+    const [curtain] = quote.curtains;
+    const items = quote.financialItemsForCurtain(curtain.id);
+    const [fabric] = items;
+
+    expect(curtain.fabricQuantity).toBe(9.8);
+    expect(items).toHaveLength(1);
+    expect(fabric).toMatchObject({
+      name: 'Tecido',
+      unit: 'm',
+      unitPriceCents: 12_500,
+    });
+    expect(fabric.quantity).toBe(curtain.fabricQuantity);
+    expect(quote.curtainsSubtotalCents).toBe(fabric.totalCents);
+
+    const stored = await prisma.financialItem.findMany({
+      where: { quoteId: quote.id },
+    });
+
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatchObject({
+      name: 'Tecido',
+      curtainId: curtain.id,
+      unitPriceCents: 12_500,
+    });
+  });
+
+  it('rejects a fabric price without the measures needed for the fabric quantity', async () => {
+    await expect(
+      useCase.execute({
+        customerId: activeCustomerId,
+        curtains: [{ room: 'Sala', fabricUnitPriceCents: 12_500 }],
+      }),
+    ).rejects.toBeInstanceOf(QuoteValidationError);
   });
 
   it('derives the commercial year in America/Sao_Paulo', async () => {

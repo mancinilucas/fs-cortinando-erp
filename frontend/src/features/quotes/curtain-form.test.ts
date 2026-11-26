@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import { curtainFormDefaults, curtainFormPayload, curtainFormSchema, moneyInputValue } from './curtain-form'
 import { quoteFixture } from './fixtures.test-support'
-import { quoteFormDefaults, quoteFormPayload } from './quote-form'
+import { quoteFormDefaults, quoteFormPayload, quoteFormSchema } from './quote-form'
 import { parseMoneyInput } from './numeric-input'
 
 test('keeps persisted identity separate from field-array keys and excludes all derived fields', () => {
@@ -67,4 +67,29 @@ test('accepts zero border and a partial draft', () => {
 test.each([0, 1, 29, 100, 123456, 2147483647])('money defaults round-trip %s cents without floats', (cents) => {
   expect(parseMoneyInput(moneyInputValue(cents))).toBe(cents)
   expect(moneyInputValue(cents)).not.toContain('.')
+})
+test('sends a fabric price only for a new curtain and carries the complete financial collection', () => {
+  const baseline = quoteFormDefaults(quoteFixture)
+  const fresh = { ...curtainFormDefaults(), openingWidth: '2,5', fabricPrice: '12,50' }
+  const payload = quoteFormPayload({ ...baseline, curtains: [...baseline.curtains, fresh] }, baseline)
+  expect(payload.curtains?.[1]).toMatchObject({ clientRef: fresh.clientRef, fabricUnitPriceCents: 1250 })
+  expect(payload).toHaveProperty('financialItems')
+  expect(payload.financialItems).toEqual([{ id: 'component-1', curtainId: 'curtain-1', name: 'Tecido', quantity: 1.123456, unit: null, unitPriceCents: 100 }])
+})
+test('omits the fabric price for persisted curtains and empty input', () => {
+  const saved = curtainFormDefaults(quoteFixture.curtains[0])
+  expect(curtainFormPayload({ ...saved, fabricPrice: '12,50' })).not.toHaveProperty('fabricUnitPriceCents')
+  const fresh = curtainFormDefaults()
+  expect(curtainFormPayload(fresh)).not.toHaveProperty('fabricUnitPriceCents')
+})
+test.each(['0', '-1,00', '1,234'])('rejects an invalid fabric price %s', (fabricPrice) => {
+  expect(curtainFormSchema.safeParse({ ...curtainFormDefaults(), fabricPrice }).success).toBe(false)
+})
+test('requires the measures used by the fabric quantity when a new curtain has a fabric price', () => {
+  const base = quoteFormDefaults()
+  const curtain = { ...curtainFormDefaults(), fabricPrice: '10,00' }
+  const missingWidth = quoteFormSchema.safeParse({ ...base, curtains: [curtain] })
+  expect(missingWidth.success).toBe(false)
+  const withWidth = quoteFormSchema.safeParse({ ...base, curtains: [{ ...curtain, openingWidth: '2,5' }] })
+  expect(withWidth.success).toBe(true)
 })

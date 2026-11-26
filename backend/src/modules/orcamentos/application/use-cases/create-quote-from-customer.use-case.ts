@@ -7,7 +7,10 @@ import {
 } from '../../domain/entities/curtain.js';
 import type { FinancialItemInput } from '../../domain/entities/financial-item.js';
 import { normalizeClientRef, Quote } from '../../domain/entities/quote.js';
-import { UnknownQuoteItemError } from '../../domain/errors/quote-domain.errors.js';
+import {
+  QuoteValidationError,
+  UnknownQuoteItemError,
+} from '../../domain/errors/quote-domain.errors.js';
 import { QuoteHistoryDetails } from '../../domain/history/quote-history.js';
 import { QuoteRepository } from '../../domain/repositories/quote.repository.js';
 import {
@@ -25,6 +28,10 @@ import { toDiscount, type QuoteDiscountInput } from './quote-discount-input.js';
 // the definitive ids the aggregate generated.
 export type CreatableCurtainInput = Omit<CreateCurtainInput, 'sequence'> & {
   clientRef?: string | null;
+  // Creation convenience: when informed, the use case adds a normal "Tecido"
+  // financial item with the curtain's server-computed fabric quantity. The
+  // domain remains unaware of the preset name.
+  fabricUnitPriceCents?: number | null;
 };
 
 export type CreatableFinancialItemInput = Omit<
@@ -76,9 +83,12 @@ export class CreateQuoteFromCustomerUseCase {
           input.installationAddress,
         ),
         curtains,
-        financialItems: (input.financialItems ?? []).map((item) =>
-          toFinancialItemInput(item, idsByRef),
-        ),
+        financialItems: [
+          ...(input.financialItems ?? []).map((item) =>
+            toFinancialItemInput(item, idsByRef),
+          ),
+          ...fabricItemsFor(input.curtains ?? [], curtains),
+        ],
         discount: toDiscount(input.discount),
         commercialAdjustmentCents: input.commercialAdjustmentCents,
         notes: input.notes,
@@ -146,3 +156,42 @@ function toFinancialItemInput(
     curtainId,
   };
 }
+
+// The fabric price is an explicit creation input, not an automatic fee: the
+// application layer turns it into an ordinary "Tecido" item whose quantity is
+// the fabric quantity the domain derives from the curtain measures. The item
+// remains the single source of truth and can be edited like any other item.
+function fabricItemsFor(
+  inputs: CreatableCurtainInput[],
+  curtains: Curtain[],
+): FinancialItemInput[] {
+  return inputs.flatMap((input, index) => {
+    if (input.fabricUnitPriceCents == null) {
+      return [];
+    }
+
+    const curtain = curtains[index];
+
+    if (curtain.fabricQuantity === null) {
+      throw new QuoteValidationError([
+        {
+          code: 'CURTAIN_FABRIC_QUANTITY_REQUIRED',
+          message: `Curtain ${index + 1} needs an opening width and fabric factor to apply a fabric price`,
+        },
+      ]);
+    }
+
+    return [
+      {
+        name: FABRIC_ITEM_NAME,
+        quantity: curtain.fabricQuantity,
+        unit: FABRIC_ITEM_UNIT,
+        unitPriceCents: input.fabricUnitPriceCents,
+        curtainId: curtain.id,
+      },
+    ];
+  });
+}
+
+const FABRIC_ITEM_NAME = 'Tecido';
+const FABRIC_ITEM_UNIT = 'm';

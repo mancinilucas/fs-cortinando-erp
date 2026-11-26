@@ -183,6 +183,8 @@ Edições em `ENVIADO` são permitidas desde que o estado final preserve a compl
 
 Nomes como `Tecido`, `Mão de obra`, `Trilho`, `Entretela`, `Frete` e `Instalação` são presets de UX, não enums do domínio.
 
+A criação de uma cortina pode receber um preço de tecido explícito (`fabricUnitPriceCents`). Nesse caso, a Application Layer materializa um `FinancialItem` comum com nome sugerido `Tecido`, unidade `m` e quantidade igual à `quantidadeTecido` calculada pelo domínio, na mesma transação do orçamento. O domínio não conhece esse nome nem possui regra especial de tecido; o item criado é a fonte de verdade e passa a ser editado pela coleção financeira única. O campo é aceito somente para cortina nova e não é persistido na cortina.
+
 ### 3.5 Value Objects
 
 Os VOs inicialmente justificados são:
