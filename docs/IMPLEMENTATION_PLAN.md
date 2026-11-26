@@ -52,7 +52,7 @@ A numeração histórica das fases é preservada; a ordem de execução recomend
 
 A Fase 9 foi concluída em 2026-10-20: `docs/development/09-queries-dashboard.md` registra DASHBOARD-03 a DASHBOARD-11, os gates finais e o fechamento na seção 19. A Fase 11 foi fechada em 2026-10-21; a próxima fase é a 12, em rodada própria.
 
-A iniciativa complementar **Unificação da composição financeira** foi incorporada à seção 3 sem reclassificar as fases concluídas. UFIN-01 a UFIN-07 estão concluídas. A ordem relativa entre essa iniciativa e a Fase 12 não é definida aqui.
+A iniciativa complementar **Unificação da composição financeira** foi incorporada à seção 3 sem reclassificar as fases concluídas. UFIN-01 a UFIN-07 estão concluídas e a iniciativa está encerrada. Com isso, a próxima etapa planejada do projeto é a Fase 12 — Hardening e entrega, em rodada própria.
 
 ### 2.3 Classificação das fases
 
@@ -87,7 +87,7 @@ A iniciativa complementar **Unificação da composição financeira** foi incorp
 |---|---|
 | 8 — Documentos | Nenhum item funcional pendente. Permanece apenas a pendência visual do PNG real da logo (D150); o PDF é gerado sem logo e sem imagem substituta. |
 | 9 — Dashboard e consultas operacionais | Nenhum item funcional pendente. Fase concluída em 2026-10-20. |
-| 11 — Frontend | Login e sessão; clientes; detalhes do cliente e histórico; formulário de orçamento mobile-first; cortinas e composição financeira; ciclo de estados; instalação; prévia/geração de documentos; dashboard; dados do negócio; tratamento uniforme de loading, sucesso e erro. |
+| 11 — Frontend | Nenhum item funcional pendente. Fase concluída em 2026-10-21 (FRONTEND-32). |
 | 12 — Hardening e entrega | E2E dos fluxos críticos; revisão de autorização/autenticação; revisão CSRF/XSS/logging; validação de dados sensíveis na ordem de produção; revisão de índices e queries; backup; configuração de produção; `trust proxy` com hops confiáveis; HTTPS; deploy; smoke tests pós-deploy. |
 
 ### 2.6 Matriz de dependências
