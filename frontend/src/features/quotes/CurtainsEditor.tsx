@@ -7,6 +7,7 @@ import { formatMoney } from '@/shared/format/money'
 import { ComponentsEditor } from './ComponentsEditor'
 import { curtainFormDefaults } from './curtain-form'
 import { DecimalInput } from './DecimalInput'
+import { MoneyInput } from './MoneyInput'
 import type { FinancialFieldArray } from './financial-form'
 import type { QuoteFormValues } from './quote-form'
 import type { QuoteCurtain, QuoteFinancialItem } from './types'
@@ -49,7 +50,9 @@ export function CurtainsEditor({ form, financial, confirmed = [], confirmedItems
             ['height', 'Altura (m)', { strictlyPositive: true, max: 999999.999 }],
             ['fabricFactor', 'Fator de tecido', { strictlyPositive: true, max: 999.999 }],
           ] as const).map(([key, label, rules]) => <DecimalInput key={key} label={label} rules={rules} {...form.register(`${prefix}.${key}`)} error={errors?.[key]?.message} />)}
+          {!field.serverId && <MoneyInput label="Preço do tecido (R$/m)" rules={{ strictlyPositive: true }} {...form.register(`${prefix}.fabricPrice`)} error={errors?.fabricPrice?.message} />}
         </div>
+        {!field.serverId && <p className="text-caption text-text-secondary">Ao salvar, o servidor calcula a quantidade de tecido e adiciona o lançamento “Tecido” a esta cortina.</p>}
         <TextArea label="Observações da cortina" {...form.register(`${prefix}.notes`)} error={errors?.notes?.message} />
         {saved && <div className="space-y-1 text-label text-text-secondary" aria-label="Valores salvos da cortina">
           {saved.finalWidth !== null && <p>Largura final salva: {formatMeasure(saved.finalWidth)} m</p>}

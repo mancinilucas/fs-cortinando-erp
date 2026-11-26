@@ -4,12 +4,17 @@ import type {
   CreateQuoteFromCustomerInput,
 } from '../application/use-cases/create-quote-from-customer.use-case.js';
 import type { FinancialItemPatch } from '../domain/entities/financial-item.js';
-import type { QuoteCurtainPatch } from '../domain/entities/quote.js';
 import { DiscountType } from '../domain/value-objects/discount.js';
 import type { QuoteDiscountInput } from '../application/use-cases/quote-discount-input.js';
-import type { UpdateQuoteInput } from '../application/use-cases/update-quote.use-case.js';
+import type {
+  UpdateCurtainInput,
+  UpdateQuoteInput,
+} from '../application/use-cases/update-quote.use-case.js';
 import type { CreateQuoteDto } from './dto/create-quote.dto.js';
-import type { CreateQuoteCurtainDto, UpdateQuoteCurtainDto } from './dto/quote-curtain.dto.js';
+import type {
+  CreateQuoteCurtainDto,
+  UpdateQuoteCurtainDto,
+} from './dto/quote-curtain.dto.js';
 import type { QuoteDiscountDto } from './dto/quote-discount.dto.js';
 import type {
   QuoteFinancialItemInputDto,
@@ -109,6 +114,7 @@ function creatableCurtainOf(
     height: curtain.height,
     fabricFactor: curtain.fabricFactor,
     notes: curtain.notes,
+    fabricUnitPriceCents: curtain.fabricUnitPriceCents,
   };
 }
 
@@ -138,7 +144,7 @@ function financialItemPatchOf(
   };
 }
 
-function curtainPatchOf(curtain: UpdateQuoteCurtainDto): QuoteCurtainPatch {
+function curtainPatchOf(curtain: UpdateQuoteCurtainDto): UpdateCurtainInput {
   return {
     id: curtain.id,
     clientRef: curtain.clientRef,
@@ -150,5 +156,6 @@ function curtainPatchOf(curtain: UpdateQuoteCurtainDto): QuoteCurtainPatch {
     height: curtain.height,
     fabricFactor: curtain.fabricFactor,
     notes: curtain.notes,
+    fabricUnitPriceCents: curtain.fabricUnitPriceCents,
   };
 }

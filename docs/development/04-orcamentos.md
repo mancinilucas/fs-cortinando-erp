@@ -315,6 +315,8 @@ Alternativa considerada: tornar `unit` obrigatória. Rejeitada porque o gate de 
 
 Não existe tipo, entidade ou regra especial de mão de obra. `Mão de obra` é apenas um nome sugerido de `FinancialItem`, com quantidade sugerida igual a `fabricQuantity`, unidade `m` e valor unitário padrão `R$ 30,00` na interface. O backend não cria, não recalcula e não altera esse componente automaticamente.
 
+**Atualização (D346, `13-cortina-valor-tecido.md`):** a criação de cortina pode receber `fabricUnitPriceCents` explícito; nesse caso a Application cria um `FinancialItem` `Tecido` com quantidade derivada pelo domínio. Não há criação automática sem entrada explícita, e o domínio continua sem conhecer o nome do preset.
+
 **Motivo:** `PROJECT_SPEC.md` §7.4; `ARCHITECTURE.md` §3.4.
 
 ---

@@ -26,6 +26,17 @@ test('renders all editable fields and server-derived values without recalculatin
   expect(within(curtain).getByText('Quantidade de tecido salva: 8,765 m')).toBeVisible()
   for (const label of ['Ambiente', 'Descrição', 'Material', 'Borda (m)', 'Altura (m)', 'Fator de tecido', 'Observações da cortina']) expect(within(curtain).getByLabelText(label)).toBeVisible()
 })
+test('sends a new curtain fabric price in the same save', async () => {
+  const onSave = mount({ ...quoteFixture, curtains: [], financialItems: [] })
+  fireEvent.click(screen.getByRole('button', { name: 'Adicionar cortina' }))
+  const curtain = curtains()[0]
+  fireEvent.change(within(curtain).getByLabelText('Ambiente'), { target: { value: 'Sala' } })
+  fireEvent.change(within(curtain).getByLabelText('Largura do vão (m)'), { target: { value: '2,5' } })
+  fireEvent.change(within(curtain).getByLabelText('Preço do tecido (R$/m)'), { target: { value: '12,50' } })
+  expect(within(curtain).getByText(/Ao salvar, o servidor calcula/)).toBeVisible()
+  save(); await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
+  expect(onSave.mock.calls[0][0].curtains?.[0]).toMatchObject({ clientRef: expect.any(String), fabricUnitPriceCents: 1250 })
+})
 test('adds and removes curtains and sends empty collections after removing the last persisted one', async () => {
   const onSave = mount()
   fireEvent.click(screen.getByRole('button', { name: 'Adicionar cortina' }))

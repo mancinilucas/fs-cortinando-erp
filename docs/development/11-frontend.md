@@ -944,6 +944,12 @@ para “mão de obra”.
 não retornou `fabricQuantity` (rascunho novo), o preset fica desabilitado com
 explicação, pois D303-B proíbe calcular o valor localmente.
 
+**Atualização (D347, `13-cortina-valor-tecido.md`):** cortina nova passa a ter
+o campo `Preço do tecido (R$/m)` no próprio bloco. O frontend envia
+`fabricUnitPriceCents` e a coleção financeira completa no mesmo salvamento; o
+servidor calcula `fabricQuantity` e cria o item `Tecido`. O preset de mão de
+obra permanece inalterado.
+
 ---
 
 ## 9. Ciclo de vida e instalação

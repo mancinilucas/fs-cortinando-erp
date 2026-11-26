@@ -39,6 +39,7 @@ export const gateViolationMessages = {
   CURTAIN_BORDER_INVALID: 'Confira a borda da cortina.',
   CURTAIN_FABRIC_FACTOR_INVALID: 'Confira o fator de tecido da cortina.',
   CURTAIN_MATERIAL_REQUIRED: 'Informe o material da cortina.',
+  CURTAIN_FABRIC_QUANTITY_REQUIRED: 'Informe a largura do vão e o fator de tecido para calcular o tecido.',
   CURTAIN_COMPONENT_REQUIRED: 'Inclua pelo menos um componente financeiro válido na cortina.',
   COMPONENT_INVALID: 'Confira os dados do componente financeiro.',
   GENERAL_ADD_ON_INVALID: 'Confira os dados do adicional geral.',

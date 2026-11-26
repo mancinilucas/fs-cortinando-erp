@@ -25,6 +25,9 @@ export const curtainFormSchema = z.object({
   openingWidth: numeric(3, { strictlyPositive: true, max: 999999.999 }),
   borderValue: numeric(3, { min: 0, max: 999.999 }), height: numeric(3, { strictlyPositive: true, max: 999999.999 }),
   fabricFactor: numeric(3, { strictlyPositive: true, max: 999.999 }),
+  // Only sent for a curtain created in the current save. The backend derives
+  // the fabric quantity and materializes the "Tecido" financial item.
+  fabricPrice: moneyField({ strictlyPositive: true }),
 })
 export type CurtainFormValues = z.infer<typeof curtainFormSchema>
 export const decimalInputValue = (value: number | null) => value === null ? '' : String(value).replace('.', ',')
@@ -37,19 +40,21 @@ export function moneyInputValue(cents: number | null): string {
 let clientRefCounter = 0
 export function newCurtainClientRef(): string { return `new-curtain-${++clientRefCounter}` }
 export function curtainFormDefaults(curtain?: QuoteCurtain): CurtainFormValues {
-  if (!curtain) return { clientRef: newCurtainClientRef(), room: '', description: '', material: '', openingWidth: '', borderValue: '0,15', height: '', fabricFactor: '3,5', notes: '' }
+  if (!curtain) return { clientRef: newCurtainClientRef(), room: '', description: '', material: '', openingWidth: '', borderValue: '0,15', height: '', fabricFactor: '3,5', notes: '', fabricPrice: '' }
   return {
     serverId: curtain.id, room: curtain.room ?? '', description: curtain.description ?? '', material: curtain.material ?? '', notes: curtain.notes ?? '',
     openingWidth: decimalInputValue(curtain.openingWidth), borderValue: decimalInputValue(curtain.borderValue),
-    height: decimalInputValue(curtain.height), fabricFactor: decimalInputValue(curtain.fabricFactor),
+    height: decimalInputValue(curtain.height), fabricFactor: decimalInputValue(curtain.fabricFactor), fabricPrice: '',
   }
 }
 export function curtainFormPayload(curtain: CurtainFormValues): UpdateCurtainPayload {
   const optional = (value: string) => value.trim() ? value : null
+  const fabricUnitPriceCents = curtain.serverId ? null : parseMoneyInput(curtain.fabricPrice, { strictlyPositive: true })
   return {
     ...(curtain.serverId ? { id: curtain.serverId } : { clientRef: curtain.clientRef }),
     room: optional(curtain.room), description: optional(curtain.description),
     material: optional(curtain.material), notes: optional(curtain.notes), openingWidth: parseDecimalInput(curtain.openingWidth, 3),
     borderValue: parseDecimalInput(curtain.borderValue, 3), height: parseDecimalInput(curtain.height, 3), fabricFactor: parseDecimalInput(curtain.fabricFactor, 3),
+    ...(fabricUnitPriceCents === null ? {} : { fabricUnitPriceCents }),
   }
 }

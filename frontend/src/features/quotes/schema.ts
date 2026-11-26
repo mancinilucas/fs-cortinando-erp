@@ -72,9 +72,15 @@ export const financialItemUpdateSchema = z.object({
   unit: z.string().nullable().optional(),
   unitPriceCents: cents.nullable().optional(),
 }).refine((item) => item.id != null || typeof item.name === 'string', 'New financial items require a name')
-export const curtainInputSchema = curtainFields.partial().extend({ clientRef: z.string().nullable().optional() })
+// `fabricUnitPriceCents` is a creation convenience accepted on new curtains:
+// the backend turns it into a normal "Tecido" item with the fabric quantity it
+// derives from the curtain measures.
+export const curtainInputSchema = curtainFields.partial().extend({
+  clientRef: z.string().nullable().optional(), fabricUnitPriceCents: cents.nullable().optional(),
+})
 export const curtainUpdateSchema = curtainFields.partial().extend({
   id: z.string().nullable().optional(), clientRef: z.string().nullable().optional(),
+  fabricUnitPriceCents: cents.nullable().optional(),
 })
 export const discountInputSchema = discountSchema.partial().required({ type: true })
 const editableQuoteFields = z.object({
